@@ -2,24 +2,23 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens, HasUuids;
+    use HasFactory, Notifiable, HasApiTokens;
 
     protected $table = 'usuarios';
     protected $primaryKey = 'id';
     public $incrementing = true;
     protected $keyType = 'int';
-    public $timestamps = true; // created_at existe en dump
+
+    // la tabla tiene created_at pero no updated_at
+    public $timestamps = true;
+    const UPDATED_AT = null;
 
     protected $fillable = [
         'nombre',
@@ -34,22 +33,22 @@ class User extends Authenticatable
         'password',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    protected $casts = [
+        'password' => 'hashed',
+    ];
+
+    public function reservations()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->hasMany(Reservation::class, 'usuario_id', 'id');
     }
-    protected static function booted()
+
+    public function comentarios()
     {
-        static::creating(function ($user) {
-            $user->user_id = (string) Str::uuid();
-        });
+        return $this->hasMany(Comentario::class, 'usuario_id', 'id');
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class, 'usuario_id', 'id');
     }
 }

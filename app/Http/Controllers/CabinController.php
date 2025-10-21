@@ -9,13 +9,14 @@ class CabinController extends Controller
 {
     public function index()
     {
-        return response()->json(\App\Models\Cabin::where('active', true)->get());
+        // mostrar cabañas disponibles por defecto
+        return response()->json(Cabin::where('estado', 'disponible')->get());
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'codigo' => 'nullable|string|max:50',
+            'codigo' => 'nullable|string|max:50|unique:cabanas,codigo',
             'nombre' => 'required|string|max:100',
             'descripcion' => 'nullable|string|max:500',
             'capacidad' => 'required|integer|min:1',
@@ -44,7 +45,7 @@ class CabinController extends Controller
         if (!$cabin) return response()->json(['message' => 'Cabaña no encontrada'], 404);
 
         $request->validate([
-            'codigo' => 'sometimes|string|max:50',
+            'codigo' => 'sometimes|string|max:50|unique:cabanas,codigo,' . $id,
             'nombre' => 'sometimes|string|max:100',
             'descripcion' => 'nullable|string|max:500',
             'capacidad' => 'sometimes|integer|min:1',

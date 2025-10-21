@@ -15,17 +15,15 @@ class PaymentController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'reservation_id' => 'required|exists:reservations,id',
-            'amount' => 'required|numeric',
-            'payment_method' => 'required|in:card,transfer,cash',
-            'currency' => 'required|string|size:3',
-            'payment_type' => 'required|in:deposit,final_payment',
-            'payment_status' => 'required|in:pending,paid,failed',
-            'transaction_details' => 'nullable|string',
-            'payment_date' => 'nullable|date',
+            'reservacion_id' => 'required|exists:reservaciones,id',
+            'monto' => 'required|numeric',
+            'metodo_pago' => 'required|in:efectivo,tarjeta,transferencia',
+            'estado' => 'required|in:pendiente,pagado,cancelado',
+            'fecha_pago' => 'nullable|date',
         ]);
 
-        $payment = Payment::create($request->all());
+        $data = $request->only(['reservacion_id','monto','metodo_pago','estado','fecha_pago']);
+        $payment = Payment::create($data);
 
         return response()->json($payment, 201);
     }
@@ -33,27 +31,24 @@ class PaymentController extends Controller
     public function show($id)
     {
         $payment = Payment::find($id);
-        if (!$payment) return response()->json(['message' => 'Payment not found'], 404);
+        if (!$payment) return response()->json(['message' => 'Pago no encontrado'], 404);
         return response()->json($payment);
     }
 
     public function update(Request $request, $id)
     {
         $payment = Payment::find($id);
-        if (!$payment) return response()->json(['message' => 'Payment not found'], 404);
+        if (!$payment) return response()->json(['message' => 'Pago no encontrado'], 404);
 
         $request->validate([
-            'reservation_id' => 'sometimes|exists:reservations,id',
-            'amount' => 'sometimes|numeric',
-            'payment_method' => 'sometimes|in:card,transfer,cash',
-            'currency' => 'sometimes|string|size:3',
-            'payment_type' => 'sometimes|in:deposit,final_payment',
-            'payment_status' => 'sometimes|in:pending,paid,failed',
-            'transaction_details' => 'nullable|string',
-            'payment_date' => 'nullable|date',
+            'reservacion_id' => 'sometimes|exists:reservaciones,id',
+            'monto' => 'sometimes|numeric',
+            'metodo_pago' => 'sometimes|in:efectivo,tarjeta,transferencia',
+            'estado' => 'sometimes|in:pendiente,pagado,cancelado',
+            'fecha_pago' => 'nullable|date',
         ]);
 
-        $payment->update($request->all());
+        $payment->update($request->only(['reservacion_id','monto','metodo_pago','estado','fecha_pago']));
 
         return response()->json($payment);
     }
@@ -61,10 +56,10 @@ class PaymentController extends Controller
     public function destroy($id)
     {
         $payment = Payment::find($id);
-        if (!$payment) return response()->json(['message' => 'Payment not found'], 404);
+        if (!$payment) return response()->json(['message' => 'Pago no encontrado'], 404);
 
         $payment->delete();
 
-        return response()->json(['message' => 'Payment deleted']);
+        return response()->json(['message' => 'Pago eliminado']);
     }
 }

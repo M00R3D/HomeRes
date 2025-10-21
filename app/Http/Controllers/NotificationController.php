@@ -15,17 +15,19 @@ class NotificationController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'id_admin' => 'nullable|exists:usuarios,id',
-            'id_usuario' => 'nullable|exists:usuarios,id',
+            'usuario_id' => 'nullable|exists:usuarios,id',
+            'reservacion_id' => 'nullable|exists:reservaciones,id',
+            'propiedad_id' => 'nullable|exists:propiedades,id',
             'estado' => 'nullable|in:cerrada,abierta,vista',
-            'tipo' => 'nullable|in:info,confirmacion,pago,alerta',
-            'descripcion' => 'required|string',
+            'tipo' => 'nullable|in:info,confirmacion,pago,alerta,mantenimiento',
+            'descripcion' => 'required|string|max:500',
             'fecha_creacion' => 'nullable|date',
             'fecha_visto' => 'nullable|date',
-            'ruta' => 'nullable|string',
         ]);
 
-        $notification = Notification::create($request->all());
+        $notification = Notification::create($request->only([
+            'usuario_id','reservacion_id','propiedad_id','estado','tipo','descripcion','fecha_creacion','fecha_visto'
+        ]));
 
         return response()->json($notification, 201);
     }
@@ -43,16 +45,18 @@ class NotificationController extends Controller
         if (!$notification) return response()->json(['message' => 'Notificación no encontrada'], 404);
 
         $request->validate([
-            'id_admin' => 'nullable|exists:usuarios,id',
-            'id_usuario' => 'nullable|exists:usuarios,id',
+            'usuario_id' => 'nullable|exists:usuarios,id',
+            'reservacion_id' => 'nullable|exists:reservaciones,id',
+            'propiedad_id' => 'nullable|exists:propiedades,id',
             'estado' => 'nullable|in:cerrada,abierta,vista',
-            'tipo' => 'nullable|in:info,confirmacion,pago,alerta',
-            'descripcion' => 'sometimes|string',
+            'tipo' => 'nullable|in:info,confirmacion,pago,alerta,mantenimiento',
+            'descripcion' => 'sometimes|string|max:500',
             'fecha_visto' => 'nullable|date',
-            'ruta' => 'nullable|string',
         ]);
 
-        $notification->update($request->all());
+        $notification->update($request->only([
+            'usuario_id','reservacion_id','propiedad_id','estado','tipo','descripcion','fecha_creacion','fecha_visto'
+        ]));
 
         return response()->json($notification);
     }

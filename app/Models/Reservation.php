@@ -20,7 +20,10 @@ class Reservation extends Model
         'estado',
         'nota'
     ];
-    public $timestamps = true; // created_at existe en dump
+
+    // la tabla tiene created_at pero no updated_at
+    public $timestamps = true;
+    const UPDATED_AT = null;
 
     public function user()
     {
