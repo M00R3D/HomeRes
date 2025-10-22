@@ -15,11 +15,10 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->n
 
 // Dashboard (protegido)
 Route::get('/dashboard', function () {
-    // En producción conecta a un controller que cargue $reservaciones
     return view('dashboard', ['reservaciones' => []]);
 })->middleware('auth')->name('dashboard');
 
-// Root: redirige a dashboard si está autenticado, si no muestra welcome
+// Root: redirige a dashboard si está autenticado, si no a login (pasa por la validación)
 Route::get('/', function () {
-    return auth()->check() ? redirect()->route('dashboard') : view('welcome');
+    return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
 });

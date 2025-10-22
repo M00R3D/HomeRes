@@ -32,7 +32,7 @@
         </label>
 
         <label class="remember">
-          <input type="checkbox" name="remember"/>
+          <input type="checkbox" name="remember" {{ old('remember') ? 'checked' : '' }}/>
           <span>Recordarme</span>
         </label>
 

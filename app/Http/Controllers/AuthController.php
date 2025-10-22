@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cookie;
 use App\Models\User;
 
 class AuthController extends Controller
@@ -21,9 +22,9 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
+        // intenta login; segundo parámetro controla "remember me"
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
-            // ir a la ruta intencionada o dashboard
             return redirect()->intended(route('dashboard'));
         }
 
@@ -57,8 +58,18 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         Auth::logout();
+
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        // eliminar cookie "remember" del guard actual (si existe)
+        try {
+            $recallerName = Auth::guard()->getRecallerName();
+            Cookie::queue(Cookie::forget($recallerName));
+        } catch (\Throwable $e) {
+            // no hacer nada
+        }
+
         return redirect()->route('login');
     }
 }
