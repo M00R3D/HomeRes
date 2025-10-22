@@ -23,7 +23,8 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
-            return redirect()->intended('/')->with('success', 'Inicio de sesión correcto.');
+            // ir a la ruta intencionada o dashboard
+            return redirect()->intended(route('dashboard'));
         }
 
         return back()->withErrors(['email' => 'Credenciales inválidas.'])->withInput();
@@ -50,7 +51,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect('/')->with('success', 'Registro completado.');
+        return redirect()->route('dashboard');
     }
 
     public function logout(Request $request)
@@ -58,6 +59,6 @@ class AuthController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        return redirect('/login');
+        return redirect()->route('login');
     }
 }
