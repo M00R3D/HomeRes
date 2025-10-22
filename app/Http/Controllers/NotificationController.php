@@ -70,4 +70,16 @@ class NotificationController extends Controller
 
         return response()->json(['message' => 'Notificación eliminada']);
     }
+
+    public function markAsVisto($id)
+    {
+        $notification = Notification::find($id);
+        if (!$notification) return response()->json(['message' => 'Notificación no encontrada'], 404);
+
+        $notification->estado = 'vista';
+        $notification->fecha_visto = now();
+        $notification->save();
+
+        return response()->json($notification);
+    }
 }
