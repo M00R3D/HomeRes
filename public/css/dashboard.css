@@ -6,6 +6,16 @@
   --muted:#6b7280;
   --card:#fff;
   --radius:10px;
+  --btn-radius:10px;
+  --btn-font-weight:700;
+  --btn-size:1rem;
+  --accent:#6366f1;
+  --accent-2:#06b6d4;
+  --alt-1:#f472b6;
+  --alt-2:#34d399;
+  --danger-1:#ef4444;
+  --danger-2:#f97316;
+  --btn-shadow:0 8px 22px rgba(15,23,42,0.06);
   font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
 }
 
@@ -81,4 +91,179 @@ body{margin:0;background:var(--bg);color:#111}
 @media (min-width:901px){
   .show-desktop{display:none}
   .hide-desktop{display:none}
+}
+
+/* Botones -- estilo inspirado en el ejemplo proporcionado */
+.btn, .btn-alt, .btn-primary, .btn-danger {
+  display:inline-block;
+  padding:0.65rem 0.9rem;
+  border-radius:var(--btn-radius);
+  border:0;
+  color:#fff;
+  font-weight:var(--btn-font-weight);
+  font-size:var(--btn-size);
+  cursor:pointer;
+  box-shadow: var(--btn-shadow);
+  transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+  text-decoration:none;
+  line-height:1;
+}
+
+/* Principal (uso general) */
+.btn {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+.btn:hover{ transform:translateY(-2px); box-shadow:0 12px 30px rgba(15,23,42,0.08); }
+
+/* Alternativa (ej. crear/registrarse) */
+.btn-alt {
+  background: linear-gradient(90deg, var(--alt-1), var(--alt-2));
+}
+.btn-alt:hover{ transform:translateY(-2px); }
+
+/* Botón primario reducido (ej. header "Nueva Reservación") */
+.btn-primary {
+  background: linear-gradient(90deg, var(--accent), #38bdf8);
+  padding:0.5rem 0.7rem;
+  font-weight:700;
+}
+.btn-primary:hover{ transform:translateY(-1px); }
+
+/* Botón peligro / eliminar */
+.btn-danger {
+  background: linear-gradient(90deg, var(--danger-1), var(--danger-2));
+}
+.btn-danger:hover{ transform:translateY(-2px); }
+
+/* Botones tipo link (en tabla) */
+.link-button {
+  background:none;
+  border:0;
+  padding:6px 8px;
+  color:var(--accent);
+  cursor:pointer;
+  font-weight:600;
+  border-radius:6px;
+}
+.link-button:hover{ background:rgba(99,102,241,0.06); color:var(--accent-2); }
+
+/* Link-button cuando es acción de peligro */
+.link-button.danger{
+  color:var(--danger-1);
+  font-weight:700;
+}
+.link-button.danger:hover{ background:rgba(239,68,68,0.06); color:var(--danger-2); }
+
+/* Acción en tabla: botones más visibles (editar / eliminar) */
+.table td .action-btn {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:10px;
+  font-weight:600;
+  font-size:13px;
+  line-height:1;
+  border:0;
+  cursor:pointer;
+  transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+  box-shadow: none;
+  text-decoration:none;
+}
+
+/* Editar - azul suave */
+.table td .action-btn.edit {
+  background: linear-gradient(90deg, #60a5fa 0%, #38bdf8 100%);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(56,189,248,0.12);
+}
+.table td .action-btn.edit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(56,189,248,0.14);
+}
+
+/* Eliminar - rojo anaranjado */
+.table td .action-btn.delete {
+  background: linear-gradient(90deg, #fb7185 0%, #fb923c 100%);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(251,146,60,0.10);
+}
+.table td .action-btn.delete:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(251,146,60,0.14);
+}
+
+/* Variante "ghost" para acciones menos importantes */
+.table td .action-btn.ghost {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid rgba(15,23,42,0.04);
+  box-shadow: none;
+}
+.table td .action-btn.ghost:hover {
+  background: rgba(15,23,42,0.03);
+  transform: none;
+}
+
+/* Fuerza estilo acción en tabla (más específico y con fallback) */
+.card.table-card .table tbody tr td .action-btn,
+.table-card .table tbody tr td .action-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  border: 0 !important;
+  padding: 8px 12px !important;
+  border-radius: 10px !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  color: #fff !important;
+  transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease !important;
+  box-shadow: 0 6px 18px rgba(15,23,42,0.06) !important;
+}
+
+/* Editar */
+.card.table-card .table tbody tr td .action-btn.edit {
+  background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%) !important;
+  color: #fff !important;
+}
+.card.table-card .table tbody tr td .action-btn.edit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(6,182,212,0.12);
+}
+
+/* Borrar */
+.card.table-card .table tbody tr td .action-btn.delete {
+  background: linear-gradient(90deg, #ef4444 0%, #fb923c 100%) !important;
+  color: #fff !important;
+}
+.card.table-card .table tbody tr td .action-btn.delete:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(251,146,60,0.12);
+}
+
+/* Alineación y espacio */
+.card.table-card .table tbody tr td .btn-group {
+  display:inline-flex !important;
+  gap:8px !important;
+  align-items:center !important;
+}
+
+/* mobile: apilar */
+@media (max-width:640px){
+  .card.table-card .table tbody tr td .btn-group{ flex-direction:column; width:100%; }
+  .card.table-card .table tbody tr td .action-btn{ width:100%; justify-content:center; }
+}
+
+/* responsive: hacer botones apilados en pantallas pequeñas */
+@media (max-width:640px){
+  .btn, .btn-alt, .btn-primary, .btn-danger{ width:100%; display:block; text-align:center; }
+  .table td .btn-group{ flex-direction:column; align-items:stretch; gap:6px; }
+  .table td .action-btn{ width:100%; justify-content:center; }
 }

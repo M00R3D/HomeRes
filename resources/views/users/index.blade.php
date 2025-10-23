@@ -42,23 +42,28 @@
               <td>{{ $user->rol }}</td>
               <td>{{ $user->area ?? '-' }}</td>
               <td>
-                <button class="link-button" 
-                        data-edit
-                        data-id="{{ $user->id }}"
-                        data-nombre="{{ e($user->nombre) }}"
-                        data-apellido="{{ e($user->apellido) }}"
-                        data-email="{{ e($user->email) }}"
-                        data-rol="{{ $user->rol }}"
-                        data-area="{{ e($user->area) }}"
-                        data-update-url="{{ route('users.update', $user->id) }}">
-                  Editar
-                </button>
+                <div class="btn-group">
+                  <button
+                    class="action-btn edit"
+                    data-edit
+                    data-id="{{ $user->id }}"
+                    data-nombre="{{ e($user->nombre) }}"
+                    data-apellido="{{ e($user->apellido) }}"
+                    data-email="{{ e($user->email) }}"
+                    data-rol="{{ $user->rol }}"
+                    data-area="{{ e($user->area) }}"
+                    data-update-url="{{ route('users.update', $user->id) }}"
+                    type="button"
+                  >
+                    Editar
+                  </button>
 
-                <form method="POST" action="{{ route('users.destroy', $user->id) }}" style="display:inline" onsubmit="return confirm('¿Borrar usuario {{ addslashes($user->nombre) }}?');">
-                  @csrf
-                  @method('DELETE')
-                  <button class="link-button danger" type="submit">Borrar</button>
-                </form>
+                  <form method="POST" action="{{ route('users.destroy', $user->id) }}" style="display:inline">
+                    @csrf
+                    @method('DELETE')
+                    <button class="action-btn delete" type="submit" onclick="return confirm('¿Borrar usuario {{ addslashes($user->nombre) }}?');">Borrar</button>
+                  </form>
+                </div>
               </td>
             </tr>
           @empty
