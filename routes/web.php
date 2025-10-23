@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController; // agregado
 use App\Http\Controllers\PropiedadController; // agregado
+use App\Http\Controllers\NotificationController; // agregado
 
 // Rutas de autenticación (solo para guests)
 Route::middleware('guest')->group(function () {
@@ -24,8 +25,11 @@ Route::get('/dashboard', function () {
 Route::middleware('auth')->group(function () {
     Route::resource('users', UserController::class)->names('users');
 
-    // Añadido: rutas RESTful para propiedades (genera propiedades.index, propiedades.store, propiedades.update, etc.)
+    // Rutas RESTful para propiedades
     Route::resource('propiedades', PropiedadController::class)->names('propiedades');
+
+    // Rutas RESTful para notificaciones (index -> carga la vista)
+    Route::resource('notificaciones', NotificationController::class)->names('notificaciones');
 });
 
 // Root: redirige a dashboard si está autenticado, si no a login
