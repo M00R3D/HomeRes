@@ -18,7 +18,7 @@
 
     <nav class="nav">
       <a class="nav-item" href="{{ route('dashboard') ?? '/dashboard' }}">Dashboard</a>
-      <a class="nav-item" href="#">Reservaciones</a>
+      <a class="nav-item" href="/reservaciones">Reservaciones</a>
       <a class="nav-item" href="/propiedades">Propiedades</a>
       <a class="nav-item" href="/notificaciones">Notificaciones</a>
       <a class="nav-item" href="/users">Usuarios</a>

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Reservation;
+use App\Models\User;
+use App\Models\Propiedad;
 
 class ReservationController extends Controller
 {
@@ -15,7 +17,18 @@ class ReservationController extends Controller
         if ($request->filled('cabana_id')) $q->where('cabana_id', $request->cabana_id);
         if ($request->filled('estado')) $q->where('estado', $request->estado);
 
-        return response()->json($q->get());
+        // si la petición es API/JSON devolvemos JSON
+        if ($request->wantsJson()) {
+            return response()->json($q->with(['user','cabin'])->get());
+        }
+
+        // para la vista web devolvemos la blade con datos necesarios
+        $reservaciones = $q->with(['user','cabin'])->get();
+        $usuarios = User::all();
+        $cabanas = Propiedad::all(); // si tienes modelo Cabanas reemplaza aquí
+        $currentUser = auth()->user();
+
+        return view('reservaciones.index', compact('reservaciones','cabanas','usuarios','currentUser'));
     }
 
     public function store(Request $request)

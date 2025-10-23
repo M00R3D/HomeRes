@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController; // agregado
 use App\Http\Controllers\PropiedadController; // agregado
 use App\Http\Controllers\NotificationController; // agregado
+use App\Http\Controllers\ReservationController; // agregado
 
 // Rutas de autenticación (solo para guests)
 Route::middleware('guest')->group(function () {
@@ -32,6 +33,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('notificaciones', NotificationController::class)->names('notificaciones');
 });
 
+Route::get('/reservaciones', [ReservationController::class, 'index'])->middleware('auth')->name('reservaciones.index');
 // Root: redirige a dashboard si está autenticado, si no a login
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
