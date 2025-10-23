@@ -19,9 +19,7 @@
     <nav class="nav">
       <a class="nav-item" href="{{ route('dashboard') ?? '/dashboard' }}">Dashboard</a>
       <a class="nav-item" href="#">Reservaciones</a>
-      <a class="nav-item" href="#">Cabañas</a>
-      <a class="nav-item" href="#">Propiedades</a>
-      <a class="nav-item" href="#">Comentarios</a>
+      <a class="nav-item" href="/propiedades">Propiedades</a>
       <a class="nav-item" href="#">Notificaciones</a>
       <a class="nav-item" href="/users">Usuarios</a>
       <form method="POST" action="{{ route('logout') }}" class="nav-item logout-form" style="display:flex;">

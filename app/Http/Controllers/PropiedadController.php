@@ -13,66 +13,69 @@ class PropiedadController extends Controller
 
         if ($request->filled('tipo')) $q->where('tipo', $request->tipo);
         if ($request->filled('estado')) $q->where('estado', $request->estado);
-        if ($request->filled('capacidad_min')) $q->where('capacidad', '>=', (int)$request->capacidad_min);
+        if ($request->filled('q')) $q->where('nombre', 'like', '%'.$request->q.'%')->orWhere('codigo', 'like', '%'.$request->q.'%');
         if ($request->filled('max_precio')) $q->where('precio_noche', '<=', (float)$request->max_precio);
-        if ($request->filled('q')) $q->where('nombre', 'like', '%'.$request->q.'%');
 
-        return response()->json($q->get());
+        $propiedades = $q->paginate(12);
+
+        return view('propiedades.index', [
+            'propiedades' => $propiedades,
+        ]);
     }
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'tipo' => 'required|in:cabaña,casa,departamento',
-            'codigo' => 'nullable|string|max:50|unique:propiedades,codigo',
-            'nombre' => 'required|string|max:100',
-            'descripcion' => 'nullable|string|max:500',
+            'codigo' => 'required|string|unique:propiedades,codigo',
+            'nombre' => 'required|string',
+            'descripcion' => 'nullable|string',
             'capacidad' => 'required|integer|min:1',
-            'precio_noche' => 'required|numeric',
-            'ubicacion' => 'nullable|string|max:200',
-            'servicios' => 'nullable|string|max:500',
+            'precio_noche' => 'required|numeric|min:0',
+            'ubicacion' => 'nullable|string',
+            'servicios' => 'nullable|string',
             'estado' => 'nullable|in:disponible,ocupada,mantenimiento',
-            'ruta_img' => 'nullable|string|max:200',
+            'ruta_img' => 'nullable|string',
         ]);
 
-        $prop = Propiedad::create($request->all());
-        return response()->json($prop, 201);
+        Propiedad::create($validated);
+
+        return redirect()->route('propiedades.index')->with('success', 'Propiedad creada exitosamente.');
     }
 
     public function show($id)
     {
-        $prop = Propiedad::find($id);
-        if (!$prop) return response()->json(['message' => 'Propiedad no encontrada'], 404);
-        return response()->json($prop);
+        $propiedad = Propiedad::findOrFail($id);
+        return view('propiedades.show', ['propiedad' => $propiedad]);
     }
 
     public function update(Request $request, $id)
     {
-        $prop = Propiedad::find($id);
-        if (!$prop) return response()->json(['message' => 'Propiedad no encontrada'], 404);
+        $propiedad = Propiedad::findOrFail($id);
 
-        $request->validate([
-            'tipo' => 'sometimes|in:cabaña,casa,departamento',
-            'codigo' => 'sometimes|string|max:50|unique:propiedades,codigo,'.$id,
-            'nombre' => 'sometimes|string|max:100',
-            'descripcion' => 'nullable|string|max:500',
-            'capacidad' => 'sometimes|integer|min:1',
-            'precio_noche' => 'sometimes|numeric',
-            'ubicacion' => 'nullable|string|max:200',
-            'servicios' => 'nullable|string|max:500',
-            'estado' => 'sometimes|in:disponible,ocupada,mantenimiento',
-            'ruta_img' => 'nullable|string|max:200',
+        $validated = $request->validate([
+            'tipo' => 'required|in:cabaña,casa,departamento',
+            'codigo' => 'required|string|unique:propiedades,codigo,'.$id,
+            'nombre' => 'required|string',
+            'descripcion' => 'nullable|string',
+            'capacidad' => 'required|integer|min:1',
+            'precio_noche' => 'required|numeric|min:0',
+            'ubicacion' => 'nullable|string',
+            'servicios' => 'nullable|string',
+            'estado' => 'nullable|in:disponible,ocupada,mantenimiento',
+            'ruta_img' => 'nullable|string',
         ]);
 
-        $prop->update($request->all());
-        return response()->json($prop);
+        $propiedad->update($validated);
+
+        return redirect()->route('propiedades.index')->with('success', 'Propiedad actualizada exitosamente.');
     }
 
     public function destroy($id)
     {
-        $prop = Propiedad::find($id);
-        if (!$prop) return response()->json(['message' => 'Propiedad no encontrada'], 404);
-        $prop->delete();
-        return response()->json(['message' => 'Propiedad eliminada']);
+        $propiedad = Propiedad::findOrFail($id);
+        $propiedad->delete();
+
+        return redirect()->route('propiedades.index')->with('success', 'Propiedad eliminada exitosamente.');
     }
 }

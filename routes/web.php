@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController; // agregado
+use App\Http\Controllers\PropiedadController; // agregado
 
 // Rutas de autenticación (solo para guests)
 Route::middleware('guest')->group(function () {
@@ -22,6 +23,9 @@ Route::get('/dashboard', function () {
 // Usuarios (CRUD) - protege con auth
 Route::middleware('auth')->group(function () {
     Route::resource('users', UserController::class)->names('users');
+
+    // Añadido: rutas RESTful para propiedades (genera propiedades.index, propiedades.store, propiedades.update, etc.)
+    Route::resource('propiedades', PropiedadController::class)->names('propiedades');
 });
 
 // Root: redirige a dashboard si está autenticado, si no a login
