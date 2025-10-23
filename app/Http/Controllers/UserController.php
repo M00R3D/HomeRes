@@ -4,13 +4,18 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
-use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(User::all());
+        $users = User::all();
+
+        if ($request->wantsJson()) {
+            return response()->json($users);
+        }
+
+        return view('users.index', ['users' => $users]);
     }
 
     public function store(Request $request)
@@ -19,51 +24,81 @@ class UserController extends Controller
             'nombre' => 'required|string|max:100',
             'apellido' => 'nullable|string|max:100',
             'email' => 'nullable|email|unique:usuarios,email',
-            'password' => 'required|string|min:6',
+            'password' => 'required|string|min:6|confirmed',
             'rol' => 'nullable|in:admin,recepcionista,cliente',
             'area' => 'nullable|string|max:100',
         ]);
 
+        // NOTE: User model tiene cast 'password' => 'hashed' — pasamos la contraseña en claro
         $data = $request->only(['nombre','apellido','email','password','rol','area']);
         $user = User::create($data);
 
-        return response()->json($user, 201);
+        if ($request->wantsJson()) {
+            return response()->json($user, 201);
+        }
+
+        return redirect()->route('users.index')->with('success', 'Usuario creado');
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $u = User::find($id);
-        if (!$u) return response()->json(['message' => 'Usuario no encontrado'], 404);
-        return response()->json($u);
+        if (!$u) {
+            if ($request->wantsJson()) return response()->json(['message' => 'Usuario no encontrado'], 404);
+            abort(404);
+        }
+
+        if ($request->wantsJson()) return response()->json($u);
+        return view('users.show', ['user' => $u]); // opcional vista show
     }
 
     public function update(Request $request, $id)
     {
         $u = User::find($id);
-        if (!$u) return response()->json(['message' => 'Usuario no encontrado'], 404);
+        if (!$u) {
+            if ($request->wantsJson()) return response()->json(['message' => 'Usuario no encontrado'], 404);
+            abort(404);
+        }
 
         $request->validate([
             'nombre' => 'sometimes|string|max:100',
             'apellido' => 'nullable|string|max:100',
             'email' => 'nullable|email|unique:usuarios,email,'.$id,
-            'password' => 'nullable|string|min:6',
+            'password' => 'nullable|string|min:6|confirmed',
             'rol' => 'nullable|in:admin,recepcionista,cliente',
             'area' => 'nullable|string|max:100',
         ]);
 
-        $u->update($request->only(['nombre','apellido','email','password','rol','area']));
-        return response()->json($u);
+        $update = $request->only(['nombre','apellido','email','password','rol','area']);
+
+        // si password está vacío o no enviado, quitar para no sobreescribir
+        if (empty($update['password'])) {
+            unset($update['password']);
+        }
+
+        $u->update($update);
+
+        if ($request->wantsJson()) return response()->json($u);
+
+        return redirect()->route('users.index')->with('success', 'Usuario actualizado');
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $u = User::find($id);
-        if (!$u) return response()->json(['message' => 'Usuario no encontrado'], 404);
+        if (!$u) {
+            if ($request->wantsJson()) return response()->json(['message' => 'Usuario no encontrado'], 404);
+            abort(404);
+        }
+
         $u->delete();
-        return response()->json(['message' => 'Usuario eliminado']);
+
+        if ($request->wantsJson()) return response()->json(['message' => 'Usuario eliminado']);
+
+        return redirect()->route('users.index')->with('success', 'Usuario eliminado');
     }
 
-    // Cambiar rol/area (edición específica de enums/valores)
+    // Opcional: changeRol se mantiene para API
     public function changeRol(Request $request, $id)
     {
         $u = User::find($id);

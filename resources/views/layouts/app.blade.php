@@ -23,7 +23,7 @@
       <a class="nav-item" href="#">Propiedades</a>
       <a class="nav-item" href="#">Comentarios</a>
       <a class="nav-item" href="#">Notificaciones</a>
-      <a class="nav-item" href="#">Usuarios</a>
+      <a class="nav-item" href="/users">Usuarios</a>
       <form method="POST" action="{{ route('logout') }}" class="nav-item logout-form" style="display:flex;">
         @csrf
         <button class="link-button" type="submit">Cerrar sesión</button>
