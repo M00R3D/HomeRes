@@ -55,13 +55,12 @@
                     data-update-url="{{ route('users.update', $user->id) }}"
                     type="button"
                   >
-                    Editar
-                  </button>
+                    Editar</button>
 
                   <form method="POST" action="{{ route('users.destroy', $user->id) }}" style="display:inline">
                     @csrf
                     @method('DELETE')
-                    <button class="action-btn delete" type="submit" onclick="return confirm('¿Borrar usuario {{ addslashes($user->nombre) }}?');">Borrar</button>
+                    <button class="action-btn delete" type="submit" data-confirm="¿Borrar usuario {{ addslashes($user->nombre) }}?">Borrar</button>
                   </form>
                 </div>
               </td>
@@ -99,7 +98,7 @@
 
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
           <button class="btn" type="submit">Crear</button>
-          <button type="button" class="btn alt" data-close>Cancelar</button>
+          <button type="button" class="btn btn-danger" data-close>Cancelar</button>
         </div>
       </form>
     </div>
@@ -130,24 +129,40 @@
 
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
           <button class="btn" type="submit">Guardar</button>
-          <button type="button" class="btn alt" data-close>Cancelar</button>
+          <button type="button" class="btn btn-danger" data-close>Cancelar</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Confirm overlay (global para esta vista) -->
+  <div id="confirm-overlay" class="confirm-overlay" aria-hidden="true" style="display:none;">
+    <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <h3 id="confirm-title" class="confirm-title">Confirmar eliminación</h3>
+      <p id="confirm-msg" class="confirm-msg">¿Estás seguro que deseas eliminar este usuario?</p>
+      <div class="confirm-actions">
+        <button type="button" id="confirm-cancel" class="btn btn-alt">Cancelar</button>
+        <button type="button" id="confirm-ok" class="btn btn-danger">Eliminar</button>
+      </div>
     </div>
   </div>
 
   <script>
     (function(){
       // open/close modal helpers
-      function show(modal){ modal && modal.setAttribute('aria-hidden','false'); modal && modal.classList.add('open'); }
-      function hide(modal){ modal && modal.setAttribute('aria-hidden','true'); modal && modal.classList.remove('open'); }
+      function show(modal){ modal && modal.setAttribute('aria-hidden','false'); modal && (modal.style.display = 'flex'); setTimeout(()=> modal.classList.add('open'),20); }
+      function hide(modal){ modal && modal.setAttribute('aria-hidden','true'); modal && (modal.classList.remove('open')); setTimeout(()=> { if (modal) modal.style.display = 'none'; },180); }
 
       const modalNew = document.getElementById('modal-new');
       const modalEdit = document.getElementById('modal-edit');
+      const confirmOverlay = document.getElementById('confirm-overlay');
+      const confirmMsg = document.getElementById('confirm-msg');
+      const confirmOk = document.getElementById('confirm-ok');
+      const confirmCancel = document.getElementById('confirm-cancel');
 
       document.getElementById('open-new').addEventListener('click', function(){ show(modalNew); });
 
-      // close buttons
+      // close buttons for modals
       document.querySelectorAll('[data-close]').forEach(el=>{
         el.addEventListener('click', function(){
           hide(modalNew);
@@ -180,7 +195,35 @@
         });
       });
 
-      // close on Esc
+      // Confirm overlay logic (replaces native confirm)
+      let pendingForm = null;
+      document.addEventListener('click', function(e){
+        const el = e.target.closest('[data-confirm]');
+        if(!el) return;
+        e.preventDefault();
+        const msg = el.getAttribute('data-confirm') || '¿Estás seguro?';
+        confirmMsg.textContent = msg;
+        // find the form to submit (button inside form)
+        pendingForm = el.closest('form');
+        show(confirmOverlay);
+        confirmCancel.focus();
+      });
+
+      confirmCancel.addEventListener('click', function(){ pendingForm = null; hide(confirmOverlay); });
+      confirmOk.addEventListener('click', function(){
+        if(pendingForm){
+          // submit the form programmatically
+          pendingForm.submit();
+          pendingForm = null;
+        }
+        hide(confirmOverlay);
+      });
+
+      // close confirm overlay by clicking backdrop or Esc
+      confirmOverlay.addEventListener('click', function(e){ if(e.target === confirmOverlay) { pendingForm = null; hide(confirmOverlay); } });
+      document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ pendingForm = null; hide(confirmOverlay); }});
+
+      // existing esc close for modals
       document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ hide(modalNew); hide(modalEdit); }});
     })();
   </script>
