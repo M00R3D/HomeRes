@@ -6,6 +6,7 @@ use App\Http\Controllers\UserController; // agregado
 use App\Http\Controllers\PropiedadController; // agregado
 use App\Http\Controllers\NotificationController; // agregado
 use App\Http\Controllers\ReservationController; // agregado
+use App\Http\Controllers\ImageController; // agregado
 use App\Models\Reservation;
 use App\Models\User;
 use App\Models\Propiedad;
@@ -45,4 +46,10 @@ Route::get('/reservaciones', [ReservationController::class, 'index'])->middlewar
 // Root: redirige a dashboard si está autenticado, si no a login
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
+});
+
+Route::middleware(['web','auth'])->group(function(){
+    Route::get('/imagenes', [ImageController::class, 'index'])->name('images.index');
+    Route::post('/imagenes/upload', [ImageController::class, 'upload'])->name('images.upload');
+    Route::get('/imagenes/list', [ImageController::class, 'list'])->name('images.list');
 });

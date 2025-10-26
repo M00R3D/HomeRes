@@ -73,7 +73,6 @@
     </div>
   </div>
 
-  <!-- Modal nuevo -->
   <div id="modal-new" class="modal" aria-hidden="true">
     <div class="modal-backdrop" data-close></div>
     <div class="modal-panel">
@@ -104,7 +103,6 @@
     </div>
   </div>
 
-  <!-- Modal editar -->
   <div id="modal-edit" class="modal" aria-hidden="true">
     <div class="modal-backdrop" data-close></div>
     <div class="modal-panel">
@@ -135,7 +133,6 @@
     </div>
   </div>
 
-  <!-- Confirm overlay (global para esta vista) -->
   <div id="confirm-overlay" class="confirm-overlay" aria-hidden="true" style="display:none;">
     <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
       <h3 id="confirm-title" class="confirm-title">Confirmar eliminación</h3>
@@ -149,7 +146,6 @@
 
   <script>
     (function(){
-      // open/close modal helpers
       function show(modal){ modal && modal.setAttribute('aria-hidden','false'); modal && (modal.style.display = 'flex'); setTimeout(()=> modal.classList.add('open'),20); }
       function hide(modal){ modal && modal.setAttribute('aria-hidden','true'); modal && (modal.classList.remove('open')); setTimeout(()=> { if (modal) modal.style.display = 'none'; },180); }
 
@@ -162,7 +158,6 @@
 
       document.getElementById('open-new').addEventListener('click', function(){ show(modalNew); });
 
-      // close buttons for modals
       document.querySelectorAll('[data-close]').forEach(el=>{
         el.addEventListener('click', function(){
           hide(modalNew);
@@ -170,7 +165,6 @@
         });
       });
 
-      // populate edit modal
       document.querySelectorAll('[data-edit]').forEach(btn=>{
         btn.addEventListener('click', function(){
           const id = this.dataset.id;
@@ -181,7 +175,6 @@
           const area = this.dataset.area || '';
           const updateUrl = this.dataset.updateUrl;
 
-          // fill fields
           document.getElementById('e-nombre').value = nombre;
           document.getElementById('e-apellido').value = apellido;
           document.getElementById('e-email').value = email;
@@ -189,13 +182,11 @@
           document.getElementById('e-area').value = area;
           const form = document.getElementById('form-edit');
           form.action = updateUrl;
-          // clear password
           document.getElementById('e-password').value = '';
           show(modalEdit);
         });
       });
 
-      // Confirm overlay logic (replaces native confirm)
       let pendingForm = null;
       document.addEventListener('click', function(e){
         const el = e.target.closest('[data-confirm]');
@@ -203,7 +194,6 @@
         e.preventDefault();
         const msg = el.getAttribute('data-confirm') || '¿Estás seguro?';
         confirmMsg.textContent = msg;
-        // find the form to submit (button inside form)
         pendingForm = el.closest('form');
         show(confirmOverlay);
         confirmCancel.focus();
@@ -212,18 +202,14 @@
       confirmCancel.addEventListener('click', function(){ pendingForm = null; hide(confirmOverlay); });
       confirmOk.addEventListener('click', function(){
         if(pendingForm){
-          // submit the form programmatically
           pendingForm.submit();
           pendingForm = null;
         }
         hide(confirmOverlay);
       });
 
-      // close confirm overlay by clicking backdrop or Esc
       confirmOverlay.addEventListener('click', function(e){ if(e.target === confirmOverlay) { pendingForm = null; hide(confirmOverlay); } });
       document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ pendingForm = null; hide(confirmOverlay); }});
-
-      // existing esc close for modals
       document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ hide(modalNew); hide(modalEdit); }});
     })();
   </script>

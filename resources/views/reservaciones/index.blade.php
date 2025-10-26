@@ -21,7 +21,6 @@
 .small{ font-size:0.9rem;color:#6b7280; }
 .actions-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
 
-/* agregado: estilos para el botón Editar */
 .btn-edit{
   background: linear-gradient(90deg,#6366f1,#06b6d4);
   color: #fff;
@@ -188,7 +187,6 @@
   </div>
 </div>
 
-<!-- Modal crear / editar -->
 <div id="rv-modal" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.45);align-items:center;justify-content:center;z-index:9999;padding:12px;">
   <div style="background:#fff;border-radius:10px;padding:12px;max-width:980px;width:100%;max-height:90vh;overflow:auto;">
     <button id="rv-close" style="float:right;border:0;background:transparent;font-size:20px;">✕</button>
@@ -274,7 +272,6 @@ document.addEventListener('DOMContentLoaded', function(){
     methodInput.value = mode === 'create' ? 'POST' : 'PUT';
     idInput.value = data ? data.id : '';
     form.action = mode === 'create' ? "{{ url('/reservaciones') }}" : "{{ url('/reservaciones') }}/" + (data?.id || '');
-    // fill
     if(data){
       document.getElementById('rv-cabana').value = data.cabana_id || '';
       document.getElementById('rv-checkin').value = data.check_in || '';
@@ -312,16 +309,13 @@ document.addEventListener('DOMContentLoaded', function(){
   });
 
   form?.addEventListener('submit', async function(evt){
-    // set default dates if empty
     function todayStr(offset=0){ const d=new Date(); d.setDate(d.getDate()+offset); return d.toISOString().slice(0,10); }
     const ci = document.getElementById('rv-checkin');
     const co = document.getElementById('rv-checkout');
     if(ci && !ci.value) ci.value = todayStr(0);
     if(co && !co.value) co.value = todayStr(1);
-    // simple validation
     const cab = document.getElementById('rv-cabana');
     if(!cab || !cab.value){ evt.preventDefault(); alert('Selecciona una casita.'); return; }
-    // allow normal submit (server handling) — optionally you can convert to AJAX here
   });
 });
 </script>

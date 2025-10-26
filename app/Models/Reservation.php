@@ -21,9 +21,7 @@ class Reservation extends Model
         'nota'
     ];
 
-    // la tabla tiene created_at y updated_at (migrations)
     public $timestamps = true;
-    // const UPDATED_AT = null; // eliminado
 
     public function user()
     {

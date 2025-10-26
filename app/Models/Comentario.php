@@ -17,8 +17,6 @@ class Comentario extends Model
         'comentario',
         'fecha_creacion'
     ];
-
-    // usamos fecha_creacion manual, no timestamps automáticos
     public $timestamps = false;
 
     public function user()

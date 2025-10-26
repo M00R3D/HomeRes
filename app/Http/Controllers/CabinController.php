@@ -9,7 +9,6 @@ class CabinController extends Controller
 {
     public function index()
     {
-        // mostrar cabañas disponibles por defecto
         return response()->json(Cabin::where('estado', 'disponible')->get());
     }
 

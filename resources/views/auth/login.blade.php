@@ -46,7 +46,6 @@
     </div>
   </main>
 
-  <!-- Modal registro -->
   <div id="modal-register" class="modal" aria-hidden="true">
     <div class="modal-backdrop" id="close-register"></div>
     <div class="modal-panel">
@@ -89,7 +88,6 @@
   </div>
 
   <script>
-    // JS mínimo para modal
     (function () {
       const open = document.getElementById('open-register');
       const modal = document.getElementById('modal-register');

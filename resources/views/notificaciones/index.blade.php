@@ -14,13 +14,11 @@
 @endphp
 
 <style>
-/* estilos mínimos embebidos; puedes mover a public/css/notificaciones.css */
 .modal-card { transition: transform .28s, opacity .28s, max-height .28s, padding .28s; transform-origin: top center; opacity:1; max-height:1200px; overflow:hidden; }
 .modal-card.collapsed { transform: scaleY(.98); opacity:0; max-height:0; padding-top:0; padding-bottom:0; overflow:hidden; }
 .list-card{background:#fff;border-radius:10px;padding:8px;box-shadow:0 6px 18px rgba(0,0,0,0.06);margin-bottom:12px;overflow-x:auto}
 .btn-edit{background:linear-gradient(90deg,#6366f1,#06b6d4);color:#fff;padding:6px 8px;border-radius:8px;border:0;font-weight:700;margin-right:6px;cursor:pointer}
 
-/* estilos de botones para compatibilidad con dashboard.css */
 .action-btn.edit{background:linear-gradient(90deg,#3b82f6,#06b6d4);color:#fff;padding:6px 10px;border-radius:8px;border:0;font-weight:700;cursor:pointer}
 .action-btn.delete{background:linear-gradient(90deg,#ef4444,#f97316);color:#fff;padding:6px 10px;border-radius:8px;border:0;font-weight:700;cursor:pointer}
 .btn-group{display:inline-flex;gap:8px;align-items:center}
@@ -242,7 +240,6 @@
     </div>
 </div>
 
-{{-- Modal nuevo (similar a users view) --}}
 <div id="modal-new" class="modal" aria-hidden="true" style="display:none;align-items:center;justify-content:center;">
   <div class="modal-backdrop" data-close style="position:absolute;inset:0;background:rgba(2,6,23,0.45);z-index:1000;"></div>
   <div class="modal-panel" role="dialog" aria-modal="true" style="position:relative;z-index:1200;">
@@ -294,7 +291,6 @@
   </div>
 </div>
 
-{{-- Modal editar --}}
 <div id="modal-edit" class="modal" aria-hidden="true" style="display:none;align-items:center;justify-content:center;">
   <div class="modal-backdrop" data-close style="position:absolute;inset:0;background:rgba(2,6,23,0.45);z-index:1000;"></div>
   <div class="modal-panel" role="dialog" aria-modal="true" style="position:relative;z-index:1200;">
@@ -348,7 +344,6 @@
   </div>
 </div>
 
-{{-- Confirm overlay (global para esta vista) --}}
 <div id="confirm-overlay" class="confirm-overlay" aria-hidden="true" style="display:none;align-items:center;justify-content:center;">
   <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title" style="background:#fff;padding:14px;border-radius:12px;box-shadow:0 8px 28px rgba(15,23,42,0.06);width:clamp(280px,420px,520px);text-align:left;">
     <h3 id="confirm-title" class="confirm-title" style="margin:0 0 8px 0;font-weight:700;font-size:1.05rem;">Confirmar eliminación</h3>
@@ -362,10 +357,8 @@
 
 @endsection
 
-<!-- reemplazado: @section('scripts') ... @endsection  -->
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  // helpers to show/hide modal panels (compatible with modal structure above)
   function show(modal){ if(!modal) return; modal.setAttribute('aria-hidden','false'); modal.style.display = 'flex'; setTimeout(()=> modal.classList.add('open'),20); }
   function hide(modal){ if(!modal) return; modal.setAttribute('aria-hidden','true'); modal.classList.remove('open'); setTimeout(()=> modal.style.display = 'none',180); }
 
@@ -375,32 +368,25 @@ document.addEventListener('DOMContentLoaded', function(){
 
   if (btnNew) btnNew.addEventListener('click', function(){ show(modalNew); });
 
-  // close only when clicking explicit close buttons inside modals
   document.querySelectorAll('.modal [data-close]').forEach(el => {
     el.addEventListener('click', function(e){
       e.stopPropagation();
-      // close the modal that contains this control (safer than closing both)
       const modal = this.closest('.modal');
       hide(modal);
     });
   });
 
-  // close when clicking outside the modal-panel (i.e. on the backdrop / container)
   document.querySelectorAll('.modal').forEach(modal => {
     const panel = modal.querySelector('.modal-panel');
-    // guard
     if (!modal) return;
     modal.addEventListener('click', function(e){
-      // if click happened outside the panel (not inside), close
       if (!panel || !panel.contains(e.target)) {
         hide(modal);
       }
     });
-    // prevent clicks inside panel from bubbling to modal (extra safety)
     if (panel) panel.addEventListener('click', function(e){ e.stopPropagation(); });
   });
 
-  // populate edit modal
   document.querySelectorAll('[data-edit]').forEach(btn => {
     btn.addEventListener('click', function(){
       const id = this.dataset.id || '';
@@ -419,7 +405,6 @@ document.addEventListener('DOMContentLoaded', function(){
       document.getElementById('e-ruta').value = ruta;
       document.getElementById('e-descripcion').value = descripcion;
 
-      // convert fecha_visto to datetime-local if present (try simple parse)
       const eFecha = document.getElementById('e-fecha_visto');
       if (fecha_visto) {
         try {
@@ -434,14 +419,12 @@ document.addEventListener('DOMContentLoaded', function(){
         } catch(e) { eFecha.value = ''; }
       } else eFecha.value = '';
 
-      // set form action
       const formEdit = document.getElementById('form-edit');
       formEdit.action = updateUrl;
       show(modalEdit);
     });
   });
 
-  // confirm overlay logic (reusable)
   (function(){
     let pendingForm = null;
     const overlay = document.getElementById('confirm-overlay');

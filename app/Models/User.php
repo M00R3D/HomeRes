@@ -15,10 +15,7 @@ class User extends Authenticatable
     protected $primaryKey = 'id';
     public $incrementing = true;
     protected $keyType = 'int';
-
-    // la tabla tiene created_at y updated_at (migrations)
     public $timestamps = true;
-    // const UPDATED_AT = null; // eliminado
 
     protected $fillable = [
         'nombre',
@@ -47,7 +44,6 @@ class User extends Authenticatable
         return $this->hasMany(Comentario::class, 'usuario_id', 'id');
     }
 
-    // Renombrada para evitar conflicto con Notifiable::notifications()
     public function notificaciones()
     {
         return $this->hasMany(Notification::class, 'usuario_id', 'id');

@@ -44,7 +44,6 @@
     </div>
   </div>
 
-  <!-- Modal (simple) -->
   <div id="modal-new" class="modal" aria-hidden="true">
     <div class="modal-backdrop" data-close></div>
     <div class="modal-panel">
@@ -62,7 +61,6 @@
   </div>
 
   <script>
-    // modal minimal
     (function () {
       const open = document.getElementById('open-new');
       const modal = document.getElementById('modal-new');

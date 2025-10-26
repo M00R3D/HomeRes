@@ -1,9 +1,11 @@
+<?php>
 <!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>{{ config('app.name', 'HomeRes') }}</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
 </head>
 <body class="app-root">
@@ -22,6 +24,9 @@
       <a class="nav-item" href="/propiedades">Propiedades</a>
       <a class="nav-item" href="/notificaciones">Notificaciones</a>
       <a class="nav-item" href="/users">Usuarios</a>
+      @if(auth()->check() && auth()->user()->rol === 'admin')
+        <a class="nav-item" href="{{ route('images.index') }}">Imágenes</a>
+      @endif
       <form method="POST" action="{{ route('logout') }}" class="nav-item logout-form" style="display:flex;">
         @csrf
         <button class="link-button" type="submit">Cerrar sesión</button>
@@ -56,18 +61,19 @@
       toggle && toggle.addEventListener('click', () => sidebar.classList.toggle('open'));
       closeBtn && closeBtn.addEventListener('click', () => sidebar.classList.remove('open'));
 
-      // close sidebar on outside click (mobile)
       document.addEventListener('click', (e) => {
         if (!sidebar.contains(e.target) && window.innerWidth < 900) {
           sidebar.classList.remove('open');
         }
       });
 
-      // accessibility: handle Esc
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') sidebar.classList.remove('open');
       });
     })();
   </script>
+
+  {{-- permitir vistas que declaran @section('scripts') inyectar JS aquí --}}
+  @yield('scripts')
 </body>
 </html>

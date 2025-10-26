@@ -10,14 +10,10 @@ use Illuminate\Support\Facades\DB;
 
 class NotificationController extends Controller
 {
-    /**
-     * Obtener valores posibles de un campo ENUM en la base de datos.
-     */
     private function getEnumValues(string $table, string $column): array
     {
         $row = DB::selectOne('SHOW COLUMNS FROM `' . $table . '` WHERE Field = ?', [$column]);
         if (!$row || empty($row->Type)) return [];
-        // Type example: "enum('info','confirmacion',...)" -> extraer valores
         if (preg_match("/^enum\((.*)\)$/i", $row->Type, $matches)) {
             $vals = str_getcsv($matches[1], ',', "'");
             return array_map(fn($v)=> trim($v, "'\""), $vals);
@@ -30,8 +26,6 @@ class NotificationController extends Controller
         if ($request->wantsJson()) {
             return response()->json(Notification::all());
         }
-
-        // cargar usuario relacionado para mostrar nombre en la vista
         $notificaciones = Notification::with('user')->get();
         $usuarios = User::all();
 
@@ -54,40 +48,26 @@ class NotificationController extends Controller
         $data = $request->only([
             'usuario_id','reservacion_id','propiedad_id','estado','tipo','descripcion','fecha_creacion','fecha_visto'
         ]);
-
-        // normalizar nombre de campo si el formulario usa id_usuario
         if (isset($data['id_usuario'])) {
             $data['usuario_id'] = $data['id_usuario'];
             unset($data['id_usuario']);
         }
-
-        // Convertir cadenas vacías a null (evita insertar '' en campos enum/varchar)
         foreach ($data as $k => $v) {
             if (is_string($v) && trim($v) === '') {
                 $data[$k] = null;
             }
         }
-
-        // Defaults y normalizaciones para evitar inserts inválidos/truncados
-        // intentar leer los valores reales del ENUM en la BD; si falla, usar lista segura
         $dbEnumTypes = $this->getEnumValues('notificaciones', 'tipo');
         $allowedTypes = !empty($dbEnumTypes)
             ? $dbEnumTypes
             : ['info','confirmacion','pago','alerta','mantenimiento','prueba','aprobada','rechazada','otra'];
         $allowedEstados = ['cerrada','abierta','vista'];
-
-        // estado por defecto
         if (empty($data['estado']) || !in_array($data['estado'], $allowedEstados, true)) {
             $data['estado'] = 'cerrada';
         }
-
-        // tipo por defecto y asegurarse que esté en la lista (esto cubre campo ausente o vacío)
         if (empty($data['tipo']) || !in_array($data['tipo'], $allowedTypes, true)) {
-            // preferir 'info' si existe en el ENUM, sino el primer valor permitido
             $data['tipo'] = in_array('info', $allowedTypes, true) ? 'info' : ($allowedTypes[0] ?? 'info');
         }
-
-        // Normalizar fecha_visto (datetime-local -> MySQL DATETIME) si viene
         if (!empty($data['fecha_visto'])) {
             try {
                 $dt = Carbon::parse(str_replace('T', ' ', $data['fecha_visto']));
@@ -98,8 +78,6 @@ class NotificationController extends Controller
         } else {
             $data['fecha_visto'] = null;
         }
-
-        // Fecha creación: si no viene o es inválida, usar ahora (con hora)
         if (empty($data['fecha_creacion'])) {
             $data['fecha_creacion'] = Carbon::now()->format('Y-m-d H:i:s');
         } else {
@@ -109,8 +87,6 @@ class NotificationController extends Controller
                 $data['fecha_creacion'] = Carbon::now()->format('Y-m-d H:i:s');
             }
         }
-
-        // Asegurar usuario_id nulo si no seleccionado
         if (empty($data['usuario_id'])) {
             $data['usuario_id'] = null;
         }
@@ -163,8 +139,6 @@ class NotificationController extends Controller
             $data['usuario_id'] = $data['id_usuario'];
             unset($data['id_usuario']);
         }
-
-        // normalizar tipo con valores reales del ENUM en BD (evita truncamiento)
         if (array_key_exists('tipo', $data)) {
             $dbEnumTypes = $this->getEnumValues('notificaciones', 'tipo');
             if (!empty($dbEnumTypes)) {

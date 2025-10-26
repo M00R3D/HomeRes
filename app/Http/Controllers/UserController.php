@@ -28,8 +28,6 @@ class UserController extends Controller
             'rol' => 'nullable|in:admin,recepcionista,cliente',
             'area' => 'nullable|string|max:100',
         ]);
-
-        // NOTE: User model tiene cast 'password' => 'hashed' — pasamos la contraseña en claro
         $data = $request->only(['nombre','apellido','email','password','rol','area']);
         $user = User::create($data);
 
@@ -70,8 +68,6 @@ class UserController extends Controller
         ]);
 
         $update = $request->only(['nombre','apellido','email','password','rol','area']);
-
-        // si password está vacío o no enviado, quitar para no sobreescribir
         if (empty($update['password'])) {
             unset($update['password']);
         }
@@ -97,8 +93,6 @@ class UserController extends Controller
 
         return redirect()->route('users.index')->with('success', 'Usuario eliminado');
     }
-
-    // Opcional: changeRol se mantiene para API
     public function changeRol(Request $request, $id)
     {
         $u = User::find($id);

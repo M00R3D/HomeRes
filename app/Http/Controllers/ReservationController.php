@@ -16,13 +16,9 @@ class ReservationController extends Controller
         if ($request->filled('usuario_id')) $q->where('usuario_id', $request->usuario_id);
         if ($request->filled('cabana_id')) $q->where('cabana_id', $request->cabana_id);
         if ($request->filled('estado')) $q->where('estado', $request->estado);
-
-        // si la petición es API/JSON devolvemos JSON
         if ($request->wantsJson()) {
             return response()->json($q->with(['user','cabin'])->get());
         }
-
-        // para la vista web devolvemos la blade con datos necesarios
         $reservaciones = $q->with(['user','cabin'])->get();
         $usuarios = User::all();
         $cabanas = Propiedad::all(); // si tienes modelo Cabanas reemplaza aquí
@@ -88,8 +84,6 @@ class ReservationController extends Controller
         $r->delete();
         return response()->json(['message' => 'Reservación eliminada']);
     }
-
-    // Endpoint para cambiar sólo el estado (enum)
     public function changeEstado(Request $request, $id)
     {
         $r = Reservation::find($id);

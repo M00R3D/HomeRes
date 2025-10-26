@@ -41,7 +41,6 @@
     <button type="button" id="pr-clear" class="pr-btn danger">Limpiar</button>
   </form>
 
-  {{-- Formulario create / edit (colapsable) --}}
   <div id="pr-form-card" class="pr-card pr-collapsed" aria-hidden="true" style="display:none;">
     <h2 id="pr-form-title">Nueva propiedad</h2>
     <form id="pr-form" method="POST" action="{{ route('propiedades.store') }}">
@@ -123,7 +122,6 @@
     </form>
   </div>
 
-  {{-- Lista / grid de propiedades --}}
   @if($propiedades->isEmpty())
     <div class="pr-card">No hay propiedades registradas.</div>
   @else
@@ -168,7 +166,6 @@
                 <a href="{{ route('propiedades.show', $prop->id) }}" class="pr-link">Ver</a>
               </div>
 
-              {{-- Comentarios: mostrar promedio si relación existe --}}
               @if(method_exists($prop, 'comentarios'))
                 @php
                   $avg = $prop->comentarios()->avg('calificacion') ?? null;
@@ -209,13 +206,11 @@ document.addEventListener('DOMContentLoaded', function(){
     form.action = mode === 'create' ? "{{ route('propiedades.store') }}" : "{{ url('propiedades') }}/" + data.id;
     methodInput.value = mode === 'create' ? 'POST' : 'PUT';
     idInput.value = data ? data.id : '';
-    // fill fields
     ['tipo','codigo','nombre','precio_noche','capacidad','ubicacion','descripcion','servicios','estado','ruta_img'].forEach(k=>{
       const el = document.getElementById('p-' + k.replace(/_/g,'-'));
       if(!el) return;
       el.value = data ? (data[k] ?? '') : '';
     });
-    // ensure ruta -> preview
     setPreview(data ? data.ruta_img : '');
     formCard.style.display = 'block';
     formCard.removeAttribute('aria-hidden');
@@ -229,7 +224,6 @@ document.addEventListener('DOMContentLoaded', function(){
   function setPreview(path){
     if(!path) preview.src = "{{ asset('imgs/default.webp') }}";
     else preview.src = "{{ url('/') }}/" + path.replace(/^\//,'');
-    // sync input
     const input = document.getElementById('p-ruta');
     if(input) input.value = path || '';
   }

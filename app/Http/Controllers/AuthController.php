@@ -61,13 +61,10 @@ class AuthController extends Controller
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-
-        // eliminar cookie "remember" del guard actual (si existe)
         try {
             $recallerName = Auth::guard()->getRecallerName();
             Cookie::queue(Cookie::forget($recallerName));
         } catch (\Throwable $e) {
-            // no hacer nada
         }
 
         return redirect()->route('login');
