@@ -116,4 +116,18 @@ class ImageController extends Controller
         sort($files);
         return response()->json(['files' => $files]);
     }
+
+    public function dirs(Request $request)
+    {
+        $public = public_path();
+        $entries = @scandir($public) ?: [];
+        $dirs = [];
+        foreach ($entries as $e) {
+            if ($e === '.' || $e === '..') continue;
+            $path = $public . DIRECTORY_SEPARATOR . $e;
+            if (is_dir($path)) $dirs[] = $e;
+        }
+        sort($dirs);
+        return response()->json(['dirs' => $dirs]);
+    }
 }

@@ -22,7 +22,6 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        // intenta login; segundo parámetro controla "remember me"
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
             return redirect()->intended(route('dashboard'));

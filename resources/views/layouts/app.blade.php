@@ -12,7 +12,7 @@
   <aside id="sidebar" class="sidebar">
     <div class="brand">
       <a href="{{ url('/') }}" class="brand-link">
-        <img src="https://i.ibb.co/Tq7v2SD/path1584.png" alt="logo" class="brand-logo" />
+        <img src="{{ asset('logos/logoHomeRes.png') }}" alt="logo" class="brand-logo" />
         <span class="brand-text">HomeRes</span>
       </a>
       <button id="sidebar-close" class="icon-btn hide-desktop" aria-label="Cerrar menú">✕</button>
@@ -73,7 +73,6 @@
     })();
   </script>
 
-  {{-- permitir vistas que declaran @section('scripts') inyectar JS aquí --}}
   @yield('scripts')
 </body>
 </html>
