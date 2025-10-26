@@ -6,6 +6,9 @@ use App\Http\Controllers\UserController; // agregado
 use App\Http\Controllers\PropiedadController; // agregado
 use App\Http\Controllers\NotificationController; // agregado
 use App\Http\Controllers\ReservationController; // agregado
+use App\Models\Reservation;
+use App\Models\User;
+use App\Models\Propiedad;
 
 // Rutas de autenticación (solo para guests)
 Route::middleware('guest')->group(function () {
@@ -17,9 +20,14 @@ Route::middleware('guest')->group(function () {
 // Logout (solo para usuarios autenticados)
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 
-// Dashboard (protegido)
+// Dashboard (protegido) — ahora carga datos reales para la vista dashboard
 Route::get('/dashboard', function () {
-    return view('dashboard', ['reservaciones' => []]);
+    $reservaciones = Reservation::with(['user','cabin'])->orderByDesc('created_at')->get();
+    $usuarios = User::all();
+    $cabanas = Propiedad::all();
+    $currentUser = auth()->user();
+
+    return view('dashboard', compact('reservaciones','usuarios','cabanas','currentUser'));
 })->middleware('auth')->name('dashboard');
 
 // Usuarios (CRUD) - protege con auth

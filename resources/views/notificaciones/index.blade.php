@@ -19,6 +19,11 @@
 .modal-card.collapsed { transform: scaleY(.98); opacity:0; max-height:0; padding-top:0; padding-bottom:0; overflow:hidden; }
 .list-card{background:#fff;border-radius:10px;padding:8px;box-shadow:0 6px 18px rgba(0,0,0,0.06);margin-bottom:12px;overflow-x:auto}
 .btn-edit{background:linear-gradient(90deg,#6366f1,#06b6d4);color:#fff;padding:6px 8px;border-radius:8px;border:0;font-weight:700;margin-right:6px;cursor:pointer}
+
+/* estilos de botones para compatibilidad con dashboard.css */
+.action-btn.edit{background:linear-gradient(90deg,#3b82f6,#06b6d4);color:#fff;padding:6px 10px;border-radius:8px;border:0;font-weight:700;cursor:pointer}
+.action-btn.delete{background:linear-gradient(90deg,#ef4444,#f97316);color:#fff;padding:6px 10px;border-radius:8px;border:0;font-weight:700;cursor:pointer}
+.btn-group{display:inline-flex;gap:8px;align-items:center}
 </style>
 
 <div style="padding:16px;max-width:1100px;margin:0 auto;">
@@ -82,11 +87,26 @@
                         @if($isAdmin)
                             <td style="padding:10px 12px;">{{ optional($n->user)->nombre ? optional($n->user)->nombre . ' ' . optional($n->user)->apellido : 'Todos' }}</td>
                             <td style="padding:10px 12px;width:190px;">
-                                <button type="button" class="btn-edit" data-notif='@json($n)'>Editar</button>
-                                <form action="{{ url('/notificaciones/'.$n->id) }}" method="POST" style="display:inline">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" data-confirm="¿Eliminar notificación #{{ $n->id }}?" style="background:linear-gradient(90deg,#ef4444,#f97316);color:#fff;padding:6px 8px;border-radius:8px;border:0;cursor:pointer;">Eliminar</button>
-                                </form>
+                                <div class="btn-group">
+                                  <button
+                                    class="action-btn edit"
+                                    data-edit
+                                    data-id="{{ $n->id }}"
+                                    data-usuario_id="{{ $n->usuario_id ?? '' }}"
+                                    data-estado="{{ $n->estado ?? 'cerrada' }}"
+                                    data-tipo="{{ $n->tipo ?? 'prueba' }}"
+                                    data-ruta="{{ e($n->ruta) }}"
+                                    data-descripcion="{{ e($n->descripcion) }}"
+                                    data-fecha_visto="{{ $n->fecha_visto ?? '' }}"
+                                    data-update-url="{{ url('/notificaciones/'.$n->id) }}"
+                                    type="button"
+                                  >Editar</button>
+
+                                  <form action="{{ url('/notificaciones/'.$n->id) }}" method="POST" style="display:inline">
+                                      @csrf @method('DELETE')
+                                      <button class="action-btn delete" type="submit" data-confirm="¿Eliminar notificación #{{ $n->id }}?">Eliminar</button>
+                                  </form>
+                                </div>
                             </td>
                         @endif
                     </tr>
@@ -129,11 +149,26 @@
                         @if($isAdmin)
                             <td style="padding:10px 12px;">{{ optional($n->user)->nombre ? optional($n->user)->nombre . ' ' . optional($n->user)->apellido : 'Todos' }}</td>
                             <td style="padding:10px 12px;width:190px;">
-                                <button type="button" class="btn-edit" data-notif='@json($n)'>Editar</button>
-                                <form action="{{ url('/notificaciones/'.$n->id) }}" method="POST" style="display:inline">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" data-confirm="¿Eliminar notificación #{{ $n->id }}?" style="background:linear-gradient(90deg,#ef4444,#f97316);color:#fff;padding:6px 8px;border-radius:8px;border:0;cursor:pointer;">Eliminar</button>
-                                </form>
+                                <div class="btn-group">
+                                  <button
+                                    class="action-btn edit"
+                                    data-edit
+                                    data-id="{{ $n->id }}"
+                                    data-usuario_id="{{ $n->usuario_id ?? '' }}"
+                                    data-estado="{{ $n->estado ?? 'abierta' }}"
+                                    data-tipo="{{ $n->tipo ?? 'prueba' }}"
+                                    data-ruta="{{ e($n->ruta) }}"
+                                    data-descripcion="{{ e($n->descripcion) }}"
+                                    data-fecha_visto="{{ $n->fecha_visto ?? '' }}"
+                                    data-update-url="{{ url('/notificaciones/'.$n->id) }}"
+                                    type="button"
+                                  >Editar</button>
+
+                                  <form action="{{ url('/notificaciones/'.$n->id) }}" method="POST" style="display:inline">
+                                      @csrf @method('DELETE')
+                                      <button class="action-btn delete" type="submit" data-confirm="¿Eliminar notificación #{{ $n->id }}?">Eliminar</button>
+                                  </form>
+                                </div>
                             </td>
                         @endif
                     </tr>
@@ -176,11 +211,26 @@
                         @if($isAdmin)
                             <td style="padding:10px 12px;">{{ optional($n->user)->nombre ? optional($n->user)->nombre . ' ' . optional($n->user)->apellido : 'Todos' }}</td>
                             <td style="padding:10px 12px;width:190px;">
-                                <button type="button" class="btn-edit" data-notif='@json($n)'>Editar</button>
-                                <form action="{{ url('/notificaciones/'.$n->id) }}" method="POST" style="display:inline">
-                                    @csrf @method('DELETE')
-                                    <button type="submit" data-confirm="¿Eliminar notificación #{{ $n->id }}?" style="background:linear-gradient(90deg,#ef4444,#f97316);color:#fff;padding:6px 8px;border-radius:8px;border:0;cursor:pointer;">Eliminar</button>
-                                </form>
+                                <div class="btn-group">
+                                  <button
+                                    class="action-btn edit"
+                                    data-edit
+                                    data-id="{{ $n->id }}"
+                                    data-usuario_id="{{ $n->usuario_id ?? '' }}"
+                                    data-estado="{{ $n->estado ?? 'vista' }}"
+                                    data-tipo="{{ $n->tipo ?? 'prueba' }}"
+                                    data-ruta="{{ e($n->ruta) }}"
+                                    data-descripcion="{{ e($n->descripcion) }}"
+                                    data-fecha_visto="{{ $n->fecha_visto ?? '' }}"
+                                    data-update-url="{{ url('/notificaciones/'.$n->id) }}"
+                                    type="button"
+                                  >Editar</button>
+
+                                  <form action="{{ url('/notificaciones/'.$n->id) }}" method="POST" style="display:inline">
+                                      @csrf @method('DELETE')
+                                      <button class="action-btn delete" type="submit" data-confirm="¿Eliminar notificación #{{ $n->id }}?">Eliminar</button>
+                                  </form>
+                                </div>
                             </td>
                         @endif
                     </tr>
@@ -192,250 +242,229 @@
     </div>
 </div>
 
-{{-- Modal / formulario para crear / editar --}}
-<div id="notif-form-card" class="modal-card collapsed" style="display:none;background:#fff;border-radius:10px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06);margin:16px auto;max-width:1100px;">
-    <h2 id="notif-form-title" style="margin:0 0 8px 0;font-size:1.05rem;">Nueva notificación</h2>
-    <form id="notif-form" method="POST" action="{{ url('/notificaciones') }}">
-        @csrf
-        <input type="hidden" name="_method" id="notif-form-method" value="POST">
-        <input type="hidden" name="id" id="notif-id" value="">
+{{-- Modal nuevo (similar a users view) --}}
+<div id="modal-new" class="modal" aria-hidden="true" style="display:none;align-items:center;justify-content:center;">
+  <div class="modal-backdrop" data-close style="position:absolute;inset:0;background:rgba(2,6,23,0.45);z-index:1000;"></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" style="position:relative;z-index:1200;">
+    <button class="modal-close" data-close>✕</button>
+    <h3>Nueva notificación</h3>
 
-        <div style="display:flex;flex-wrap:wrap;gap:10px;">
-            <div style="flex:1 1 220px;min-width:180px;">
-                <label>Para (usuario)</label>
-                <select name="id_usuario" id="f-id_usuario" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
-                    <option value="">Todos</option>
-                    @foreach($usuarios as $u)
-                        <option value="{{ $u->id }}">{{ $u->nombre }} {{ $u->apellido }} ({{ $u->email }})</option>
-                    @endforeach
-                </select>
-            </div>
+    <form id="form-new" method="POST" action="{{ url('/notificaciones') }}" class="form">
+      @csrf
+      <label class="field"><span class="label-text">Para (usuario)</span>
+        <select name="usuario_id">
+          <option value="">Todos</option>
+          @foreach($usuarios as $u)
+            <option value="{{ $u->id }}">{{ $u->nombre }} {{ $u->apellido }} ({{ $u->email }})</option>
+          @endforeach
+        </select>
+      </label>
 
-            <div style="flex:1 1 180px;min-width:160px;">
-                <label>Estado</label>
-                <select name="estado" id="f-estado" required style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
-                    <option value="cerrada">cerrada</option>
-                    <option value="abierta">abierta</option>
-                    <option value="vista">vista</option>
-                </select>
-            </div>
+      <label class="field"><span class="label-text">Estado</span>
+        <select name="estado" required>
+          <option value="cerrada">cerrada</option>
+          <option value="abierta">abierta</option>
+          <option value="vista">vista</option>
+        </select>
+      </label>
 
-            <div style="flex:1 1 180px;min-width:160px;">
-                <label>Tipo</label>
-                <select name="tipo" id="f-tipo" required style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
-                    <option value="prueba">prueba</option>
-                    <option value="aprobada">aprobada</option>
-                    <option value="rechazada">rechazada</option>
-                    <option value="otra">otra</option>
-                </select>
-            </div>
+      <label class="field"><span class="label-text">Tipo</span>
+        <select name="tipo" required>
+          <option value="prueba">prueba</option>
+          <option value="aprobada">aprobada</option>
+          <option value="rechazada">rechazada</option>
+          <option value="otra">otra</option>
+          <option value="info">info</option>
+          <option value="confirmacion">confirmacion</option>
+          <option value="pago">pago</option>
+          <option value="alerta">alerta</option>
+          <option value="mantenimiento">mantenimiento</option>
+        </select>
+      </label>
 
-            <div style="flex:1 1 260px;min-width:200px;">
-                <label>Ruta (opcional)</label>
-                <input name="ruta" id="f-ruta" type="text" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
-            </div>
+      <label class="field"><span class="label-text">Ruta (opcional)</span><input name="ruta" type="text" /></label>
+      <label class="field"><span class="label-text">Descripción</span><textarea name="descripcion" rows="4" required></textarea></label>
+      <label class="field"><span class="label-text">Fecha visto (opcional)</span><input name="fecha_visto" type="datetime-local" /></label>
 
-            <div style="flex:1 1 420px;min-width:220px;">
-                <label>Descripción</label>
-                <textarea name="descripcion" id="f-descripcion" rows="4" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;"></textarea>
-            </div>
-
-            <div id="f-fecha_visto_row" style="flex:1 1 220px;min-width:180px;display:none;">
-                <label>Fecha visto</label>
-                <input name="fecha_visto" id="f-fecha_visto" type="datetime-local" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
-            </div>
-        </div>
-
-        <div style="display:flex;gap:8px;margin-top:12px;">
-            <button type="submit" id="notif-save" style="background:#06b6d4;color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:700;">Guardar</button>
-            <button id="notif-cancel" type="button" style="background:#ef4444;color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;">Cancelar</button>
-        </div>
+      <div class="actions" style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="btn" type="submit">Crear</button>
+        <button type="button" class="btn btn-danger" data-close>Cancelar</button>
+      </div>
     </form>
+  </div>
 </div>
 
-<div id="confirm-overlay" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.45);align-items:center;justify-content:center;z-index:9999;padding:1rem;">
-  <div style="background:#fff;padding:14px;border-radius:12px;box-shadow:0 8px 28px rgba(15,23,42,0.06);width:clamp(280px,420px,520px);text-align:left;">
-    <h3 id="confirm-title" style="margin:0 0 8px 0;font-weight:700;font-size:1.05rem;">Confirmar</h3>
-    <p id="confirm-msg" style="color:#6b7280;margin-bottom:12px;font-size:0.98rem;">¿Estás seguro?</p>
-    <div style="display:flex;gap:.5rem;justify-content:flex-end;">
-      <button type="button" id="confirm-cancel" style="background:#06b6d4;color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;">Cancelar</button>
-      <button type="button" id="confirm-ok" style="background:linear-gradient(90deg,#ef4444,#f97316);color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;">Eliminar</button>
+{{-- Modal editar --}}
+<div id="modal-edit" class="modal" aria-hidden="true" style="display:none;align-items:center;justify-content:center;">
+  <div class="modal-backdrop" data-close style="position:absolute;inset:0;background:rgba(2,6,23,0.45);z-index:1000;"></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" style="position:relative;z-index:1200;">
+    <button class="modal-close" data-close>✕</button>
+    <h3>Editar notificación</h3>
+
+    <form id="form-edit" method="POST" action="#" class="form">
+      @csrf
+      @method('PUT')
+      <input type="hidden" name="id" id="e-id" />
+      <label class="field"><span class="label-text">Para (usuario)</span>
+        <select id="e-usuario_id" name="usuario_id">
+          <option value="">Todos</option>
+          @foreach($usuarios as $u)
+            <option value="{{ $u->id }}">{{ $u->nombre }} {{ $u->apellido }} ({{ $u->email }})</option>
+          @endforeach
+        </select>
+      </label>
+
+      <label class="field"><span class="label-text">Estado</span>
+        <select id="e-estado" name="estado" required>
+          <option value="cerrada">cerrada</option>
+          <option value="abierta">abierta</option>
+          <option value="vista">vista</option>
+        </select>
+      </label>
+
+      <label class="field"><span class="label-text">Tipo</span>
+        <select id="e-tipo" name="tipo" required>
+          <option value="prueba">prueba</option>
+          <option value="aprobada">aprobada</option>
+          <option value="rechazada">rechazada</option>
+          <option value="otra">otra</option>
+          <option value="info">info</option>
+          <option value="confirmacion">confirmacion</option>
+          <option value="pago">pago</option>
+          <option value="alerta">alerta</option>
+          <option value="mantenimiento">mantenimiento</option>
+        </select>
+      </label>
+
+      <label class="field"><span class="label-text">Ruta (opcional)</span><input id="e-ruta" name="ruta" type="text" /></label>
+      <label class="field"><span class="label-text">Descripción</span><textarea id="e-descripcion" name="descripcion" rows="4"></textarea></label>
+      <label class="field"><span class="label-text">Fecha visto (opcional)</span><input id="e-fecha_visto" name="fecha_visto" type="datetime-local" /></label>
+
+      <div class="actions" style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="btn" type="submit">Guardar</button>
+        <button type="button" class="btn btn-danger" data-close>Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{{-- Confirm overlay (global para esta vista) --}}
+<div id="confirm-overlay" class="confirm-overlay" aria-hidden="true" style="display:none;align-items:center;justify-content:center;">
+  <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title" style="background:#fff;padding:14px;border-radius:12px;box-shadow:0 8px 28px rgba(15,23,42,0.06);width:clamp(280px,420px,520px);text-align:left;">
+    <h3 id="confirm-title" class="confirm-title" style="margin:0 0 8px 0;font-weight:700;font-size:1.05rem;">Confirmar eliminación</h3>
+    <p id="confirm-msg" class="confirm-msg" style="color:#6b7280;margin-bottom:12px;font-size:0.98rem;">¿Estás seguro?</p>
+    <div class="confirm-actions" style="display:flex;gap:.5rem;justify-content:flex-end;">
+      <button type="button" id="confirm-cancel" class="btn btn-alt">Cancelar</button>
+      <button type="button" id="confirm-ok" class="btn btn-danger">Eliminar</button>
     </div>
   </div>
 </div>
 
 @endsection
 
-@section('scripts')
+<!-- reemplazado: @section('scripts') ... @endsection  -->
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-    const card = document.getElementById('notif-form-card');
-    const btnNew = document.getElementById('btn-new');
-    const btnCancel = document.getElementById('notif-cancel');
-    const form = document.getElementById('notif-form');
-    const methodInput = document.getElementById('notif-form-method');
-    const idInput = document.getElementById('notif-id');
-    const title = document.getElementById('notif-form-title');
-    const fechaVistoRow = document.getElementById('f-fecha_visto_row');
-    const fechaVistoInput = document.getElementById('f-fecha_visto');
+  // helpers to show/hide modal panels (compatible with modal structure above)
+  function show(modal){ if(!modal) return; modal.setAttribute('aria-hidden','false'); modal.style.display = 'flex'; setTimeout(()=> modal.classList.add('open'),20); }
+  function hide(modal){ if(!modal) return; modal.setAttribute('aria-hidden','true'); modal.classList.remove('open'); setTimeout(()=> modal.style.display = 'none',180); }
 
-    function openCreate() {
-        title.textContent = 'Nueva notificación';
-        form.action = "{{ url('/notificaciones') }}";
-        methodInput.value = 'POST';
-        idInput.value = '';
-        form.querySelectorAll('input, textarea, select').forEach(i => { if(i.tagName==='SELECT') i.selectedIndex = 0; else i.value = ''; });
-        fechaVistoRow.style.display = 'none';
-        card.style.display = 'block';
-        card.classList.add('collapsed');
-        requestAnimationFrame(()=> card.classList.remove('collapsed'));
-        card.scrollIntoView({behavior:'smooth', block:'center'});
-    }
+  const modalNew = document.getElementById('modal-new');
+  const modalEdit = document.getElementById('modal-edit');
+  const btnNew = document.getElementById('btn-new');
 
-    function openEdit(notif) {
-        title.textContent = 'Editar notificación — ID ' + notif.id;
-        form.action = "{{ url('/notificaciones') }}/" + notif.id;
-        methodInput.value = 'PUT';
-        idInput.value = notif.id || '';
-        document.getElementById('f-id_usuario').value = notif.usuario_id || notif.id_usuario || '';
-        document.getElementById('f-estado').value = notif.estado || 'cerrada';
-        document.getElementById('f-tipo').value = notif.tipo || 'prueba';
-        document.getElementById('f-ruta').value = notif.ruta || '';
-        document.getElementById('f-descripcion').value = notif.descripcion || '';
-        if (notif.fecha_visto) {
-            fechaVistoRow.style.display = 'block';
-            try {
-                const d = new Date(notif.fecha_visto);
-                const pad = (n)=> String(n).padStart(2,'0');
-                const yyyy = d.getFullYear();
-                const mm = pad(d.getMonth()+1);
-                const dd = pad(d.getDate());
-                const hh = pad(d.getHours());
-                const mi = pad(d.getMinutes());
-                fechaVistoInput.value = `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
-            } catch(e) {
-                fechaVistoRow.style.display = 'block';
-            }
-        } else {
-            fechaVistoRow.style.display = 'none';
-            fechaVistoInput.value = '';
-        }
-        card.style.display = 'block';
-        card.classList.add('collapsed');
-        requestAnimationFrame(()=> card.classList.remove('collapsed'));
-        card.scrollIntoView({behavior:'smooth', block:'center'});
-    }
+  if (btnNew) btnNew.addEventListener('click', function(){ show(modalNew); });
 
-    if (btnNew) btnNew.addEventListener('click', openCreate);
-    if (btnCancel) btnCancel.addEventListener('click', function(){
-        card.classList.add('collapsed');
-        card.addEventListener('transitionend', function handler(){
-            card.style.display = 'none';
-            card.classList.remove('collapsed');
-            form.reset();
-            methodInput.value = 'POST';
-            idInput.value = '';
-            card.removeEventListener('transitionend', handler);
-        });
+  // close only when clicking explicit close buttons inside modals
+  document.querySelectorAll('.modal [data-close]').forEach(el => {
+    el.addEventListener('click', function(e){
+      e.stopPropagation();
+      // close the modal that contains this control (safer than closing both)
+      const modal = this.closest('.modal');
+      hide(modal);
     });
+  });
 
-    document.querySelectorAll('.btn-edit').forEach(btn=>{
-        btn.addEventListener('click', function(){
-            try {
-                const notif = JSON.parse(this.getAttribute('data-notif'));
-                openEdit(notif);
-            } catch(e){
-                console.error(e);
-                alert('Datos inválidos');
-            }
-        });
+  // close when clicking outside the modal-panel (i.e. on the backdrop / container)
+  document.querySelectorAll('.modal').forEach(modal => {
+    const panel = modal.querySelector('.modal-panel');
+    // guard
+    if (!modal) return;
+    modal.addEventListener('click', function(e){
+      // if click happened outside the panel (not inside), close
+      if (!panel || !panel.contains(e.target)) {
+        hide(modal);
+      }
     });
+    // prevent clicks inside panel from bubbling to modal (extra safety)
+    if (panel) panel.addEventListener('click', function(e){ e.stopPropagation(); });
+  });
 
-    if (form) {
-        form.addEventListener('submit', async function(evt){
-            evt.preventDefault();
-            const submitBtn = document.getElementById('notif-save');
-            const original = submitBtn ? submitBtn.textContent : null;
-            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Guardando...'; }
-            const fd = new FormData(form);
-            const method = methodInput.value || 'POST';
-            if (method.toUpperCase() === 'PUT') fd.append('_method','PUT');
-            try {
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-                const resp = await fetch(form.action, {
-                    method: 'POST',
-                    headers: {'X-CSRF-TOKEN': csrfToken},
-                    body: fd,
-                    credentials: 'include'
-                });
-                if (resp.ok) {
-                    window.location.href = "{{ url('/notificaciones') }}";
-                    return;
-                }
-                const ct = resp.headers.get('content-type') || '';
-                const data = ct.includes('application/json') ? await resp.json() : await resp.text();
-                if (resp.status === 422 && data && data.errors) {
-                    alert(Object.values(data.errors).flat().join('\n'));
-                } else {
-                    alert((data && data.message) ? data.message : 'Error al guardar');
-                }
-            } catch(e){
-                console.error(e);
-                alert('Error de red');
-            } finally {
-                if (submitBtn) { submitBtn.disabled = false; if (original) submitBtn.textContent = original; }
-            }
-        });
-    }
+  // populate edit modal
+  document.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', function(){
+      const id = this.dataset.id || '';
+      const usuario_id = this.dataset.usuario_id || '';
+      const estado = this.dataset.estado || 'cerrada';
+      const tipo = this.dataset.tipo || 'prueba';
+      const ruta = this.dataset.ruta || '';
+      const descripcion = this.dataset.descripcion || '';
+      const fecha_visto = this.dataset.fecha_visto || '';
+      const updateUrl = this.dataset.updateUrl || '#';
 
-    // confirm overlay (global)
-    (function(){
-      let pending = null;
-      const overlay = document.getElementById('confirm-overlay');
-      const msgEl = document.getElementById('confirm-msg');
-      const btnOk = document.getElementById('confirm-ok');
-      const btnCancelConfirm = document.getElementById('confirm-cancel');
+      document.getElementById('e-id').value = id;
+      document.getElementById('e-usuario_id').value = usuario_id;
+      document.getElementById('e-estado').value = estado;
+      document.getElementById('e-tipo').value = tipo;
+      document.getElementById('e-ruta').value = ruta;
+      document.getElementById('e-descripcion').value = descripcion;
 
-      function showConfirm(text, onConfirm){
-        msgEl.textContent = text || '¿Estás seguro?';
-        overlay.style.display = 'flex';
-        pending = onConfirm;
-        btnCancelConfirm.focus();
-      }
-      function hideConfirm(){
-        overlay.style.display = 'none';
-        pending = null;
-      }
+      // convert fecha_visto to datetime-local if present (try simple parse)
+      const eFecha = document.getElementById('e-fecha_visto');
+      if (fecha_visto) {
+        try {
+          const d = new Date(fecha_visto);
+          const pad = (n)=> String(n).padStart(2,'0');
+          const yyyy = d.getFullYear();
+          const mm = pad(d.getMonth()+1);
+          const dd = pad(d.getDate());
+          const hh = pad(d.getHours());
+          const mi = pad(d.getMinutes());
+          eFecha.value = `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+        } catch(e) { eFecha.value = ''; }
+      } else eFecha.value = '';
 
-      btnCancelConfirm.addEventListener('click', hideConfirm);
-      btnOk.addEventListener('click', function(){
-        if(typeof pending === 'function') pending();
-        hideConfirm();
-      });
+      // set form action
+      const formEdit = document.getElementById('form-edit');
+      formEdit.action = updateUrl;
+      show(modalEdit);
+    });
+  });
 
-      overlay.addEventListener('click', function(e){
-        if(e.target === overlay) hideConfirm();
-      });
-      document.addEventListener('keydown', function(e){
-        if(e.key === 'Escape') hideConfirm();
-      });
+  // confirm overlay logic (reusable)
+  (function(){
+    let pendingForm = null;
+    const overlay = document.getElementById('confirm-overlay');
+    const msgEl = document.getElementById('confirm-msg');
+    const btnOk = document.getElementById('confirm-ok');
+    const btnCancel = document.getElementById('confirm-cancel');
 
-      document.addEventListener('click', function(e){
-        const el = e.target.closest('[data-confirm]');
-        if(!el) return;
-        e.preventDefault();
-        const text = el.getAttribute('data-confirm') || '¿Estás seguro?';
-        const form = el.closest('form');
-        showConfirm(text, function(){
-          if(form) form.submit();
-          else {
-            const a = el.closest('a');
-            if(a && a.href) window.location.href = a.href;
-            else el.click();
-          }
-        });
-      }, true);
-    })();
+    function showConfirm(text, form){ msgEl.textContent = text || '¿Estás seguro?'; overlay.style.display = 'flex'; pendingForm = form; btnCancel.focus(); }
+    function hideConfirm(){ overlay.style.display = 'none'; pendingForm = null; }
+
+    document.addEventListener('click', function(e){
+      const el = e.target.closest('[data-confirm]');
+      if(!el) return;
+      e.preventDefault();
+      const text = el.getAttribute('data-confirm') || '¿Estás seguro?';
+      const form = el.closest('form');
+      showConfirm(text, form);
+    }, true);
+
+    btnCancel.addEventListener('click', hideConfirm);
+    btnOk.addEventListener('click', function(){ if(pendingForm){ pendingForm.submit(); } hideConfirm(); });
+    overlay.addEventListener('click', function(e){ if(e.target === overlay) hideConfirm(); });
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape') hideConfirm(); });
+  })();
 });
 </script>
-@endsection
