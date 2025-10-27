@@ -3,122 +3,183 @@
 @section('title', 'Propiedades')
 
 @section('content')
+@php
+  use App\Models\Comentario;
+  use Illuminate\Support\Str;
+  $currentUser = $currentUser ?? auth()->user();
+  $isAdmin = $isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin');
+@endphp
+
 <link rel="stylesheet" href="{{ asset('css/propiedades.css') }}">
 
+<style>
+.pr-container{max-width:1100px;margin:18px auto;padding:12px;}
+.pr-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap:16px; }
+.pr-card{ background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(2,6,23,0.06); overflow:hidden; display:flex;flex-direction:column; }
+.pr-thumb{ width:100%;height:160px; background:#f3f4f6; display:flex;align-items:center;justify-content:center; overflow:hidden; }
+.pr-thumb img{ width:100%;height:100%;object-fit:cover;display:block; }
+.pr-body{ padding:12px; display:flex;flex-direction:column; gap:8px; flex:1; }
+.pr-title{ font-weight:800; color:#111827; }
+.pr-meta{ color:#6b7280; font-size:0.95rem; }
+.pr-actions{ display:flex; gap:8px; margin-top:auto; align-items:center; justify-content:space-between; }
+.pr-btn{ padding:8px 10px;border-radius:8px;border:0;font-weight:700;cursor:pointer; }
+.pr-btn.edit{ background:linear-gradient(90deg,#06b6d4,#6366f1); color:#fff; }
+.pr-btn.delete{ background:linear-gradient(90deg,#ef4444,#f97316); color:#fff; }
+.pr-comments{ border-top:1px solid #f3f4f6; padding:10px; background:#fbfdff; font-size:0.95rem; }
+.pr-comment{ margin-bottom:8px; }
+.pr-comment .by{ color:#6b7280; font-weight:700; font-size:0.9rem; }
+.list-view .table-responsive { overflow:auto; }
+.muted{ color:#6b7280; }
+.action-btn{ padding:8px 10px;border-radius:8px;border:0;font-weight:700;cursor:pointer; }
+.action-btn.edit{ background:linear-gradient(90deg,#3b82f6,#06b6d4);color:#fff; }
+.action-btn.delete{ background:linear-gradient(90deg,#ef4444,#f97316);color:#fff; }
+.modal-panel { background:#fff;border-radius:12px;padding:16px;box-shadow:0 18px 40px rgba(2,6,23,0.08); }
+.field { display:block;margin-bottom:10px; }
+.label-text{ display:block;font-weight:700;margin-bottom:6px; }
+.service-chip{ background:#f3f4f6;padding:6px 8px;border-radius:999px;display:inline-flex;gap:8px;align-items:center;font-weight:600;color:#111; }
+</style>
+
 <div class="pr-container">
-  <header class="pr-hero">
+  <header style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
     <div>
-      <h1>Propiedades</h1>
-      @if(session('success'))
-        <div class="pr-alert pr-success">{{ session('success') }}</div>
-      @endif
+      <h1 style="margin:0">Propiedades</h1>
+      <div style="color:#6b7280;margin-top:6px;">Listado de propiedades disponibles</div>
     </div>
 
-    <div class="pr-actions">
-      <a href="{{ route('dashboard') }}" class="pr-link">Volver</a>
-      @if(auth()->check() && auth()->user()->rol === 'admin')
-        <button id="pr-new" class="pr-btn">Nueva propiedad</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      @if($isAdmin)
+        <button id="pr-new" class="pr-btn edit">Crear propiedad</button>
       @endif
     </div>
   </header>
 
-  @if($errors->any())
-    <div class="pr-alert" style="background:#fff6f6;color:#7f1d1d;margin-bottom:12px;">
-      {{ $errors->first() }}
+  @if(session('success'))
+    <div style="background:#ecfdf5;color:#065f46;padding:10px;border-radius:8px;margin-bottom:12px;font-weight:700;">
+      {{ session('success') }}
     </div>
   @endif
 
-  <form id="pr-filters" method="GET" class="pr-filters" action="{{ route('propiedades.index') }}">
-    <input type="text" id="pr-q" name="q" value="{{ request('q') }}" placeholder="Buscar por nombre o código" />
-    <select name="tipo">
-      <option value="">Todos los tipos</option>
-      <option value="cabaña" {{ request('tipo')=='cabaña' ? 'selected' : '' }}>Cabaña</option>
-      <option value="casa" {{ request('tipo')=='casa' ? 'selected' : '' }}>Casa</option>
-      <option value="departamento" {{ request('tipo')=='departamento' ? 'selected' : '' }}>Departamento</option>
-    </select>
-    <select name="estado">
-      <option value="">Cualquier estado</option>
-      <option value="disponible" {{ request('estado')=='disponible' ? 'selected' : '' }}>Disponible</option>
-      <option value="ocupada" {{ request('estado')=='ocupada' ? 'selected' : '' }}>Ocupada</option>
-      <option value="mantenimiento" {{ request('estado')=='mantenimiento' ? 'selected' : '' }}>Mantenimiento</option>
-    </select>
-    <input name="max_precio" type="number" step="0.01" value="{{ request('max_precio') }}" placeholder="Máx. precio noche" />
-    <button type="submit" class="pr-btn alt">Filtrar</button>
-    <button type="button" id="pr-clear" class="pr-btn danger">Limpiar</button>
-  </form>
-
-  <div class="card table-card">
-    <div class="table-responsive">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Imagen</th>
-            <th>Nombre</th>
-            <th>Código</th>
-            <th>Tipo</th>
-            <th>Precio / noche</th>
-            <th>Capacidad</th>
-            <th>Estado</th>
-            <th style="text-align:right">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          @forelse($propiedades as $prop)
+  @if($isAdmin)
+    <div class="card table-card list-view">
+      <div class="table-responsive">
+        <table class="table" style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th>Imagen</th>
+              <th>Nombre</th>
+              <th>Tipo / Código</th>
+              <th>Precio / noche</th>
+              <th>Capacidad</th>
+              <th>Estado</th>
+              <th style="width:220px">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @forelse($propiedades ?? [] as $prop)
             <tr>
               <td style="width:120px;">
                 @if(!empty($prop->ruta_img))
-                  <img src="{{ asset($prop->ruta_img) }}" alt="{{ $prop->nombre }}" style="width:100px;height:64px;object-fit:cover;border-radius:8px;">
+                  <img src="{{ asset($prop->ruta_img) }}" style="width:100px;height:64px;object-fit:cover;border-radius:8px;">
                 @else
-                  <div style="width:100px;height:64px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border-radius:8px;color:#9ca3af">Sin imagen</div>
+                  <div style="width:100px;height:64px;background:#f3f4f6;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;">Sin imagen</div>
                 @endif
               </td>
-              <td style="min-width:180px;">{{ $prop->nombre }}</td>
-              <td>{{ $prop->codigo }}</td>
-              <td>{{ $prop->tipo }}</td>
-              <td>${{ number_format($prop->precio_noche ?? 0, 2, ',', '.') }}</td>
-              <td>{{ $prop->capacidad ?? '-' }}</td>
-              <td><span class="pr-estado {{ $prop->estado }}">{{ $prop->estado }}</span></td>
-              <td style="text-align:right;white-space:nowrap;">
-                <div class="btn-group">
-                  <a href="{{ route('propiedades.show', $prop->id) }}" class="action-btn edit" title="Ver detalle">Ver</a>
+              <td style="vertical-align:middle;">{{ $prop->nombre }}</td>
+              <td style="vertical-align:middle;">{{ ucfirst($prop->tipo) }} · {{ $prop->codigo ?? '-' }}</td>
+              <td style="vertical-align:middle;">${{ number_format($prop->precio_noche ?? 0,2,',','.') }}</td>
+              <td style="vertical-align:middle;">{{ $prop->capacidad }}</td>
+              <td style="vertical-align:middle;">{{ ucfirst($prop->estado) }}</td>
+              <td style="vertical-align:middle;white-space:nowrap;">
+                <a href="{{ route('propiedades.show', $prop->id) }}" class="action-btn edit" style="margin-right:6px">Ver</a>
 
-                  <button
-                    type="button"
-                    class="action-btn edit"
-                    data-edit
-                    data-prop='@json($prop)'
-                    data-update-url="{{ route('propiedades.update', $prop->id) }}"
-                    title="Editar"
-                  >Editar</button>
+                <button
+                  type="button"
+                  class="action-btn edit"
+                  data-edit
+                  data-prop='@json($prop)'
+                  data-update-url="{{ route('propiedades.update', $prop->id) }}"
+                >Editar</button>
 
-                  <form method="POST" action="{{ route('propiedades.destroy', $prop->id) }}" style="display:inline" class="form-delete">
-                    @csrf
-                    @method('DELETE')
-                    <button class="action-btn delete" type="button" data-delete-confirm="¿Eliminar propiedad {{ addslashes($prop->nombre ?? $prop->codigo) }}?" style="margin-left:6px;">Eliminar</button>
-                  </form>
-                </div>
+                <form method="POST" action="{{ route('propiedades.destroy', $prop->id) }}" style="display:inline" class="form-delete">
+                  @csrf
+                  @method('DELETE')
+                  <button class="action-btn delete" type="button" data-delete-confirm="¿Eliminar propiedad {{ addslashes($prop->nombre ?? $prop->codigo) }}?" style="margin-left:6px;">Eliminar</button>
+                </form>
               </td>
             </tr>
-          @empty
-            <tr><td colspan="8" class="muted">No hay propiedades registradas.</td></tr>
-          @endforelse
-        </tbody>
-      </table>
+            @empty
+              <tr><td colspan="7" class="muted">No hay propiedades.</td></tr>
+            @endforelse
+          </tbody>
+        </table>
+      </div>
     </div>
-  </div>
 
-  {{ $propiedades->withQueryString()->links() ?? '' }}
+  @else
+    <div class="pr-grid" role="list">
+      @forelse($propiedades ?? [] as $prop)
+        @php
+          $img = !empty($prop->ruta_img) ? asset($prop->ruta_img) : null;
+          $comments = Comentario::with('user')
+                      ->whereHas('reservation', function($q) use ($prop) { $q->where('propiedad_id', $prop->id); })
+                      ->orderByDesc('fecha_creacion')
+                      ->limit(3)
+                      ->get();
+        @endphp
+
+        <article class="pr-card" role="listitem" aria-labelledby="prop-{{ $prop->id }}">
+          <div class="pr-thumb" aria-hidden="true">
+            @if($img)
+              <img src="{{ $img }}" alt="{{ $prop->nombre }}">
+            @else
+              <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#9ca3af;">Sin imagen</div>
+            @endif
+          </div>
+
+          <div class="pr-body">
+            <div>
+              <div id="prop-{{ $prop->id }}" class="pr-title">{{ $prop->nombre }}</div>
+              <div class="pr-meta">{{ ucfirst($prop->tipo) }} · {{ $prop->codigo ?? '-' }} · Capacidad: {{ $prop->capacidad }}</div>
+              <div style="margin-top:6px;font-weight:800;color:#065f46;">${{ number_format($prop->precio_noche ?? 0,2,',','.') }} / noche</div>
+            </div>
+
+            <div class="pr-actions" aria-hidden="false">
+              <a href="{{ route('propiedades.show', $prop->id) }}" class="pr-btn" style="background:#f3f4f6;color:#111;border-radius:8px;border:1px solid #e6e9ee;">Ver detalles</a>
+              <div class="muted">{{ ucfirst($prop->estado) }}</div>
+            </div>
+          </div>
+
+          <div class="pr-comments" aria-label="Comentarios propiedad {{ $prop->nombre }}">
+            @if($comments->isEmpty())
+              <div class="muted">Sin comentarios recientes.</div>
+            @else
+              @foreach($comments as $c)
+                <div class="pr-comment">
+                  <div class="by">{{ $c->user->nombre ?? 'Usuario' }} · <span class="muted" style="font-weight:600;font-size:0.85rem;">{{ \Carbon\Carbon::parse($c->fecha_creacion)->format('d M Y') }}</span></div>
+                  <div style="color:#374151;font-size:0.95rem;">{{ Str::limit($c->comentario, 120) }}</div>
+                </div>
+              @endforeach
+            @endif
+          </div>
+        </article>
+      @empty
+        <div class="muted">No hay propiedades disponibles.</div>
+      @endforelse
+    </div>
+  @endif
+
+  <div style="margin-top:14px;">{{ $propiedades->withQueryString()->links() ?? '' }}</div>
 </div>
 
-<div id="modal-prop-new" class="modal" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel">
-    <button class="modal-close" data-close>✕</button>
+<div id="modal-prop-new" class="modal" aria-hidden="true" style="display:none;align-items:center;justify-content:center;">
+  <div class="modal-backdrop" data-close style="position:absolute;inset:0;background:rgba(2,6,23,0.45);z-index:1000;"></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" style="position:relative;z-index:1200;max-width:900px;">
+    <button class="modal-close" data-close style="position:absolute;right:12px;top:12px;border:0;background:transparent;font-size:18px;">✕</button>
     <h3>Crear propiedad</h3>
 
-    <form id="form-prop-new" method="POST" action="{{ route('propiedades.store') }}" class="form">
+    <form id="form-prop-new" method="POST" action="{{ route('propiedades.store') }}" class="form" enctype="multipart/form-data">
       @csrf
-      <div class="pr-grid" style="grid-template-columns:1fr 140px;align-items:end;gap:10px">
+      <div style="display:grid;grid-template-columns:1fr 140px;gap:10px;align-items:end;margin-bottom:10px;">
         <label class="field" style="grid-column:1">
           <span class="label-text">Tipo</span>
           <select name="tipo" required>
@@ -179,17 +240,17 @@
   </div>
 </div>
 
-<div id="modal-prop-edit" class="modal" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel">
-    <button class="modal-close" data-close>✕</button>
+<div id="modal-prop-edit" class="modal" aria-hidden="true" style="display:none;align-items:center;justify-content:center;">
+  <div class="modal-backdrop" data-close style="position:absolute;inset:0;background:rgba(2,6,23,0.45);z-index:1000;"></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" style="position:relative;z-index:1200;max-width:900px;">
+    <button class="modal-close" data-close style="position:absolute;right:12px;top:12px;border:0;background:transparent;font-size:18px;">✕</button>
     <h3>Editar propiedad</h3>
 
     <form id="form-prop-edit" method="POST" action="#" class="form">
       @csrf
       @method('PUT')
       <input type="hidden" id="e-id" name="id" />
-      <div class="pr-grid" style="grid-template-columns:1fr 140px;align-items:end;gap:10px">
+      <div style="display:grid;grid-template-columns:1fr 140px;gap:10px;align-items:end;margin-bottom:10px;">
         <label class="field" style="grid-column:1">
           <span class="label-text">Tipo</span>
           <select id="e-tipo" name="tipo" required>
@@ -249,11 +310,10 @@
   </div>
 </div>
 
-<!-- Modal selector de imágenes públicas (explorer) -->
-<div id="modal-image-picker" class="modal" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" style="max-width:900px;display:grid;grid-template-columns:240px 1fr;gap:12px;">
-    <button class="modal-close" data-close>✕</button>
+<div id="modal-image-picker" class="modal" aria-hidden="true" style="display:none;align-items:center;justify-content:center;">
+  <div class="modal-backdrop" data-close style="position:absolute;inset:0;background:rgba(2,6,23,0.45);z-index:1000;"></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" style="max-width:900px;display:grid;grid-template-columns:240px 1fr;gap:12px;position:relative;z-index:1200;">
+    <button class="modal-close" data-close style="position:absolute;right:12px;top:12px;border:0;background:transparent;font-size:18px;">✕</button>
     <h3 style="grid-column:1 / -1;margin-top:0;">Seleccionar imagen pública</h3>
 
     <div style="display:flex;flex-direction:column;gap:8px;">
@@ -275,40 +335,12 @@
   </div>
 </div>
 
-<div id="modal-prop-view" class="modal" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" style="max-width:900px;">
-    <button class="modal-close" data-close>✕</button>
-    <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">
-      <div style="flex:1;min-width:320px;">
-        <div id="view-main-img" style="background:#f3f4f6;border-radius:8px;display:flex;align-items:center;justify-content:center;height:360px;overflow:hidden;">
-        </div>
-        <div id="view-thumbs" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"></div>
-      </div>
-      <div style="width:360px;">
-        <h3 id="view-nombre" style="margin:0 0 6px 0;"></h3>
-        <div id="view-codigo" style="color:#6b7280;margin-bottom:8px;"></div>
-        <div id="view-tipo" style="font-weight:700;margin-bottom:8px;"></div>
-        <div id="view-precio" style="font-size:1.1rem;font-weight:800;margin-bottom:8px;"></div>
-        <div id="view-capacidad" style="margin-bottom:8px;"></div>
-        <div id="view-ubicacion" style="color:#6b7280;margin-bottom:8px;"></div>
-        <div id="view-servicios" style="margin-bottom:12px;"></div>
-        <div id="view-descripcion" style="color:#374151;white-space:pre-wrap;"></div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
-      <button class="btn" id="view-edit-btn">Editar</button>
-      <button class="btn btn-alt" data-close>Cerrar</button>
-    </div>
-  </div>
-</div>
-
-<div id="modal-confirm-delete" class="modal" aria-hidden="true">
-  <div class="modal-backdrop" data-close></div>
-  <div class="modal-panel" style="max-width:420px;">
-    <button class="modal-close" data-close>✕</button>
+<div id="modal-confirm-delete" class="modal" aria-hidden="true" style="display:none;align-items:center;justify-content:center;">
+  <div class="modal-backdrop" data-close style="position:absolute;inset:0;background:rgba(2,6,23,0.45);z-index:1000;"></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" style="position:relative;z-index:1200;max-width:420px;">
+    <button class="modal-close" data-close style="position:absolute;right:12px;top:12px;border:0;background:transparent;font-size:18px;">✕</button>
     <h3>Confirmar eliminación</h3>
-    <p id="confirm-delete-msg" style="color:#6b7280;"></p>
+    <p id="confirm-delete-msg" class="muted">¿Estás seguro?</p>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
       <button class="btn btn-alt" data-close id="confirm-delete-cancel">Cancelar</button>
       <button class="btn btn-danger" id="confirm-delete-ok">Eliminar</button>
@@ -318,7 +350,7 @@
 
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function(){
   function show(modal){ if(!modal) return; modal.setAttribute('aria-hidden','false'); modal.style.display='flex'; setTimeout(()=> modal.classList.add('open'),20); }
@@ -425,6 +457,7 @@ document.addEventListener('DOMContentLoaded', function(){
   const currentFolderInput = document.getElementById('picker-current-folder');
 
   async function loadFolders(filter=''){
+    if(!foldersContainer) return;
     foldersContainer.innerHTML = 'Cargando...';
     try {
       const resp = await fetch("{{ route('images.dirs') }}", { credentials:'same-origin' });
@@ -451,6 +484,7 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   async function loadFiles(folder){
+    if(!filesContainer) return;
     filesContainer.innerHTML = 'Cargando...';
     try {
       const resp = await fetch("{{ route('images.list') }}?folder=" + encodeURIComponent(folder), { credentials:'same-origin' });
@@ -508,81 +542,20 @@ document.addEventListener('DOMContentLoaded', function(){
     btn.addEventListener('click', function(){ const m = this.closest('.modal'); hide(m); });
   });
 
-  const viewModal = document.getElementById('modal-prop-view');
-  const viewEditBtn = document.getElementById('view-edit-btn');
-  document.querySelectorAll('[data-view-btn]').forEach(btn=>{
-    btn.addEventListener('click', function(){
-      const raw = this.getAttribute('data-prop') || '{}';
-      let data = {};
-      try { data = JSON.parse(raw); } catch(e){ console.error(e); return; }
-      document.getElementById('view-main-img').innerHTML = data.ruta_img ? '<img src=\"'+ (location.origin + '/' + data.ruta_img) +'\" style=\"width:100%;height:100%;object-fit:cover;\">' : '<div style=\"color:#9ca3af;\">Sin imagen</div>';
-      document.getElementById('view-thumbs').innerHTML = '';
-      document.getElementById('view-nombre').textContent = data.nombre || '';
-      document.getElementById('view-codigo').textContent = data.codigo || '';
-      document.getElementById('view-tipo').textContent = data.tipo || '';
-      document.getElementById('view-precio').textContent = '$' + (Number(data.precio_noche || 0).toFixed(2)).replace('.', ',');
-      document.getElementById('view-capacidad').textContent = 'Capacidad: ' + (data.capacidad ?? '-');
-      document.getElementById('view-ubicacion').textContent = data.ubicacion || '';
-      document.getElementById('view-servicios').innerHTML = (String(data.servicios || '').split(',').map(s=> s.trim()).filter(Boolean).map(s=> '<span style=\"background:#f3f4f6;padding:6px 8px;border-radius:999px;margin-right:6px;display:inline-block;font-weight:700\">'+s+'</span>').join('')) || '';
-      document.getElementById('view-descripcion').textContent = data.descripcion || '';
-      show(viewModal);
-
-      viewEditBtn.onclick = function(){
-        document.querySelectorAll('[data-edit]').forEach(e => {
-          try {
-            const d = JSON.parse(e.getAttribute('data-prop') || '{}');
-            if(String(d.id) === String(data.id)) { e.click(); }
-          } catch(e) {}
-        });
-      };
-    });
-  });
-
   let pendingDeleteForm = null;
-  document.querySelectorAll('.form-delete .action-btn.delete').forEach(btn=>{
+  document.querySelectorAll('button[data-delete-confirm]').forEach(btn=>{
     btn.addEventListener('click', function(e){
       e.preventDefault();
       const form = this.closest('form');
       pendingDeleteForm = form;
-      const msg = this.getAttribute('data-delete-confirm') || '¿Eliminar registro?';
+      const msg = this.getAttribute('data-delete-confirm') || '¿Eliminar?';
       document.getElementById('confirm-delete-msg').textContent = msg;
       show(document.getElementById('modal-confirm-delete'));
     });
   });
   document.getElementById('confirm-delete-cancel')?.addEventListener('click', function(){ pendingDeleteForm = null; hide(document.getElementById('modal-confirm-delete')); });
-  document.getElementById('confirm-delete-ok')?.addEventListener('click', function(){ if(pendingDeleteForm) pendingDeleteForm.submit(); });
+  document.getElementById('confirm-delete-ok')?.addEventListener('click', function(){ if(pendingDeleteForm){ pendingDeleteForm.submit(); } pendingDeleteForm = null; hide(document.getElementById('modal-confirm-delete')); });
 
-  document.getElementById('pr-clear')?.addEventListener('click', function(){
-    const form = document.getElementById('pr-filters');
-    if (!form) return;
-    const inputs = Array.from(form.querySelectorAll('input, select, textarea'));
-    inputs.forEach(i => {
-      const tag = (i.tagName || '').toLowerCase();
-      const type = (i.getAttribute('type') || '').toLowerCase();
-      if (type === 'hidden' || type === 'submit' || type === 'button' || type === 'image') return;
-      if (type === 'checkbox' || type === 'radio') { i.checked = false; return; }
-      if (tag === 'select') { i.selectedIndex = 0; return; }
-      i.value = '';
-    });
-    form.submit();
-  });
-
-  (function(){
-    try {
-      const params = new URLSearchParams(location.search);
-      const editId = params.get('edit');
-      if (editId) {
-        setTimeout(()=> {
-          document.querySelectorAll('[data-edit]').forEach(btn=>{
-            try {
-              const d = JSON.parse(btn.getAttribute('data-prop') || '{}');
-              if(String(d.id) === String(editId)) btn.click();
-            } catch(e){}
-          });
-        }, 120);
-      }
-    } catch(e){}
-  })();
 });
 </script>
-@endsection
+@endpush

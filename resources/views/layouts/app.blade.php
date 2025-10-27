@@ -1,11 +1,10 @@
-<?php>
 <!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>{{ config('app.name', 'HomeRes') }}</title>
-  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="csrf-token" content="{{ csrf_token() }}" >
   <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
 </head>
 <body class="app-root">
@@ -74,7 +73,9 @@
       });
     })();
   </script>
-
-  @yield('scripts')
-</body>
-</html>
+  
+  @section('scripts')
+  @show
+   @stack('scripts')
+ </body>
+ </html>
