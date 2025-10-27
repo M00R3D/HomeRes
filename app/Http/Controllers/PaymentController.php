@@ -12,7 +12,7 @@ class PaymentController extends Controller
 {
     public function index(Request $request)
     {
-        $q = Payment::query()->with(['reservation','tarjeta']);
+        $q = Payment::query()->with(['reservation','tarjeta.assignedUser']);
         $payments = $q->orderByDesc('id')->paginate(15);
 
         if ($request->wantsJson()) return response()->json($payments);

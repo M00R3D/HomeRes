@@ -63,35 +63,81 @@
         @forelse($payments as $p)
           <tr>
             <td>{{ $p->id }}</td>
-            <td>
-              @if($p->reservation)
-                #{{ $p->reservation->id }} — {{ $p->reservation->user->nombre ?? '-' }}
+            <td style="display:flex;align-items:center;gap:12px;">
+              @php
+                $img = $p->reservation && $p->reservation->propiedad && $p->reservation->propiedad->ruta_img
+                        ? asset($p->reservation->propiedad->ruta_img)
+                        : null;
+              @endphp
+              @if($img)
+                <img src="{{ $img }}" alt="propiedad" style="width:56px;height:40px;object-fit:cover;border-radius:6px;border:1px solid #eef2f7" />
               @else
-                #{{ $p->reservacion_id ?? '-' }}
+                <div style="width:56px;height:40px;border-radius:6px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;color:#9ca3af">No img</div>
               @endif
+              <div>
+                @if($p->reservation)
+                  <div style="font-weight:700;">#{{ $p->reservation->id }} — {{ $p->reservation->user->nombre ?? '-' }}</div>
+                  <div class="small">{{ $p->reservation->propiedad->nombre ?? '' }}</div>
+                @else
+                  <div class="small">#{{ $p->reservacion_id ?? '-' }}</div>
+                @endif
+              </div>
             </td>
+
             <td>
               @if($p->tarjeta)
-                {{ $p->tarjeta->nombre ?? 'Tarjeta' }} ••••{{ substr($p->tarjeta->numero_tarjeta, -4) }}
+                @php
+                  $raw = preg_replace('/\D/','', $p->tarjeta->numero_tarjeta ?? '');
+                  $first4 = \Illuminate\Support\Str::substr($raw, 0, 4) ?: '••••';
+                  $last = (int) (strlen($raw) ? substr($raw, -1) : 0);
+                  $assignedUser = optional($p->tarjeta->assignedUser);
+                  $assignedName = $assignedUser->nombre ? trim(($assignedUser->nombre ?? '') . ' ' . ($assignedUser->apellido ?? '')) : null;
+                  $colors = ['#0ea5e9','#06b6d4','#7c3aed','#ef4444','#f59e0b','#10b981','#f97316','#8b5cf6','#0f172a','#065f46'];
+                  $bg = $colors[$last % count($colors)];
+                @endphp
+
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:120px;height:64px;border-radius:8px;overflow:hidden;box-shadow:0 6px 18px rgba(2,6,23,0.06);">
+                    <svg width="100%" height="100%" viewBox="0 0 160 64" xmlns="http://www.w3.org/2000/svg" role="img">
+                      <rect width="160" height="64" rx="8" fill="{{ $bg }}" />
+                      <rect width="160" height="64" rx="8" fill="rgba(255,255,255,0.06)" />
+                      <text x="12" y="42" font-family="monospace" font-size="18" fill="#fff" font-weight="700">{{ $first4 }}</text>
+                    </svg>
+                  </div>
+                  <div>
+                    <div style="font-weight:700;">{{ $p->tarjeta->nombre ?? 'Tarjeta' }}</div>
+                    <div class="small">••••{{ substr($p->tarjeta->numero_tarjeta ?? '', -4) }}</div>
+                    <div style="font-size:12px;color:#6b7280;margin-top:4px;">
+                      {{ $assignedName ?? 'No asignada' }}
+                    </div>
+                  </div>
+                </div>
               @else
-                -
+                <div class="small">-</div>
               @endif
             </td>
+
             <td style="font-weight:800">${{ number_format($p->monto,2,',','.') }}</td>
             <td>{{ $p->metodo_pago }}</td>
             <td>{{ ucfirst($p->estado) }}</td>
             <td>{{ $p->fecha_pago ? \Carbon\Carbon::parse($p->fecha_pago)->format('d M Y H:i') : '-' }}</td>
-            <td class="row-actions">
+            <td style="text-align:right">
               <form method="POST" action="{{ route('pagos.destroy',$p->id) }}" style="display:inline;" data-payment-id="{{ $p->id }}">
                 @csrf
                 @method('DELETE')
 
+                @php $tarAssignedName = optional(optional($p->tarjeta)->assignedUser)->nombre ? trim(optional($p->tarjeta->assignedUser)->nombre . ' ' . optional($p->tarjeta->assignedUser)->apellido) : ''; @endphp
                 <button type="button"
                         class="link-button"
                         data-edit
                         data-id="{{ $p->id }}"
                         data-reservacion="{{ $p->reservacion_id }}"
+                        data-reservacion-img="{{ optional($p->reservation->propiedad)->ruta_img ?? '' }}"
+                        data-reservacion-title="{{ $p->reservation ? ($p->reservation->propiedad->nombre ?? '') : '' }}"
                         data-tarjeta="{{ $p->tarjeta_id }}"
+                        data-tarjeta-numero="{{ optional($p->tarjeta)->numero_tarjeta ?? '' }}"
+                        data-tarjeta-nombre="{{ optional($p->tarjeta)->nombre ?? '' }}"
+                        data-tarjeta-assigned-name="{{ $tarAssignedName }}"
                         data-monto="{{ number_format($p->monto,2,'.','') }}"
                         data-metodo="{{ $p->metodo_pago }}"
                         data-estado="{{ $p->estado }}"
@@ -119,22 +165,45 @@
 
     <form id="form-pago" method="POST" action="{{ route('pagos.store') }}">
       @csrf
-      <label class="field"><span class="label-text">Reservación</span>
-        <select name="reservacion_id" id="p-reservacion" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ee">
-          <option value="">-- ninguna --</option>
-          @foreach($reservaciones as $r)
-            <option value="{{ $r->id }}">#{{ $r->id }} — {{ $r->user->nombre ?? '-' }} — {{ $r->propiedad->nombre ?? '' }}</option>
-          @endforeach
-        </select>
+      <label class="field" style="display:grid;grid-template-columns:1fr 220px;gap:8px;align-items:start;">
+        <div>
+          <span class="label-text">Reservación</span>
+          <select name="reservacion_id" id="p-reservacion" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ee">
+            <option value="">-- ninguna --</option>
+            @foreach($reservaciones as $r)
+              <option value="{{ $r->id }}"
+                      data-img="{{ optional($r->propiedad)->ruta_img ?? '' }}"
+                      data-title="{{ $r->propiedad->nombre ?? ('Reservación #' . $r->id) }}">
+                #{{ $r->id }} — {{ $r->user->nombre ?? '-' }} — {{ $r->propiedad->nombre ?? '' }}
+              </option>
+            @endforeach
+          </select>
+        </div>
+        <div id="preview-reservacion" style="min-height:48px;border-radius:8px;padding:6px;border:1px solid #eef2f7;background:#fff;display:flex;gap:8px;align-items:center;">
+          <div style="width:56px;height:40px;border-radius:6px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px">No img</div>
+          <div style="font-size:13px;color:#374151">Sin selección</div>
+        </div>
       </label>
 
-      <label class="field"><span class="label-text">Tarjeta (opcional)</span>
-        <select name="tarjeta_id" id="p-tarjeta" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ee">
-          <option value="">-- ninguna --</option>
-          @foreach($tarjetas as $t)
-            <option value="{{ $t->id }}">{{ $t->nombre }} ••••{{ substr($t->numero_tarjeta, -4) }}</option>
-          @endforeach
-        </select>
+      <label class="field" style="display:grid;grid-template-columns:1fr 180px;gap:8px;align-items:start;">
+        <div>
+          <span class="label-text">Tarjeta (opcional)</span>
+          <select name="tarjeta_id" id="p-tarjeta" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ee">
+            <option value="">-- ninguna --</option>
+            @foreach($tarjetas as $t)
+              @php $assigned = optional($t->assignedUser); $assignedNameOpt = $assigned->nombre ? trim(($assigned->nombre ?? '') . ' ' . ($assigned->apellido ?? '')) : ''; @endphp
+              <option value="{{ $t->id }}"
+                      data-numero="{{ $t->numero_tarjeta }}"
+                      data-nombre="{{ $t->nombre }}"
+                      data-assigned-name="{{ $assignedNameOpt }}">
+                {{ $t->nombre }} ••••{{ substr($t->numero_tarjeta, -4) }}
+              </option>
+            @endforeach
+          </select>
+        </div>
+        <div id="preview-tarjeta" style="min-height:48px;border-radius:8px;padding:6px;border:1px solid #eef2f7;background:#fff;display:flex;gap:8px;align-items:center;justify-content:center;">
+          <div style="width:120px;height:40px;border-radius:6px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-weight:700;">Sin tarjeta</div>
+        </div>
       </label>
 
       <label class="field"><span class="label-text">Monto</span>
@@ -234,8 +303,16 @@ document.addEventListener('DOMContentLoaded', function(){
       const method = document.createElement('input'); method.type='hidden'; method.name='_method'; method.value='PUT'; form.appendChild(method);
 
       document.getElementById('modal-pago-title').textContent = 'Editar pago #' + id;
-      document.getElementById('p-reservacion').value = this.dataset.reservacion || '';
-      document.getElementById('p-tarjeta').value = this.dataset.tarjeta || '';
+      const reservSel = document.getElementById('p-reservacion');
+      const tarSel = document.getElementById('p-tarjeta');
+      if (reservSel) {
+        reservSel.value = this.dataset.reservacion || '';
+        updateReservPreviewFromOption(reservSel);
+      }
+      if (tarSel) {
+        tarSel.value = this.dataset.tarjeta || '';
+        updateTarjetaPreviewFromOption(tarSel);
+      }
 
       const monto = String(this.dataset.monto || '0');
       const parts = monto.indexOf('.') > -1 ? monto.split('.') : [monto,'00'];
@@ -325,6 +402,70 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!confirm(msg)) return;
     const form = el.closest('form');
     if (form) form.submit();
+  });
+
+  function updateReservPreviewFromOption(selectEl){
+    const opt = selectEl.selectedOptions[0];
+    const container = document.getElementById('preview-reservacion');
+    if (!container) return;
+    const imgPath = opt?.dataset?.img || '';
+    const title = opt?.dataset?.title || opt?.textContent || 'Sin selección';
+    container.innerHTML = '';
+    const thumb = document.createElement('div');
+    thumb.style.width = '56px'; thumb.style.height = '40px'; thumb.style.borderRadius = '6px'; thumb.style.overflow = 'hidden'; thumb.style.flex = '0 0 56px';
+    if (imgPath) {
+      const img = document.createElement('img');
+      img.src = imgPath;
+      img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'cover';
+      thumb.appendChild(img);
+    } else {
+      thumb.style.background = '#f3f4f6'; thumb.style.display='flex'; thumb.style.alignItems='center'; thumb.style.justifyContent='center'; thumb.style.color='#9ca3af';
+      thumb.textContent = 'No img';
+    }
+    const txt = document.createElement('div');
+    txt.style.fontSize = '13px'; txt.style.color = '#374151'; txt.style.paddingTop = '2px';
+    txt.textContent = title;
+    container.appendChild(thumb);
+    container.appendChild(txt);
+  }
+
+  function updateTarjetaPreviewFromOption(selectEl){
+    const opt = selectEl.selectedOptions[0];
+    const container = document.getElementById('preview-tarjeta');
+    if (!container) return;
+    const numero = opt?.dataset?.numero || '';
+    const nombre = opt?.dataset?.nombre || '';
+    const assignedName = opt?.dataset?.assignedName || opt?.dataset?.assignedName === '' ? opt.dataset.assignedName : '';
+    container.innerHTML = '';
+    const first4 = (numero && numero.length >= 4) ? numero.slice(0,4) : '••••';
+    const last = parseInt(numero ? numero.slice(-1) : '0') || 0;
+    const colors = ['#0ea5e9','#06b6d4','#7c3aed','#ef4444','#f59e0b','#10b981','#f97316','#8b5cf6','#0f172a','#065f46'];
+    const bg = colors[last % colors.length];
+    const mini = document.createElement('div');
+    mini.style.width = '120px'; mini.style.height='40px'; mini.style.borderRadius='6px'; mini.style.overflow='hidden'; mini.style.boxShadow='0 6px 16px rgba(2,6,23,0.06)';
+    mini.innerHTML = '<svg width="100%" height="100%" viewBox="0 0 160 40" xmlns="http://www.w3.org/2000/svg"><rect width="160" height="40" rx="6" fill="'+bg+'"/><rect width="160" height="40" rx="6" fill="rgba(255,255,255,0.06)"/><text x="12" y="26" font-family="monospace" font-size="14" fill="#fff" font-weight="700">'+first4+'</text></svg>';
+    const meta = document.createElement('div');
+    meta.style.display = 'flex';
+    meta.style.flexDirection = 'column';
+    meta.style.justifyContent = 'center';
+    meta.style.paddingLeft = '8px';
+    const title = document.createElement('div');
+    title.style.fontSize = '13px'; title.style.color = '#374151';
+    title.innerText = nombre || (numero ? '••••' + numero.slice(-4) : 'Sin tarjeta');
+    const assigned = document.createElement('div');
+    assigned.style.fontSize = '12px'; assigned.style.color = '#6b7280'; assigned.style.marginTop = '4px';
+    assigned.innerText = assignedName ? assignedName : 'No asignada';
+    meta.appendChild(title);
+    meta.appendChild(assigned);
+    container.appendChild(mini);
+    container.appendChild(meta);
+  }
+
+  document.getElementById('p-reservacion')?.addEventListener('change', function(){ updateReservPreviewFromOption(this); });
+  document.getElementById('p-tarjeta')?.addEventListener('change', function(){ updateTarjetaPreviewFromOption(this); });
+  document.addEventListener('DOMContentLoaded', function(){ 
+    const r = document.getElementById('p-reservacion'); if (r) updateReservPreviewFromOption(r);
+    const t = document.getElementById('p-tarjeta'); if (t) updateTarjetaPreviewFromOption(t);
   });
 });
 </script>
