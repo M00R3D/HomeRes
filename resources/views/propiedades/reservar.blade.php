@@ -66,9 +66,9 @@
             <div style="display:flex;gap:12px;align-items:flex-start;">
               <div class="calendar calendar-month" id="calendar-left">
                 <div class="cal-head">
-                  <div class="cal-nav"><button id="prev-month" aria-label="Mes anterior">‹</button></div>
+                  <div class="cal-nav"><button id="prev-left" aria-label="Mes anterior (check-in)">‹</button></div>
                   <div id="cal-title-left" style="font-weight:800"></div>
-                  <div class="cal-nav"><button id="next-month" aria-label="Mes siguiente">›</button></div>
+                  <div class="cal-nav"><button id="next-left" aria-label="Mes siguiente (check-in)">›</button></div>
                 </div>
                 <div class="cal-grid">
                   <div class="cal-weekday">Lun</div><div class="cal-weekday">Mar</div><div class="cal-weekday">Mié</div><div class="cal-weekday">Jue</div><div class="cal-weekday">Vie</div><div class="cal-weekday">Sáb</div><div class="cal-weekday">Dom</div>
@@ -78,9 +78,9 @@
 
               <div class="calendar calendar-month" id="calendar-right">
                 <div class="cal-head">
-                  <div></div>
+                  <div class="cal-nav"><button id="prev-right" aria-label="Mes anterior (check-out)">‹</button></div>
                   <div id="cal-title-right" style="font-weight:800;text-align:center"></div>
-                  <div></div>
+                  <div class="cal-nav"><button id="next-right" aria-label="Mes siguiente (check-out)">›</button></div>
                 </div>
                 <div class="cal-grid">
                   <div class="cal-weekday">Lun</div><div class="cal-weekday">Mar</div><div class="cal-weekday">Mié</div><div class="cal-weekday">Jue</div><div class="cal-weekday">Vie</div><div class="cal-weekday">Sáb</div><div class="cal-weekday">Dom</div>
@@ -188,7 +188,6 @@
 document.addEventListener('DOMContentLoaded', function(){
   let rawBlocked = @json($blockedRanges ?? []);
   if (!Array.isArray(rawBlocked)) rawBlocked = rawBlocked ? Object.values(rawBlocked) : [];
-
   const blockedRanges = rawBlocked
     .map(r => {
       if (!r || !r.from || !r.to) return null;
@@ -200,11 +199,13 @@ document.addEventListener('DOMContentLoaded', function(){
     .filter(Boolean);
 
   const pricePerNight = Number({{ json_encode((float)$propiedad->precio_noche) }}) || 0;
+
   const checkInEl = document.getElementById('check-in');
   const checkOutEl = document.getElementById('check-out');
   const totalHidden = document.getElementById('total-hidden');
   const priceDisplay = document.getElementById('price-display');
   const breakdown = document.getElementById('price-breakdown');
+
   const numEl = document.getElementById('num-personas');
   const personCount = document.getElementById('person-count');
   const personLabel = document.getElementById('person-label');
@@ -212,13 +213,18 @@ document.addEventListener('DOMContentLoaded', function(){
   document.getElementById('person-decr')?.addEventListener('click', ()=> { numEl.value = Math.max(1, Number(numEl.value||1)-1); updatePersonUI(); });
   function updatePersonUI(){ const v = Number(numEl.value||1); personCount.textContent = v; personLabel.textContent = v + (v===1 ? ' persona' : ' personas'); }
   updatePersonUI();
+
   const daysGridLeft = document.getElementById('cal-grid-days-left');
   const daysGridRight = document.getElementById('cal-grid-days-right');
   const titleLeft = document.getElementById('cal-title-left');
   const titleRight = document.getElementById('cal-title-right');
-  const prevBtn = document.getElementById('prev-month');
-  const nextBtn = document.getElementById('next-month');
+  const prevLeft = document.getElementById('prev-left') || document.getElementById('prev-month');
+  const nextLeft = document.getElementById('next-left') || document.getElementById('next-month');
+  const prevRight = document.getElementById('prev-right');
+  const nextRight = document.getElementById('next-right');
+
   let viewDateLeft = new Date(); viewDateLeft.setDate(1);
+  let viewDateRight = new Date(viewDateLeft.getFullYear(), viewDateLeft.getMonth() + 1, 1);
   let selStart = null, selEnd = null;
   function dayStartTs(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); }
   function sameDay(a,b){ return !!(a && b && a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate()); }
@@ -249,7 +255,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const month = baseDate.getMonth();
     titleEl.textContent = baseDate.toLocaleString('es-AR', { month: 'long', year: 'numeric' });
 
-    const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7; // Monday=0
+    const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
     const daysInMonth = new Date(year, month+1, 0).getDate();
 
     for(let i=0;i<firstWeekday;i++){
@@ -268,9 +274,7 @@ document.addEventListener('DOMContentLoaded', function(){
         el.classList.add('blocked');
         el.addEventListener('click', ()=> { clearSelectionAndInputs(); });
       } else {
-        el.addEventListener('click', ()=> onDayClicked(cur));
       }
-
       const today = new Date(); today.setHours(0,0,0,0);
       if (cur.getTime() === today.getTime()) el.classList.add('today');
 
@@ -279,9 +283,43 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function renderBothMonths(){
-    const rightDate = new Date(viewDateLeft.getFullYear(), viewDateLeft.getMonth()+1, 1);
     renderMonth(viewDateLeft, daysGridLeft, titleLeft);
-    renderMonth(rightDate, daysGridRight, titleRight);
+    renderMonth(viewDateRight, daysGridRight, titleRight);
+
+    if (daysGridLeft) {
+      const nodes = Array.from(daysGridLeft.querySelectorAll('.cal-day'));
+      nodes.forEach(nd => {
+        nd.classList.remove('start','end','in-range');
+        const txt = nd.textContent.trim();
+        const n = parseInt(txt,10);
+        if (Number.isNaN(n)) return;
+        const baseMonth = new Date(viewDateLeft.getFullYear(), viewDateLeft.getMonth(), 1);
+        const nodeDate = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), n);
+        if (!isDateBlocked(nodeDate)) {
+          nd.onclick = ()=> onDayClickedLeft(nodeDate);
+        } else {
+          nd.onclick = ()=> clearSelectionAndInputs();
+        }
+      });
+    }
+
+    if (daysGridRight) {
+      const nodesR = Array.from(daysGridRight.querySelectorAll('.cal-day'));
+      nodesR.forEach(nd => {
+        nd.classList.remove('start','end','in-range');
+        const txt = nd.textContent.trim();
+        const n = parseInt(txt,10);
+        if (Number.isNaN(n)) return;
+        const baseMonth = new Date(viewDateRight.getFullYear(), viewDateRight.getMonth(), 1);
+        const nodeDate = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), n);
+        if (!isDateBlocked(nodeDate)) {
+          nd.onclick = ()=> onDayClickedRight(nodeDate);
+        } else {
+          nd.onclick = ()=> { clearSelectionAndInputs(); };
+        }
+      });
+    }
+
     applySelectionVisuals();
     validateSelectionAfterRender();
   }
@@ -294,7 +332,7 @@ document.addEventListener('DOMContentLoaded', function(){
         const txt = nd.textContent.trim();
         const n = parseInt(txt,10);
         if (Number.isNaN(n)) return;
-        const baseMonth = new Date(viewDateLeft.getFullYear(), viewDateLeft.getMonth() + (idx===0?0:1), 1);
+        const baseMonth = new Date((idx===0?viewDateLeft:viewDateRight).getFullYear(), (idx===0?viewDateLeft:viewDateRight).getMonth(), 1);
         const nodeDate = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), n);
         if (selStart && sameDay(nodeDate, selStart)) nd.classList.add('start');
         if (selEnd && sameDay(nodeDate, selEnd)) nd.classList.add('end');
@@ -304,24 +342,57 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 
-  function onDayClicked(date){
-    if (isDateBlocked(date)){ clearSelectionAndInputs(); return; }
-
+  function onDayClickedLeft(date){
+    if (isDateBlocked(date)) { clearSelectionAndInputs(); return; }
     if (!selStart || (selStart && selEnd)) {
-      selStart = date; selEnd = null;
+      selStart = date;
+      selEnd = null;
     } else {
-      if (date.getTime() <= selStart.getTime()) { selStart = date; selEnd = null; }
-      else {
+      if (date.getTime() <= selStart.getTime()) {
+        selStart = date; selEnd = null;
+      } else {
         if (rangeOverlapsBlocked(selStart, date)) {
-          clearSelectionAndInputs();
           alert('El rango seleccionado se solapa con fechas ya reservadas. Elige otras fechas.');
+          clearSelectionAndInputs();
           return;
         }
         selEnd = date;
       }
     }
+    if (viewDateRight.getFullYear() < selStart.getFullYear() || (viewDateRight.getFullYear() === selStart.getFullYear() && viewDateRight.getMonth() < selStart.getMonth())) {
+      viewDateRight = new Date(selStart.getFullYear(), selStart.getMonth(), 1);
+    }
     syncInputsFromSelection();
-    applySelectionVisuals();
+    renderBothMonths();
+  }
+
+  function onDayClickedRight(date){
+    if (isDateBlocked(date)) { clearSelectionAndInputs(); return; }
+    if (!selStart) {
+      selStart = date;
+      selEnd = null;
+      viewDateLeft = new Date(selStart.getFullYear(), selStart.getMonth(), 1);
+      viewDateRight = new Date(viewDateLeft.getFullYear(), viewDateLeft.getMonth() + 1, 1);
+      syncInputsFromSelection();
+      renderBothMonths();
+      return;
+    }
+    if (date.getTime() <= selStart.getTime()) {
+      selStart = date; selEnd = null;
+      viewDateRight = new Date(selStart.getFullYear(), selStart.getMonth(), 1);
+      syncInputsFromSelection();
+      renderBothMonths();
+      return;
+    }
+    if (rangeOverlapsBlocked(selStart, date)) {
+      alert('El rango seleccionado se solapa con fechas ya reservadas. Elige otras fechas.');
+      clearSelectionAndInputs();
+      renderBothMonths();
+      return;
+    }
+    selEnd = date;
+    syncInputsFromSelection();
+    renderBothMonths();
   }
 
   function syncInputsFromSelection(){
@@ -356,9 +427,46 @@ document.addEventListener('DOMContentLoaded', function(){
       if (rangeOverlapsBlocked(selStart, selEnd)) clearSelectionAndInputs();
     } else if (selStart && isDateBlocked(selStart)) clearSelectionAndInputs();
     else if (selEnd && isDateBlocked(selEnd)) clearSelectionAndInputs();
+    if (selStart) {
+      const sMonth = selStart.getFullYear()*12 + selStart.getMonth();
+      const rMonth = viewDateRight.getFullYear()*12 + viewDateRight.getMonth();
+      if (rMonth < sMonth) viewDateRight = new Date(selStart.getFullYear(), selStart.getMonth(), 1);
+    }
   }
-  prevBtn?.addEventListener('click', ()=> { viewDateLeft.setMonth(viewDateLeft.getMonth()-1); renderBothMonths(); });
-  nextBtn?.addEventListener('click', ()=> { viewDateLeft.setMonth(viewDateLeft.getMonth()+1); renderBothMonths(); });
+  function monthIndex(d){ return d.getFullYear()*12 + d.getMonth(); }
+  prevLeft?.addEventListener('click', ()=> {
+    viewDateLeft.setMonth(viewDateLeft.getMonth()-1);
+    if (monthIndex(viewDateLeft) > monthIndex(viewDateRight)) {
+      viewDateRight = new Date(viewDateLeft.getFullYear(), viewDateLeft.getMonth(), 1);
+    }
+    renderBothMonths();
+  });
+
+  nextLeft?.addEventListener('click', ()=> {
+    viewDateLeft.setMonth(viewDateLeft.getMonth()+1);
+    if (monthIndex(viewDateLeft) > monthIndex(viewDateRight)) {
+      viewDateRight = new Date(viewDateLeft.getFullYear(), viewDateLeft.getMonth(), 1);
+    }
+    renderBothMonths();
+  });
+
+  prevRight?.addEventListener('click', ()=> {
+    const candidate = new Date(viewDateRight.getFullYear(), viewDateRight.getMonth()-1, 1);
+    if (monthIndex(candidate) < monthIndex(viewDateLeft)) {
+      viewDateRight = new Date(viewDateLeft.getFullYear(), viewDateLeft.getMonth(), 1);
+    } else {
+      viewDateRight = candidate;
+    }
+    renderBothMonths();
+  });
+
+  nextRight?.addEventListener('click', ()=> {
+    viewDateRight.setMonth(viewDateRight.getMonth()+1);
+    if (monthIndex(viewDateRight) < monthIndex(viewDateLeft)) {
+      viewDateRight = new Date(viewDateLeft.getFullYear(), viewDateLeft.getMonth(), 1);
+    }
+    renderBothMonths();
+  });
   const form = document.getElementById('reserve-form');
   form?.addEventListener('submit', function(e){
     const ci = checkInEl.value;
@@ -371,7 +479,6 @@ document.addEventListener('DOMContentLoaded', function(){
       return;
     }
   });
-
   renderBothMonths();
   daysGridLeft?.addEventListener('dblclick', ()=> { clearSelectionAndInputs(); renderBothMonths(); });
   daysGridRight?.addEventListener('dblclick', ()=> { clearSelectionAndInputs(); renderBothMonths(); });
