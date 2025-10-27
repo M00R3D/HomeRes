@@ -19,4 +19,9 @@ class TarjetaSimulada extends Model
         'cvv',
         'saldo',
     ];
+
+    public function assignedUser()
+    {
+        return $this->hasOne(\App\Models\User::class, 'id_tarjeta', 'id');
+    }
 }

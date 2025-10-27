@@ -13,6 +13,7 @@ class Payment extends Model
     protected $primaryKey = 'id';
     protected $fillable = [
         'reservacion_id',
+        'tarjeta_id',
         'monto',
         'metodo_pago',
         'estado',
@@ -21,4 +22,5 @@ class Payment extends Model
     public $timestamps = false;
 
     public function reservation() { return $this->belongsTo(Reservation::class, 'reservacion_id', 'id'); }
+    public function tarjeta() { return $this->belongsTo(\App\Models\TarjetaSimulada::class, 'tarjeta_id', 'id'); }
 }

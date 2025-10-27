@@ -11,9 +11,17 @@ class TarjetaSimuladaController extends Controller
 {
     public function index(Request $request)
     {
-        $q = TarjetaSimulada::query();
+        $q = TarjetaSimulada::with('assignedUser');
         $tarjetas = $q->orderByDesc('id')->paginate(12);
+
+        $tarjetas->getCollection()->transform(function ($t) {
+            $t->usuario_asignado_nombre = $t->assignedUser
+                ? trim(($t->assignedUser->nombre ?? '') . ' ' . ($t->assignedUser->apellido ?? ''))
+                : null;
+            return $t;
+        });
         $usuarios = User::all();
+
         return view('tarjetas.index', ['tarjetas' => $tarjetas, 'usuarios' => $usuarios]);
     }
 
@@ -97,14 +105,22 @@ class TarjetaSimuladaController extends Controller
         $request->validate(['usuario_id' => 'required|exists:usuarios,id']);
         $t = TarjetaSimulada::find($id);
         if (!$t) return redirect()->back()->with('error','Tarjeta no encontrada');
+        if (schemaHasColumn('usuarios', 'id_tarjeta')) {
+            $newUserId = (int) $request->usuario_id;
 
+            DB::transaction(function() use ($t, $newUserId) {
+                DB::table('usuarios')->where('id_tarjeta', $t->id)->update(['id_tarjeta' => null]);
+                DB::table('usuarios')->where('id', $newUserId)->update(['id_tarjeta' => $t->id]);
+            });
+
+            return redirect()->back()->with('success','Tarjeta asignada al usuario (usuarios.id_tarjeta actualizada)');
+        }
         if (schemaHasColumn('tarjetas_simuladas', 'usuario_id')) {
             $t->usuario_id = $request->usuario_id;
             $t->save();
-            return redirect()->back()->with('success','Tarjeta asignada al usuario');
+            return redirect()->back()->with('success','Tarjeta asignada al usuario (tarjetas_simuladas.usuario_id actualizada)');
         }
-
-        return redirect()->back()->with('error','La tabla no tiene columna usuario_id. Agrega la columna para asignar tarjetas a usuarios.');
+        return redirect()->back()->with('error','Ni usuarios.id_tarjeta ni tarjetas_simuladas.usuario_id existen. Agrega una columna para guardar la asignación.');
     }
 }
 

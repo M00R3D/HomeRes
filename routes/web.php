@@ -27,6 +27,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('users', UserController::class)->names('users');
     Route::resource('propiedades', PropiedadController::class)->names('propiedades');
     Route::resource('notificaciones', NotificationController::class)->names('notificaciones');
+    Route::resource('pagos', \App\Http\Controllers\PaymentController::class)->names('pagos');
     Route::resource('tarjetas', \App\Http\Controllers\TarjetaSimuladaController::class)->names('tarjetas');
     Route::post('tarjetas/{id}/deposit', [\App\Http\Controllers\TarjetaSimuladaController::class,'deposit'])->name('tarjetas.deposit');
     Route::post('tarjetas/{id}/withdraw', [\App\Http\Controllers\TarjetaSimuladaController::class,'withdraw'])->name('tarjetas.withdraw');
