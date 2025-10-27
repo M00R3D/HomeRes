@@ -80,13 +80,7 @@
               <td><span class="pr-estado {{ $prop->estado }}">{{ $prop->estado }}</span></td>
               <td style="text-align:right;white-space:nowrap;">
                 <div class="btn-group">
-                  <button
-                    type="button"
-                    class="action-btn edit"
-                    data-view-btn
-                    data-prop='@json($prop)'
-                    title="Ver detalle"
-                  >Ver</button>
+                  <a href="{{ route('propiedades.show', $prop->id) }}" class="action-btn edit" title="Ver detalle">Ver</a>
 
                   <button
                     type="button"
@@ -573,6 +567,22 @@ document.addEventListener('DOMContentLoaded', function(){
     form.submit();
   });
 
+  (function(){
+    try {
+      const params = new URLSearchParams(location.search);
+      const editId = params.get('edit');
+      if (editId) {
+        setTimeout(()=> {
+          document.querySelectorAll('[data-edit]').forEach(btn=>{
+            try {
+              const d = JSON.parse(btn.getAttribute('data-prop') || '{}');
+              if(String(d.id) === String(editId)) btn.click();
+            } catch(e){}
+          });
+        }, 120);
+      }
+    } catch(e){}
+  })();
 });
 </script>
 @endsection
