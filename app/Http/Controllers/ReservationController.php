@@ -16,6 +16,10 @@ class ReservationController extends Controller
         if ($request->filled('usuario_id')) $q->where('usuario_id', $request->usuario_id);
         if ($request->filled('propiedad_id')) $q->where('propiedad_id', $request->propiedad_id);
         if ($request->filled('estado')) $q->where('estado', $request->estado);
+        $currentUser = auth()->user();
+        if ($currentUser && ($currentUser->rol ?? '') !== 'admin') {
+            $q->where('usuario_id', $currentUser->id);
+        }
 
         if ($request->wantsJson()) {
             return response()->json($q->with(['user','propiedad'])->get());
@@ -24,7 +28,6 @@ class ReservationController extends Controller
         $reservaciones = $q->with(['user','propiedad'])->orderByDesc('created_at')->get();
         $usuarios = User::all();
         $propiedades = Propiedad::all();
-        $currentUser = auth()->user();
 
         return view('reservaciones.index', compact('reservaciones','propiedades','usuarios','currentUser'));
     }

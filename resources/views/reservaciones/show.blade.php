@@ -4,11 +4,17 @@
 
 @section('content')
 <div style="max-width:980px;margin:20px auto;padding:12px;">
+  @php
+    $currentUser = $currentUser ?? auth()->user();
+    $isAdmin = ($currentUser && ($currentUser->rol ?? '') === 'admin');
+  @endphp
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
     <h1 style="margin:0">Reservación #{{ $r->id }}</h1>
     <div style="display:flex;gap:8px;">
       <a href="{{ route('reservaciones.index') }}" class="link-button">Volver a la lista</a>
-      <button id="btn-edit" class="btn-edit" type="button">Editar</button>
+      @if($isAdmin)
+        <button id="btn-edit" class="btn-edit" type="button">Editar</button>
+      @endif
     </div>
   </div>
 
@@ -75,7 +81,9 @@
 
           <div style="display:flex;gap:8px;justify-content:flex-end;">
             <a href="{{ route('reservaciones.index') }}" class="btn btn-alt" style="padding:8px 10px;border-radius:8px;">Volver</a>
+            @if($isAdmin)
             <button id="btn-edit-2" class="btn-edit" type="button" style="padding:8px 10px;border-radius:8px;">Editar</button>
+            @endif
           </div>
         </div>
       </div>
