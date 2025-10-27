@@ -17,11 +17,11 @@ Route::middleware('guest')->group(function () {
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 Route::get('/dashboard', function () {
-    $reservaciones = Reservation::with(['user','cabin'])->orderByDesc('created_at')->get();
+    $reservaciones = Reservation::with(['user','propiedad'])->orderByDesc('created_at')->get();
     $usuarios = User::all();
-    $cabanas = Propiedad::all();
+    $propiedades = Propiedad::all();
     $currentUser = auth()->user();
-    return view('dashboard', compact('reservaciones','usuarios','cabanas','currentUser'));
+    return view('dashboard', compact('reservaciones','usuarios','propiedades','currentUser'));
 })->middleware('auth')->name('dashboard');
 Route::middleware('auth')->group(function () {
     Route::resource('users', UserController::class)->names('users');
@@ -33,10 +33,19 @@ Route::get('/reservaciones', [ReservationController::class, 'index'])->middlewar
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
 });
+Route::post('/reservaciones', [ReservationController::class, 'store'])->middleware('auth')->name('reservaciones.store');
 
 Route::middleware(['web','auth'])->group(function(){
     Route::get('/imagenes', [ImageController::class, 'index'])->name('images.index');
     Route::get('/imagenes/dirs', [ImageController::class, 'dirs'])->name('images.dirs'); 
     Route::post('/imagenes/upload', [ImageController::class, 'upload'])->name('images.upload');
     Route::get('/imagenes/list', [ImageController::class, 'list'])->name('images.list');
+
+    Route::post('/reservaciones/{id}/changeEstado', [ReservationController::class, 'changeEstado'])
+        ->name('reservaciones.changeEstado');
+
+    Route::match(['put','patch'],'/reservaciones/{id}', [ReservationController::class, 'update'])
+        ->name('reservaciones.update');
+    Route::delete('/reservaciones/{id}', [ReservationController::class, 'destroy'])
+        ->name('reservaciones.destroy');
 });

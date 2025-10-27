@@ -17,21 +17,21 @@ class ReservationController extends Controller
         if ($request->filled('cabana_id')) $q->where('cabana_id', $request->cabana_id);
         if ($request->filled('estado')) $q->where('estado', $request->estado);
         if ($request->wantsJson()) {
-            return response()->json($q->with(['user','cabin'])->get());
+            return response()->json($q->with(['user','propiedad'])->get());
         }
-        $reservaciones = $q->with(['user','cabin'])->get();
+        $reservaciones = $q->with(['user','propiedad'])->get();
         $usuarios = User::all();
-        $cabanas = Propiedad::all(); // si tienes modelo Cabanas reemplaza aquí
+        $propiedades = Propiedad::all();
         $currentUser = auth()->user();
 
-        return view('reservaciones.index', compact('reservaciones','cabanas','usuarios','currentUser'));
+        return view('reservaciones.index', compact('reservaciones','propiedades','usuarios','currentUser'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
             'usuario_id' => 'nullable|exists:usuarios,id',
-            'cabana_id' => 'nullable|exists:cabanas,id',
+            'propiedad_id' => 'nullable|exists:propiedades,id',
             'check_in' => 'required|date',
             'check_out' => 'required|date|after_or_equal:check_in',
             'num_personas' => 'required|integer|min:1',
@@ -41,10 +41,13 @@ class ReservationController extends Controller
         ]);
 
         $r = Reservation::create($request->only([
-            'usuario_id','cabana_id','check_in','check_out','num_personas','total','estado','nota'
+            'usuario_id','propiedad_id','check_in','check_out','num_personas','total','estado','nota'
         ]));
 
-        return response()->json($r, 201);
+        if ($request->wantsJson()) {
+            return response()->json($r, 201);
+        }
+        return redirect()->route('reservaciones.index')->with('success', 'Reservación creada');
     }
 
     public function show($id)
@@ -61,7 +64,7 @@ class ReservationController extends Controller
 
         $request->validate([
             'usuario_id' => 'sometimes|exists:usuarios,id',
-            'cabana_id' => 'sometimes|exists:cabanas,id',
+            'propiedad_id' => 'sometimes|exists:propiedades,id',
             'check_in' => 'sometimes|date',
             'check_out' => 'sometimes|date|after_or_equal:check_in',
             'num_personas' => 'sometimes|integer|min:1',
@@ -71,10 +74,13 @@ class ReservationController extends Controller
         ]);
 
         $r->update($request->only([
-            'usuario_id','cabana_id','check_in','check_out','num_personas','total','estado','nota'
+            'usuario_id','propiedad_id','check_in','check_out','num_personas','total','estado','nota'
         ]));
 
-        return response()->json($r);
+        if ($request->wantsJson()) {
+            return response()->json($r);
+        }
+        return redirect()->route('reservaciones.index')->with('success', 'Reservación actualizada');
     }
 
     public function destroy($id)
@@ -82,7 +88,10 @@ class ReservationController extends Controller
         $r = Reservation::find($id);
         if (!$r) return response()->json(['message' => 'Reservación no encontrada'], 404);
         $r->delete();
-        return response()->json(['message' => 'Reservación eliminada']);
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Reservación eliminada']);
+        }
+        return redirect()->route('reservaciones.index')->with('success', 'Reservación eliminada');
     }
     public function changeEstado(Request $request, $id)
     {
@@ -96,6 +105,9 @@ class ReservationController extends Controller
         $r->estado = $request->estado;
         $r->save();
 
-        return response()->json($r);
+        if ($request->wantsJson()) {
+            return response()->json($r);
+        }
+        return redirect()->route('reservaciones.index')->with('success', 'Estado actualizado');
     }
 }

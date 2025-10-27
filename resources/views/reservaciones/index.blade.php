@@ -4,9 +4,9 @@
 
 @section('content')
 <style>
-.container{max-width:1200px;margin:0 auto;padding:18px;}
+.container{max-width:1400px;margin:0 auto;padding:18px;} /* aumentado para aprovechar más espacio */
 .split { display:flex; gap:18px; align-items:flex-start; }
-.left { flex:1; min-width:420px; }
+.left { flex:1.6; min-width:420px; } /* columna principal más ancha */
 .right { width:360px; }
 .card-wide{ background:#fff;padding:14px;border-radius:12px;box-shadow:0 12px 34px rgba(2,6,23,0.06); }
 .table { width:100%; border-collapse:collapse; background:#fff; border-radius:8px; padding:8px; }
@@ -58,89 +58,90 @@
         </div>
 
         <form id="rv-filters" method="GET" action="{{ url('/reservaciones') }}" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            @if($isAdmin)
-              <div>
-                <label style="display:block;font-weight:600;">Usuario</label>
-                <select name="usuario_id" style="padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
-                  <option value="">Todos</option>
-                  @foreach($usuarios ?? [] as $u)
-                    <option value="{{ $u->id }}" {{ request('usuario_id') == $u->id ? 'selected' : '' }}>{{ $u->nombre }} {{ $u->apellido }}</option>
-                  @endforeach
-                </select>
-              </div>
-            @endif
-
-            <div>
-              <label style="display:block;font-weight:600;">Casita</label>
-              <select name="cabana_id" style="padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
-                <option value="">Todas</option>
-                @foreach($cabanas ?? [] as $c)
-                  <option value="{{ $c->id }}" {{ request('cabana_id') == $c->id ? 'selected' : '' }}>{{ $c->nombre ?? $c->codigo ?? 'ID '.$c->id }}</option>
-                @endforeach
-              </select>
-            </div>
-
-            <div>
-              <label style="display:block;font-weight:600;">Estado</label>
-              <select name="estado" style="padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
-                <option value="">Todos</option>
-                <option value="pendiente" {{ request('estado')=='pendiente' ? 'selected' : '' }}>Pendiente</option>
-                <option value="confirmada" {{ request('estado')=='confirmada' ? 'selected' : '' }}>Confirmada</option>
-                <option value="cancelada" {{ request('estado')=='cancelada' ? 'selected' : '' }}>Cancelada</option>
-                <option value="completada" {{ request('estado')=='completada' ? 'selected' : '' }}>Completada</option>
-              </select>
-            </div>
-          </div>
-
-          <div style="display:flex;gap:8px;">
-            <button type="submit" style="background:#06b6d4;color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;">Aplicar</button>
-            <button type="button" id="rv-clear-filters" style="background:#ef4444;color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;">Limpiar</button>
-          </div>
         </form>
 
         <div style="margin-top:12px;overflow:auto;">
           <table class="table" aria-label="Reservaciones">
             <thead>
-              <tr><th>ID</th><th>Casita</th><th>Usuario</th><th>Fechas</th><th>Costo</th><th>Estado</th><th>Acciones</th></tr>
+              <tr>
+                <th>Imagen</th>
+                <th>ID</th>
+                <th>Propiedad</th>
+                <th>Cliente</th>
+                <th>Fechas</th>
+                <th>Total</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+                <th style="width:200px">Cambiar estado</th>
+              </tr>
             </thead>
             <tbody>
               @forelse($reservaciones ?? [] as $r)
                 <tr>
+                  <td style="width:120px;">
+                    @php
+                      $imgPath = $r->propiedad->ruta_img ?? ($r->ruta_img ?? null);
+                    @endphp
+                    @if($imgPath)
+                      <img src="{{ asset($imgPath) }}" alt="Imagen propiedad" style="width:100px;height:64px;object-fit:cover;border-radius:8px;">
+                    @else
+                      <div style="width:100px;height:64px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border-radius:8px;color:#9ca3af;font-size:12px;">
+                        Sin imagen
+                      </div>
+                    @endif
+                  </td>
+
                   <td>{{ $r->id }}</td>
-                  <td>{{ $r->cabana_nombre ?? ($r->cabin->nombre ?? ($r->cabana_id ?? '-')) }}</td>
+                  <td>{{ $r->propiedad_nombre ?? ($r->propiedad->nombre ?? ($r->propiedad_id ?? '-')) }}</td>
                   <td>{{ $r->user->nombre ?? '-' }} {{ $r->user->apellido ?? '' }}</td>
-                  <td>{{ isset($r->check_in) ? \Carbon\Carbon::parse($r->check_in)->format('d M Y') : '-' }} → {{ isset($r->check_out) ? \Carbon\Carbon::parse($r->check_out)->format('d M Y') : '-' }}</td>
+                  <td>
+                    {{ isset($r->check_in) ? \Carbon\Carbon::parse($r->check_in)->format('d M Y') : '-' }}
+                     → 
+                    {{ isset($r->check_out) ? \Carbon\Carbon::parse($r->check_out)->format('d M Y') : '-' }}
+                  </td>
                   <td>${{ number_format($r->total ?? 0, 2, ',', '.') }}</td>
                   <td>
-                    @php $st = $r->estado ?? 'pendiente'; $cls = 'badge-'.str_replace(' ','', $st); @endphp
-                    <span class="badge {{ $cls }}">{{ ucfirst($st) }}</span>
+                    @if(($r->estado ?? '') === 'pendiente') <span class="badge badge-pendiente">Pendiente</span>
+                    @elseif(($r->estado ?? '') === 'confirmada') <span class="badge badge-confirmada">Confirmada</span>
+                    @elseif(($r->estado ?? '') === 'cancelada') <span class="badge badge-cancelada">Cancelada</span>
+                    @else <span class="badge">{{ $r->estado }}</span>
+                    @endif
                   </td>
-                  <td style="white-space:nowrap;">
-                    <div class="actions-row">
-                      <button type="button" class="btn-edit" data-edit data-res='@json($r)'>Editar</button>
 
-                      <form action="{{ url('/reservaciones/'.$r->id.'/changeEstado') }}" method="POST" style="display:inline;">
+                  <!-- Acciones: Ver / Editar / Eliminar -->
+                  <td>
+                    <div class="btn-group" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;">
+                      <button type="button" class="action-btn edit" data-view data-res='@json($r)'>Ver</button>
+
+                      <button type="button" class="action-btn edit" data-edit data-res='@json($r)' data-update-url="{{ route('reservaciones.update', $r->id) }}">Editar</button>
+
+                      <form method="POST" action="{{ route('reservaciones.destroy', $r->id) }}" style="display:inline;">
                         @csrf
-                        <input type="hidden" name="estado" value="confirmada">
-                        <button type="submit" title="Confirmar" style="background:#10b981;color:#fff;padding:6px 8px;border-radius:8px;border:0;">Confirmar</button>
-                      </form>
-
-                      <form action="{{ url('/reservaciones/'.$r->id.'/changeEstado') }}" method="POST" style="display:inline;">
-                        @csrf
-                        <input type="hidden" name="estado" value="cancelada">
-                        <button type="submit" title="Cancelar" style="background:#ef4444;color:#fff;padding:6px 8px;border-radius:8px;border:0;">Cancelar</button>
-                      </form>
-
-                      <form action="{{ url('/reservaciones/'.$r->id) }}" method="POST" style="display:inline;">
-                        @csrf @method('DELETE')
-                        <button type="submit" data-confirm="¿Eliminar reservación #{{ $r->id }}?" style="background:linear-gradient(90deg,#ef4444,#f97316);color:#fff;padding:6px 8px;border-radius:8px;border:0;">Eliminar</button>
+                        @method('DELETE')
+                        <button class="action-btn delete" type="button" data-confirm="¿Eliminar reservación {{ addslashes($r->id) }}?">Eliminar</button>
                       </form>
                     </div>
                   </td>
+
+                  <!-- Cambiar estado: mostrar solo botones para estados distintos al actual, vertical -->
+                  <td>
+                    <form id="form-change-{{ $r->id }}" action="{{ route('reservaciones.changeEstado', $r->id) }}" method="POST" style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+                      @csrf
+                      <input type="hidden" name="estado" value="">
+                      @if(($r->estado ?? '') !== 'confirmada')
+                        <button type="button" class="action-btn edit" data-change data-id="{{ $r->id }}" data-estado="confirmada" >Confirmar</button>
+                      @endif
+                      @if(($r->estado ?? '') !== 'pendiente')
+                        <button type="button" class="action-btn ghost" data-change data-id="{{ $r->id }}" data-estado="pendiente" >Pendiente</button>
+                      @endif
+                      @if(($r->estado ?? '') !== 'cancelada')
+                        <button type="button" class="action-btn delete" data-change data-id="{{ $r->id }}" data-estado="cancelada" >Cancelar</button>
+                      @endif
+                    </form>
+                  </td>
                 </tr>
               @empty
-                <tr><td colspan="7">No hay reservaciones aún.</td></tr>
+                <tr><td colspan="9" class="muted">No hay reservaciones aún.</td></tr>
               @endforelse
             </tbody>
           </table>
@@ -199,124 +200,277 @@
 
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
         <div style="flex:1;min-width:320px;">
-          <label>Casita</label>
-          <select name="cabana_id" id="rv-cabana" required style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
-            <option value="">Selecciona</option>
-            @foreach($cabanas ?? [] as $c)
-              <option value="{{ $c->id }}">{{ $c->nombre ?? $c->codigo ?? 'ID '.$c->id }}</option>
+          <label class="small">Propiedad</label>
+          <select id="rv-propiedad" name="propiedad_id" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+            <option value="">-- seleccionar --</option>
+            @foreach($propiedades ?? [] as $p)
+              <option value="{{ $p->id }}">{{ $p->nombre }} ({{ $p->codigo ?? '' }})</option>
             @endforeach
           </select>
 
-          <label style="margin-top:8px;">Check-in</label>
-          <input type="date" name="check_in" id="rv-checkin" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+          <label class="small" style="margin-top:8px;">Check-in</label>
+          <input id="rv-checkin" name="check_in" type="date" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
 
-          <label style="margin-top:8px;">Check-out</label>
-          <input type="date" name="check_out" id="rv-checkout" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+          <label class="small" style="margin-top:8px;">Check-out</label>
+          <input id="rv-checkout" name="check_out" type="date" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
 
-          <label style="margin-top:8px;">Personas</label>
-          <input type="number" name="num_personas" id="rv-num" min="1" value="1" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+          <label class="small" style="margin-top:8px;">Número de personas</label>
+          <input id="rv-num" name="num_personas" type="number" min="1" value="1" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
         </div>
 
         <div style="flex:1;min-width:260px;">
-          <label>Usuario</label>
-          @if(!empty($currentUser) && ($currentUser->rol ?? '') !== 'admin')
-            <input type="hidden" name="usuario_id" value="{{ $currentUser->id }}">
-            <div style="padding:8px;border-radius:8px;border:1px solid #e5e7eb;background:#fafafa;font-weight:700;">
-              {{ $currentUser->nombre }} {{ $currentUser->apellido }} (Conectado)
-            </div>
-          @else
-            <select name="usuario_id" id="rv-usuario" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
-              <option value="">Selecciona</option>
-              @foreach($usuarios ?? [] as $u)
-                <option value="{{ $u->id }}">{{ $u->nombre }} {{ $u->apellido }}</option>
-              @endforeach
-            </select>
-          @endif
-
-          <label style="margin-top:8px;">Total (USD)</label>
-          <input type="number" step="0.01" name="total" id="rv-total" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
-
-          <label style="margin-top:8px;">Estado</label>
-          <select name="estado" id="rv-estado" required style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
-            <option value="pendiente">pendiente</option>
-            <option value="confirmada">confirmada</option>
-            <option value="cancelada">cancelada</option>
-            <option value="completada">completada</option>
+          <label class="small">Usuario</label>
+          <select id="rv-usuario" name="usuario_id" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+            <option value="">-- seleccionar cliente --</option>
+            @foreach($usuarios ?? [] as $u)
+              <option value="{{ $u->id }}">{{ $u->nombre }} {{ $u->apellido }}</option>
+            @endforeach
           </select>
 
-          <label style="margin-top:8px;">Nota</label>
-          <textarea name="nota" id="rv-nota" rows="4" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;"></textarea>
+          <label class="small" style="margin-top:8px;">Total</label>
+          <input id="rv-total" name="total" type="number" step="0.01" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
 
-          <div style="margin-top:12px;display:flex;gap:8px;">
-            <button type="submit" id="rv-save" style="background:#06b6d4;color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;">Guardar</button>
-            <button type="button" id="rv-cancel" style="background:#ef4444;color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;">Cancelar</button>
-          </div>
+          <label class="small" style="margin-top:8px;">Estado</label>
+          <select id="rv-estado" name="estado" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+            <option value="pendiente">Pendiente</option>
+            <option value="confirmada">Confirmada</option>
+            <option value="cancelada">Cancelada</option>
+            <option value="completada">Completada</option>
+          </select>
+
+          <label class="small" style="margin-top:8px;">Nota</label>
+          <textarea id="rv-nota" name="nota" rows="3" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;"></textarea>
         </div>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+        <button id="rv-save" type="submit" class="btn-edit">Guardar</button>
+        <button type="button" id="rv-cancel" class="btn btn-alt" style="padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;">Cancelar</button>
       </div>
     </form>
   </div>
 </div>
 
+<div id="rv-change-confirm-modal" class="modal" aria-hidden="true" style="display:none;">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" style="max-width:480px;">
+    <button class="modal-close" data-close>✕</button>
+    <h3 id="rv-cc-title">Confirmar acción</h3>
+    <p id="rv-cc-msg" style="color:#6b7280;margin-top:8px;"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button id="rv-cc-cancel" class="btn btn-alt" type="button">Cancelar</button>
+      <button id="rv-cc-ok" class="btn btn-danger" type="button">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  const btnNew = document.getElementById('btn-new');
-  const modal = document.getElementById('rv-modal');
-  const closeBtn = document.getElementById('rv-close');
-  const cancelBtn = document.getElementById('rv-cancel');
-  const form = document.getElementById('rv-form');
-  const methodInput = document.getElementById('rv-method');
-  const idInput = document.getElementById('rv-id');
 
   function openModal(mode='create', data=null){
+    const modal = document.getElementById('rv-modal');
+    const form = document.getElementById('rv-form');
+    if(!modal || !form) return;
     modal.style.display = 'flex';
-    methodInput.value = mode === 'create' ? 'POST' : 'PUT';
-    idInput.value = data ? data.id : '';
+    const methodInput = document.getElementById('rv-method');
+    const idInput = document.getElementById('rv-id');
+    if(methodInput) methodInput.value = mode === 'create' ? 'POST' : 'PUT';
+    if(idInput) idInput.value = data ? data.id : '';
     form.action = mode === 'create' ? "{{ url('/reservaciones') }}" : "{{ url('/reservaciones') }}/" + (data?.id || '');
-    if(data){
-      document.getElementById('rv-cabana').value = data.cabana_id || '';
-      document.getElementById('rv-checkin').value = data.check_in || '';
-      document.getElementById('rv-checkout').value = data.check_out || '';
-      document.getElementById('rv-num').value = data.num_personas || 1;
-      document.getElementById('rv-total').value = data.total || '';
-      document.getElementById('rv-estado').value = data.estado || 'pendiente';
-      document.getElementById('rv-nota').value = data.nota || '';
-      const usr = document.getElementById('rv-usuario'); if(usr) usr.value = data.usuario_id || '';
-    } else {
-      form.reset();
-      methodInput.value = 'POST';
-    }
+    try {
+      if(data){
+        const set = (id, val) => { const el = document.getElementById(id); if(el) el.value = val ?? ''; };
+        set('rv-propiedad', data.propiedad_id ?? data.cabana_id ?? '');
+        set('rv-checkin', data.check_in ?? '');
+        set('rv-checkout', data.check_out ?? '');
+        set('rv-num', data.num_personas ?? 1);
+        set('rv-total', data.total ?? '');
+        set('rv-estado', data.estado ?? 'pendiente');
+        set('rv-nota', data.nota ?? '');
+        set('rv-usuario', data.usuario_id ?? '');
+      } else {
+        form.reset();
+      }
+    } catch(e){ console.error('fill modal', e); showNotice('Error','No se pudo abrir el modal'); }
+    const saveBtn = document.getElementById('rv-save');
+    const disabled = (mode === 'view');
+    Array.from(form.querySelectorAll('input,select,textarea,button')).forEach(el=>{
+      if(el === saveBtn) return;
+      el.disabled = disabled;
+    });
+    if(saveBtn) saveBtn.style.display = disabled ? 'none' : '';
   }
 
-  function closeModal(){ modal.style.display = 'none'; }
+  function closeModal(){
+    const modal = document.getElementById('rv-modal');
+    if(modal) modal.style.display = 'none';
+  }
 
-  btnNew && btnNew.addEventListener('click', ()=> openModal());
-  closeBtn && closeBtn.addEventListener('click', closeModal);
-  cancelBtn && cancelBtn.addEventListener('click', closeModal);
+  document.getElementById('rv-close')?.addEventListener('click', closeModal);
+  document.getElementById('rv-cancel')?.addEventListener('click', closeModal);
 
-  document.querySelectorAll('[data-edit]').forEach(btn=>{
-    btn.addEventListener('click', function(){
+  const changeModal = document.getElementById('rv-change-confirm-modal');
+  const changeTitle = document.getElementById('rv-cc-title');
+  const changeMsg = document.getElementById('rv-cc-msg');
+  const changeCancel = document.getElementById('rv-cc-cancel');
+  const changeOk = document.getElementById('rv-cc-ok');
+
+  function showChangeModal(title, msg, opts = {}){
+    if(!changeModal) return;
+    changeTitle.textContent = title || 'Confirmar acción';
+    changeMsg.textContent = msg || '';
+    if(opts.okLabel) changeOk.textContent = opts.okLabel;
+    else changeOk.textContent = 'Confirmar';
+    if(opts.cancelLabel) changeCancel.textContent = opts.cancelLabel;
+    else changeCancel.textContent = 'Cancelar';
+    changeModal.style.display = 'flex';
+    changeModal.setAttribute('aria-hidden','false');
+    setTimeout(()=> changeModal.classList.add('open'), 10);
+  }
+  function hideChangeModal(){
+    if(!changeModal) return;
+    changeModal.classList.remove('open');
+    changeModal.setAttribute('aria-hidden','true');
+    setTimeout(()=> changeModal.style.display = 'none', 180);
+  }
+
+  function showNotice(title, msg){
+    showChangeModal(title, msg, { okLabel: 'OK', cancelLabel: 'Cerrar' });
+    pendingAction = { type: 'notice' };
+  }
+
+  let pendingAction = null; 
+
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest('[data-edit], [data-view], .action-btn.delete, [data-change]');
+    if(!btn) return;
+
+    if(btn.matches('[data-edit]')){
+      e.preventDefault();
       try {
-        const data = JSON.parse(this.getAttribute('data-res'));
+        const data = JSON.parse(btn.getAttribute('data-res') || '{}');
         openModal('edit', data);
         window.scrollTo({ top: 0, behavior: 'smooth' });
-      } catch(e){ console.error(e); alert('No se pudo abrir edición'); }
-    });
+      } catch(err){
+        console.error(err);
+        showNotice('Error','No se pudo abrir edición');
+      }
+      return;
+    }
+
+    if(btn.matches('[data-view]')){
+      e.preventDefault();
+      try {
+        const data = JSON.parse(btn.getAttribute('data-res') || '{}');
+        openModal('view', data);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch(err){
+        console.error(err);
+        showNotice('Error','No se pudo abrir vista');
+      }
+      return;
+    }
+
+    if(btn.matches('.action-btn.delete')){
+      const form = btn.closest('form');
+      if(!form){
+        e.preventDefault();
+        showNotice('Error','No se encontró el formulario para eliminar.');
+        return;
+      }
+      e.preventDefault();
+      const msg = btn.getAttribute('data-confirm') || '¿Eliminar este registro?';
+      showChangeModal('Confirmar eliminación', msg, { okLabel: 'Eliminar', cancelLabel: 'Cancelar' });
+      pendingAction = { type: 'delete', form: form };
+      return;
+    }
+
+    if(btn.matches('[data-change]')){
+      e.preventDefault();
+      const id = btn.getAttribute('data-id');
+      const estado = btn.getAttribute('data-estado');
+      const msg = btn.getAttribute('data-msg') || ('Cambiar estado a ' + estado + '?');
+      const form = document.getElementById('form-change-' + id);
+      if(!form){
+        showNotice('Error','Formulario para cambiar estado no encontrado');
+        return;
+      }
+      const titleMap = { confirmada: 'Confirmar reservación', cancelada: 'Cancelar reservación', pendiente: 'Marcar como pendiente' };
+      showChangeModal(titleMap[estado] || 'Confirmar acción', msg, { okLabel: 'Confirmar', cancelLabel: 'Cancelar' });
+      pendingAction = { type: 'state', action: form.action, estado: estado };
+      return;
+    }
   });
 
-  document.getElementById('rv-clear-filters')?.addEventListener('click', function(){
-    document.querySelectorAll('#rv-filters input, #rv-filters select').forEach(i=> i.value = '');
-    document.getElementById('rv-filters').submit();
+  changeCancel?.addEventListener('click', function(){ pendingAction = null; hideChangeModal(); });
+
+  changeOk?.addEventListener('click', async function(){
+    if(!pendingAction){ hideChangeModal(); return; }
+
+    changeOk.disabled = true;
+    try {
+      if(pendingAction.type === 'notice'){
+        hideChangeModal();
+        pendingAction = null;
+        return;
+      }
+
+      if(pendingAction.type === 'delete'){
+        const f = pendingAction.form;
+        if(f){
+          f.submit();
+        } else {
+          showNotice('Error','Formulario no disponible');
+        }
+        pendingAction = null;
+        hideChangeModal();
+        return;
+      }
+
+      if(pendingAction.type === 'state'){
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const payload = new URLSearchParams();
+        payload.append('estado', pendingAction.estado);
+
+        const res = await fetch(pendingAction.action, {
+          method: 'POST',
+          headers: {
+            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+          },
+          body: payload.toString(),
+          credentials: 'same-origin'
+        });
+
+        const ct = res.headers.get('content-type') || '';
+        const data = ct.includes('application/json') ? await res.json().catch(()=>({})) : {};
+
+        if(!res.ok){
+          const msg = (data && data.message) ? data.message : ('Error ' + res.status);
+          showNotice('Error', 'No se pudo cambiar estado: ' + msg);
+          pendingAction = null;
+          return;
+        }
+
+        hideChangeModal();
+        setTimeout(()=> window.location.reload(), 200);
+        pendingAction = null;
+        return;
+      }
+
+    } catch(err){
+      console.error(err);
+      showNotice('Error','Error de red al procesar la solicitud');
+    } finally {
+      changeOk.disabled = false;
+    }
   });
 
-  form?.addEventListener('submit', async function(evt){
-    function todayStr(offset=0){ const d=new Date(); d.setDate(d.getDate()+offset); return d.toISOString().slice(0,10); }
-    const ci = document.getElementById('rv-checkin');
-    const co = document.getElementById('rv-checkout');
-    if(ci && !ci.value) ci.value = todayStr(0);
-    if(co && !co.value) co.value = todayStr(1);
-    const cab = document.getElementById('rv-cabana');
-    if(!cab || !cab.value){ evt.preventDefault(); alert('Selecciona una casita.'); return; }
+  document.querySelectorAll('form[id^="form-change-"]').forEach(f => {
+    f.addEventListener('submit', function(e){ e.preventDefault(); });
   });
+
 });
 </script>
 @endsection

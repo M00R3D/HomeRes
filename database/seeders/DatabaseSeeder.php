@@ -10,6 +10,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             UsuariosTableSeeder::class,
+            PropiedadesTableSeeder::class,
             CabanasTableSeeder::class,
             ReservacionesTableSeeder::class,
             PagosTableSeeder::class,
