@@ -16,7 +16,6 @@
 
     <div class="pr-actions">
       <a href="{{ route('dashboard') }}" class="pr-link">Volver</a>
-      {{-- mostrar botón a admin (o cambiar a @auth para todos los autenticados) --}}
       @if(auth()->check() && auth()->user()->rol === 'admin')
         <button id="pr-new" class="pr-btn">Nueva propiedad</button>
       @endif
@@ -30,7 +29,7 @@
   @endif
 
   <form id="pr-filters" method="GET" class="pr-filters" action="{{ route('propiedades.index') }}">
-    <input name="q" value="{{ request('q') }}" placeholder="Buscar por nombre o código" />
+    <input type="text" id="pr-q" name="q" value="{{ request('q') }}" placeholder="Buscar por nombre o código" />
     <select name="tipo">
       <option value="">Todos los tipos</option>
       <option value="cabaña" {{ request('tipo')=='cabaña' ? 'selected' : '' }}>Cabaña</option>
@@ -398,7 +397,6 @@ document.addEventListener('DOMContentLoaded', function(){
       document.getElementById('edit-precio-centavos').value = precio[1] || '';
       document.getElementById('e-capacidad').value = data.capacidad ?? '';
       document.getElementById('e-ubicacion').value = data.ubicacion || '';
-      document.getElementById('e-servicios').value = data.servicios || '';
       const chipsContainer = document.getElementById('service-chips-edit');
       chipsContainer.innerHTML = '';
       (String(data.servicios || '').split(',').map(s=> s.trim()).filter(Boolean)).forEach(s=> chipsContainer.appendChild(makeChip(s)));
@@ -514,6 +512,65 @@ document.addEventListener('DOMContentLoaded', function(){
 
   document.querySelectorAll('[data-close]').forEach(btn=>{
     btn.addEventListener('click', function(){ const m = this.closest('.modal'); hide(m); });
+  });
+
+  const viewModal = document.getElementById('modal-prop-view');
+  const viewEditBtn = document.getElementById('view-edit-btn');
+  document.querySelectorAll('[data-view-btn]').forEach(btn=>{
+    btn.addEventListener('click', function(){
+      const raw = this.getAttribute('data-prop') || '{}';
+      let data = {};
+      try { data = JSON.parse(raw); } catch(e){ console.error(e); return; }
+      document.getElementById('view-main-img').innerHTML = data.ruta_img ? '<img src=\"'+ (location.origin + '/' + data.ruta_img) +'\" style=\"width:100%;height:100%;object-fit:cover;\">' : '<div style=\"color:#9ca3af;\">Sin imagen</div>';
+      document.getElementById('view-thumbs').innerHTML = '';
+      document.getElementById('view-nombre').textContent = data.nombre || '';
+      document.getElementById('view-codigo').textContent = data.codigo || '';
+      document.getElementById('view-tipo').textContent = data.tipo || '';
+      document.getElementById('view-precio').textContent = '$' + (Number(data.precio_noche || 0).toFixed(2)).replace('.', ',');
+      document.getElementById('view-capacidad').textContent = 'Capacidad: ' + (data.capacidad ?? '-');
+      document.getElementById('view-ubicacion').textContent = data.ubicacion || '';
+      document.getElementById('view-servicios').innerHTML = (String(data.servicios || '').split(',').map(s=> s.trim()).filter(Boolean).map(s=> '<span style=\"background:#f3f4f6;padding:6px 8px;border-radius:999px;margin-right:6px;display:inline-block;font-weight:700\">'+s+'</span>').join('')) || '';
+      document.getElementById('view-descripcion').textContent = data.descripcion || '';
+      show(viewModal);
+
+      viewEditBtn.onclick = function(){
+        document.querySelectorAll('[data-edit]').forEach(e => {
+          try {
+            const d = JSON.parse(e.getAttribute('data-prop') || '{}');
+            if(String(d.id) === String(data.id)) { e.click(); }
+          } catch(e) {}
+        });
+      };
+    });
+  });
+
+  let pendingDeleteForm = null;
+  document.querySelectorAll('.form-delete .action-btn.delete').forEach(btn=>{
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      const form = this.closest('form');
+      pendingDeleteForm = form;
+      const msg = this.getAttribute('data-delete-confirm') || '¿Eliminar registro?';
+      document.getElementById('confirm-delete-msg').textContent = msg;
+      show(document.getElementById('modal-confirm-delete'));
+    });
+  });
+  document.getElementById('confirm-delete-cancel')?.addEventListener('click', function(){ pendingDeleteForm = null; hide(document.getElementById('modal-confirm-delete')); });
+  document.getElementById('confirm-delete-ok')?.addEventListener('click', function(){ if(pendingDeleteForm) pendingDeleteForm.submit(); });
+
+  document.getElementById('pr-clear')?.addEventListener('click', function(){
+    const form = document.getElementById('pr-filters');
+    if (!form) return;
+    const inputs = Array.from(form.querySelectorAll('input, select, textarea'));
+    inputs.forEach(i => {
+      const tag = (i.tagName || '').toLowerCase();
+      const type = (i.getAttribute('type') || '').toLowerCase();
+      if (type === 'hidden' || type === 'submit' || type === 'button' || type === 'image') return;
+      if (type === 'checkbox' || type === 'radio') { i.checked = false; return; }
+      if (tag === 'select') { i.selectedIndex = 0; return; }
+      i.value = '';
+    });
+    form.submit();
   });
 
 });
