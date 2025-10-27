@@ -18,58 +18,178 @@
     $comentarios = Comentario::with('user')->where('reservacion_id', $r->id)->orderByDesc('fecha_creacion')->get();
   @endphp
 
-  <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;">
-    <div style="flex:0 0 240px;">
+  @php
+    $estado = $r->estado ?? '';
+    $label = $estado ? ucfirst($estado) : '-';
+    if ($estado === 'confirmada') {
+      $estadoStyle = 'background:#10b981;color:#ffffff'; 
+      $priceColor = '#065f46';
+    } elseif ($estado === 'pendiente') {
+      $estadoStyle = 'background:#f59e0b;color:#ffffff'; 
+      $priceColor = '#92400e';
+    } elseif ($estado === 'cancelada') {
+      $estadoStyle = 'background:#ef4444;color:#ffffff';
+      $priceColor = '#7f1d1d';
+    } else {
+      $estadoStyle = 'background:#6b7280;color:#ffffff'; 
+      $priceColor = '#374151';
+    }
+  @endphp
+
+  <div style="display:flex;gap:18px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;">
+    <div style="flex:0 0 40%;max-width:480px;min-width:220px;">
       @if($imgPath)
-        <img src="{{ asset($imgPath) }}" alt="Imagen propiedad" style="width:240px;height:160px;object-fit:cover;border-radius:8px;box-shadow:0 8px 20px rgba(2,6,23,0.06);">
+        <div style="width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:8px;box-shadow:0 8px 20px rgba(2,6,23,0.06);">
+          <img src="{{ asset($imgPath) }}" alt="Imagen propiedad" style="width:100%;height:100%;object-fit:cover;display:block;">
+        </div>
       @else
-        <div style="width:240px;height:160px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border-radius:8px;color:#9ca3af;">Sin imagen</div>
+        <div style="width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border-radius:8px;color:#9ca3af;">Sin imagen</div>
       @endif
     </div>
 
-    <div style="flex:1;min-width:260px;">
-      <h3 style="margin:0 0 8px 0;">Comentarios ({{ $comentarios->count() }})</h3>
-      @if($comentarios->isEmpty())
-        <div style="color:#6b7280;">No hay comentarios para esta reservación.</div>
-      @else
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          @foreach($comentarios as $c)
-            <div style="background:#fff;padding:10px;border-radius:8px;box-shadow:0 6px 18px rgba(2,6,23,0.04);">
-              <div style="display:flex;justify-content:space-between;align-items:center;">
-                <div style="font-weight:700;">{{ $c->user->nombre ?? 'Usuario' }} {{ $c->user->apellido ?? '' }}</div>
-                <div style="font-size:0.9rem;color:#6b7280;">{{ \Carbon\Carbon::parse($c->fecha_creacion ?? $c->created_at ?? now())->format('d M Y H:i') }}</div>
-              </div>
-              <div style="margin-top:6px;color:#374151;">
-                <div style="font-weight:700;margin-bottom:6px;">Calificación: {{ $c->calificacion ?? '-' }}/5</div>
-                <div style="white-space:pre-wrap;">{{ $c->comentario }}</div>
-              </div>
-            </div>
-          @endforeach
+    <div style="flex:1;min-width:260px;display:flex;flex-direction:column;gap:10px;">
+      <div style="background:#fff;padding:12px;border-radius:12px;box-shadow:0 8px 24px rgba(2,6,23,0.06);display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <div style="font-size:1.25rem;font-weight:900;color:#0f172a;">
+            {{ $r->user->nombre ?? '-' }} {{ $r->user->apellido ?? '' }}
+          </div>
+          <div style="color:#6b7280;margin-top:6px;">Cliente de la reservación</div>
         </div>
-      @endif
+
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:0.95rem;color:#6b7280;">Total</div>
+            <div>
+              <span style="{{ $estadoStyle }};padding:6px 10px;border-radius:999px;font-weight:800;">{{ $label }}</span>
+            </div>
+          </div>
+
+          <div style="font-size:1.6rem;font-weight:900;color:{{ $priceColor }};">
+            ${{ number_format($r->total ?? 0, 2, ',', '.') }}
+          </div>
+
+          <div style="background:linear-gradient(180deg,rgba(15,23,42,0.02),rgba(15,23,42,0.01));border-radius:10px;padding:10px;color:#0f172a;box-shadow:inset 0 1px 0 rgba(255,255,255,0.6);">
+            <div style="font-weight:800;margin-bottom:6px;">Nota</div>
+            <div style="color:#374151;white-space:pre-wrap;">{{ $r->nota ?? '—' }}</div>
+          </div>
+
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <a href="{{ route('reservaciones.index') }}" class="btn btn-alt" style="padding:8px 10px;border-radius:8px;">Volver</a>
+            <button id="btn-edit-2" class="btn-edit" type="button" style="padding:8px 10px;border-radius:8px;">Editar</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div style="background:#fff;padding:14px;border-radius:10px;box-shadow:0 8px 28px rgba(2,6,23,0.06);">
-    <dl style="display:grid;grid-template-columns:150px 1fr;gap:8px 18px;">
-      <dt class="small">Propiedad</dt><dd>{{ $r->propiedad->nombre ?? ($r->propiedad_nombre ?? '-') }}</dd>
-      <dt class="small">Cliente</dt><dd>{{ $r->user->nombre ?? '-' }} {{ $r->user->apellido ?? '' }}</dd>
-      <dt class="small">Check-in</dt><dd>{{ \Carbon\Carbon::parse($r->check_in)->format('d M Y') }}</dd>
-      <dt class="small">Check-out</dt><dd>{{ \Carbon\Carbon::parse($r->check_out)->format('d M Y') }}</dd>
-      <dt class="small">Personas</dt><dd>{{ $r->num_personas }}</dd>
-      <dt class="small">Total</dt><dd>${{ number_format($r->total ?? 0, 2, ',', '.') }}</dd>
-      <dt class="small">Estado</dt>
-      <dd>
-        @if(($r->estado ?? '') === 'pendiente') <span class="badge badge-pendiente">Pendiente</span>
-        @elseif(($r->estado ?? '') === 'confirmada') <span class="badge badge-confirmada">Confirmada</span>
-        @elseif(($r->estado ?? '') === 'cancelada') <span class="badge badge-cancelada">Cancelada</span>
-        @else <span class="badge">{{ $r->estado }}</span>
-        @endif
-      </dd>
-      <dt class="small">Nota</dt><dd>{{ $r->nota ?? '-' }}</dd>
-      <dt class="small">Creada</dt><dd>{{ $r->created_at }}</dd>
-      <dt class="small">Actualizada</dt><dd>{{ $r->updated_at }}</dd>
-    </dl>
+  @php
+    use Carbon\Carbon;
+    use Carbon\CarbonPeriod;
+    $checkIn = Carbon::parse($r->check_in);
+    $checkOut = Carbon::parse($r->check_out);
+    $today = Carbon::today();
+    $period = CarbonPeriod::create($checkIn, '1 day', $checkOut);
+    if ($checkIn->greaterThan($today)) {
+      $summary = 'Falta ' . $today->diffInDays($checkIn) . ' día' . ($today->diffInDays($checkIn) !== 1 ? 's' : '') . ' para el check-in';
+    } elseif ($checkOut->lessThan($today)) {
+      $summary = 'El check-out fue hace ' . $checkOut->diffInDays($today) . ' día' . ($checkOut->diffInDays($today) !== 1 ? 's' : '');
+    } else {
+      $daysToCheckout = $today->lte($checkOut) ? $today->diffInDays($checkOut) : 0;
+      $summary = $checkIn->isToday() ? 'Check-in hoy' : ('Check-in ' . ($checkIn->isPast() ? 'hace ' . $checkIn->diffInDays($today) . ' día(s)' : 'en ' . $today->diffInDays($checkIn) . ' día(s)'));
+      $summary .= ' · ' . ($daysToCheckout > 0 ? 'Quedan ' . $daysToCheckout . ' día(s) para el check-out' : 'Check-out hoy o pasado');
+    }
+  @endphp
+
+  <div style="margin-bottom:12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-weight:700">Calendario</div>
+      <div style="color:#6b7280;font-size:0.95rem;">{{ $summary }}</div>
+    </div>
+
+    <style>
+      .rv-days { display:flex;gap:8px;flex-wrap:wrap; }
+      .rv-day { min-width:64px;flex:1 0 64px;padding:10px;border-radius:8px;text-align:center;background:#f8fafc;border:1px solid #eef2f7;box-shadow:0 4px 12px rgba(2,6,23,0.04); position:relative; }
+      .rv-day .date { font-weight:800; font-size:0.95rem; display:block; margin-bottom:6px; }
+      .rv-day .label { font-size:0.8rem; color:#374151; }
+      .rv-badge { position:absolute; top:8px; right:8px; padding:4px 8px; border-radius:999px; font-size:0.72rem; font-weight:800; color:#fff; }
+      .rv-badge.checkin { background:#0ea5e9; } 
+      .rv-badge.checkout { background:#fb7185; } 
+      .rv-day.past { background:#f3f4f6;color:#6b7280;border-color:#e6e9ee; }
+      .rv-day.today { background:linear-gradient(90deg,#e0f2fe,#bae6fd); color:#0c4a6e; border-color:#7dd3fc; }
+      .rv-day.upcoming { background:linear-gradient(90deg,#ecfdf5,#bbf7d0); color:#064e3b; border-color:#86efac; }
+      @media (max-width:600px){ .rv-day{min-width:56px;padding:8px;font-size:0.9rem} }
+    </style>
+
+    <div class="rv-days" role="list" aria-label="Fechas reservación">
+      @foreach($period as $d)
+        @php
+          $cls = $d->isToday() ? 'today' : ($d->lessThan($today) ? 'past' : 'upcoming');
+          $relative = $d->isToday() ? 'Hoy' : ($d->greaterThan($today) ? 'En ' . $today->diffInDays($d) . 'd' : 'Hace ' . $d->diffInDays($today) . 'd');
+          $isCheckIn = $d->isSameDay($checkIn);
+          $isCheckOut = $d->isSameDay($checkOut);
+        @endphp
+        <div class="rv-day {{ $cls }}" role="listitem" title="{{ $relative }} - {{ $d->format('d M Y') }}">
+          @if($isCheckIn)
+            <span class="rv-badge checkin" aria-hidden="true">IN</span>
+          @elseif($isCheckOut)
+            <span class="rv-badge checkout" aria-hidden="true">OUT</span>
+          @endif
+          <span class="date">{{ $d->format('d') }}</span>
+          <span class="label">{{ $d->format('D') }}</span>
+          <div style="font-size:0.75rem;margin-top:6px;color:rgba(0,0,0,0.6)">{{ $relative }}</div>
+        </div>
+      @endforeach
+    </div>
+  </div>
+
+  @php
+    $estado = $r->estado ?? '';
+    $label = $estado ? ucfirst($estado) : '-';
+    if ($estado === 'confirmada') {
+      $estadoStyle = 'background:#10b981;color:#ffffff';
+      $priceColor = '#065f46';
+    } elseif ($estado === 'pendiente') {
+      $estadoStyle = 'background:#f59e0b;color:#ffffff';
+      $priceColor = '#92400e';
+    } elseif ($estado === 'cancelada') {
+      $estadoStyle = 'background:#ef4444;color:#ffffff'; 
+      $priceColor = '#7f1d1d';
+    } else {
+      $estadoStyle = 'background:#6b7280;color:#ffffff';
+      $priceColor = '#374151';
+    }
+  @endphp
+
+  <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;">
+    <div style="flex:1;min-width:320px;">
+      <div style="background:#fff;padding:14px;border-radius:10px;box-shadow:0 8px 28px rgba(2,6,23,0.06);">
+        <dl style="display:grid;grid-template-columns:150px 1fr;gap:8px 18px;">
+          <dt class="small">Propiedad</dt><dd>{{ $r->propiedad->nombre ?? ($r->propiedad_nombre ?? '-') }}</dd>
+          <dt class="small">Cliente</dt>
+          <dd>
+            <div style="font-weight:800;font-size:1.05rem;">{{ $r->user->nombre ?? '-' }} {{ $r->user->apellido ?? '' }}</div>
+          </dd>
+          <dt class="small">Check-in</dt>
+          <dd>
+            <span style="display:inline-flex;align-items:center;gap:8px;">
+              <strong>{{ \Carbon\Carbon::parse($r->check_in)->format('d M Y') }}</strong>
+              <span style="background:#0ea5e9;color:#fff;padding:4px 8px;border-radius:999px;font-weight:800;font-size:0.8rem;">IN</span>
+            </span>
+          </dd>
+          <dt class="small">Check-out</dt>
+          <dd>
+            <span style="display:inline-flex;align-items:center;gap:8px;">
+              <strong>{{ \Carbon\Carbon::parse($r->check_out)->format('d M Y') }}</strong>
+              <span style="background:#fb7185;color:#fff;padding:4px 8px;border-radius:999px;font-weight:800;font-size:0.8rem;">OUT</span>
+            </span>
+          </dd>
+          <dt class="small">Personas</dt><dd>{{ $r->num_personas }}</dd>
+          <dt class="small">Creada</dt><dd>{{ $r->created_at }}</dd>
+          <dt class="small">Actualizada</dt><dd>{{ $r->updated_at }}</dd>
+        </dl>
+      </div>
+    </div>
+
   </div>
 </div>
 
