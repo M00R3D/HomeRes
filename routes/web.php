@@ -30,6 +30,7 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/reservaciones', [ReservationController::class, 'index'])->middleware('auth')->name('reservaciones.index');
+Route::get('/reservaciones/{id}', [ReservationController::class, 'showView'])->middleware('auth')->name('reservaciones.show');
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');
 });

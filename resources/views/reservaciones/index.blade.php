@@ -96,7 +96,6 @@
                   <td>{{ $r->user->nombre ?? '-' }} {{ $r->user->apellido ?? '' }}</td>
                   <td>
                     {{ isset($r->check_in) ? \Carbon\Carbon::parse($r->check_in)->format('d M Y') : '-' }}
-                     → 
                     {{ isset($r->check_out) ? \Carbon\Carbon::parse($r->check_out)->format('d M Y') : '-' }}
                   </td>
                   <td>${{ number_format($r->total ?? 0, 2, ',', '.') }}</td>
@@ -108,10 +107,9 @@
                     @endif
                   </td>
 
-                  <!-- Acciones: Ver / Editar / Eliminar -->
                   <td>
                     <div class="btn-group" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;">
-                      <button type="button" class="action-btn edit" data-view data-res='@json($r)'>Ver</button>
+                      <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn edit" title="Ver reservación #{{ $r->id }}">Ver</a>
 
                       <button type="button" class="action-btn edit" data-edit data-res='@json($r)' data-update-url="{{ route('reservaciones.update', $r->id) }}">Editar</button>
 
@@ -123,7 +121,6 @@
                     </div>
                   </td>
 
-                  <!-- Cambiar estado: mostrar solo botones para estados distintos al actual, vertical -->
                   <td>
                     <form id="form-change-{{ $r->id }}" action="{{ route('reservaciones.changeEstado', $r->id) }}" method="POST" style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
                       @csrf

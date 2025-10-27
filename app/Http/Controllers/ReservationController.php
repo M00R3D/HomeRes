@@ -14,12 +14,14 @@ class ReservationController extends Controller
         $q = Reservation::query();
 
         if ($request->filled('usuario_id')) $q->where('usuario_id', $request->usuario_id);
-        if ($request->filled('cabana_id')) $q->where('cabana_id', $request->cabana_id);
+        if ($request->filled('propiedad_id')) $q->where('propiedad_id', $request->propiedad_id);
         if ($request->filled('estado')) $q->where('estado', $request->estado);
+
         if ($request->wantsJson()) {
             return response()->json($q->with(['user','propiedad'])->get());
         }
-        $reservaciones = $q->with(['user','propiedad'])->get();
+
+        $reservaciones = $q->with(['user','propiedad'])->orderByDesc('created_at')->get();
         $usuarios = User::all();
         $propiedades = Propiedad::all();
         $currentUser = auth()->user();
@@ -47,6 +49,7 @@ class ReservationController extends Controller
         if ($request->wantsJson()) {
             return response()->json($r, 201);
         }
+
         return redirect()->route('reservaciones.index')->with('success', 'Reservación creada');
     }
 
@@ -55,6 +58,24 @@ class ReservationController extends Controller
         $r = Reservation::find($id);
         if (!$r) return response()->json(['message' => 'Reservación no encontrada'], 404);
         return response()->json($r);
+    }
+
+    public function showView(Request $request, $id)
+    {
+        $r = Reservation::with(['user','propiedad'])->find($id);
+        if (!$r) {
+            abort(404);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json($r);
+        }
+
+        $usuarios = User::all();
+        $propiedades = Propiedad::all();
+        $currentUser = auth()->user();
+
+        return view('reservaciones.show', compact('r','usuarios','propiedades','currentUser'));
     }
 
     public function update(Request $request, $id)
@@ -80,6 +101,7 @@ class ReservationController extends Controller
         if ($request->wantsJson()) {
             return response()->json($r);
         }
+
         return redirect()->route('reservaciones.index')->with('success', 'Reservación actualizada');
     }
 
@@ -88,11 +110,14 @@ class ReservationController extends Controller
         $r = Reservation::find($id);
         if (!$r) return response()->json(['message' => 'Reservación no encontrada'], 404);
         $r->delete();
+
         if (request()->wantsJson()) {
             return response()->json(['message' => 'Reservación eliminada']);
         }
+
         return redirect()->route('reservaciones.index')->with('success', 'Reservación eliminada');
     }
+
     public function changeEstado(Request $request, $id)
     {
         $r = Reservation::find($id);
@@ -108,6 +133,7 @@ class ReservationController extends Controller
         if ($request->wantsJson()) {
             return response()->json($r);
         }
+
         return redirect()->route('reservaciones.index')->with('success', 'Estado actualizado');
     }
 }
