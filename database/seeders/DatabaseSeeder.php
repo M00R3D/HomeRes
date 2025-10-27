@@ -14,6 +14,8 @@ class DatabaseSeeder extends Seeder
             CabanasTableSeeder::class,
             ReservacionesTableSeeder::class,
             PagosTableSeeder::class,
+            TarjetasSimuladasSeeder::class,
+            HomepageSeeder::class,
             NotificacionesTableSeeder::class,
             ComentariosTableSeeder::class,
         ]);

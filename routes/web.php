@@ -27,6 +27,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('users', UserController::class)->names('users');
     Route::resource('propiedades', PropiedadController::class)->names('propiedades');
     Route::resource('notificaciones', NotificationController::class)->names('notificaciones');
+    Route::resource('tarjetas', \App\Http\Controllers\TarjetaSimuladaController::class)->names('tarjetas');
+    Route::resource('homepage', \App\Http\Controllers\HomepageController::class)->only(['index','store','update','show','destroy'])->names('homepage');
 });
 
 Route::get('/reservaciones', [ReservationController::class, 'index'])->middleware('auth')->name('reservaciones.index');
