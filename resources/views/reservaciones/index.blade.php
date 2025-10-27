@@ -28,11 +28,18 @@
 .action-btn.primary{ background:linear-gradient(90deg,#6366f1,#06b6d4);color:#fff; }
 .action-btn.danger{ background:linear-gradient(90deg,#ef4444,#f97316);color:#fff; }
 .rv-days { display:flex;gap:6px;flex-wrap:wrap;margin-top:8px; }
-.rv-day { min-width:56px;padding:8px;border-radius:8px;text-align:center;background:#f8fafc;border:1px solid #eef2f7;font-size:12px;color:#374151; }
-.rv-day.today{ background:linear-gradient(90deg,#e0f2fe,#bae6fd); color:#0c4a6e; border-color:#7dd3fc; }
-.rv-day.past{ background:#f3f4f6;color:#6b7280;border-color:#e6e9ee; }
+.rv-day { min-width:64px;padding:8px;border-radius:8px;text-align:center;background:#f8fafc;border:1px solid #eef2f7;font-size:12px;color:#374151; }
+.rv-day .date { font-weight:800; display:block; margin-bottom:6px; }
 .rv-thumb{ width:100px;height:64px;border-radius:8px;overflow:hidden;border:1px solid #eef2f7; display:flex; align-items:center; justify-content:center; }
 .rv-thumb img{ width:100%;height:100%;object-fit:cover;display:block }
+
+/* aumentar tamaño de tarjetas/miniaturas para usuarios NO admin */
+@if(!$isAdmin)
+.rv-day { min-width:90px; padding:10px; }
+.rv-thumb{ width:140px; height:90px; }
+.rv-days { gap:10px; }
+@endif
+
 .btn-group-col{ display:flex;flex-direction:column;gap:8px;align-items:flex-start; }
 .muted{ color:#6b7280; }
 </style>
@@ -115,7 +122,7 @@
                             elseif ($d->lessThan(Carbon::today())) $cls .= ' past';
                           @endphp
                           <div class="{{ $cls }}">
-                            <div style="font-weight:800;">{{ $d->format('d') }}</div>
+                            <div class="date">{{ $d->format('d') }}</div>
                             <div style="font-size:11px;color:#6b7280;">{{ $d->format('M') }}</div>
                           </div>
                         @endforeach

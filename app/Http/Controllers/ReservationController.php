@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Models\Propiedad;
+use Carbon\Carbon; 
 
 class ReservationController extends Controller
 {
@@ -31,23 +32,77 @@ class ReservationController extends Controller
 
         return view('reservaciones.index', compact('reservaciones','propiedades','usuarios','currentUser'));
     }
-
+    public function createForPropiedad(Request $request, $id)
+    {
+        $prop = Propiedad::findOrFail($id);
+        $reservas = Reservation::where('propiedad_id', $id)
+            ->where('estado', '!=', 'cancelada')
+            ->get(['check_in','check_out']);
+        $blocked = [];
+        foreach ($reservas as $r) {
+            $blocked[] = [
+                'from' => (string) $r->check_in,
+                'to'   => (string) $r->check_out,
+            ];
+        }
+        return view('propiedades.reservar', ['propiedad' => $prop, 'blockedRanges' => $blocked]);
+    }
+ 
+    public function reservedDates($id)
+    {
+        $reservas = Reservation::where('propiedad_id', $id)
+            ->where('estado', '!=', 'cancelada')
+            ->get(['check_in','check_out']);
+        $blocked = [];
+        foreach ($reservas as $r) {
+            $blocked[] = ['from' => (string)$r->check_in, 'to' => (string)$r->check_out];
+        }
+        return response()->json(['blocked' => $blocked]);
+    }
+ 
     public function store(Request $request)
     {
         $request->validate([
             'usuario_id' => 'nullable|exists:usuarios,id',
             'propiedad_id' => 'nullable|exists:propiedades,id',
-            'check_in' => 'required|date',
-            'check_out' => 'required|date|after_or_equal:check_in',
+            'check_in' => 'required|date|after_or_equal:today',
+            'check_out' => 'required|date|after:check_in',
             'num_personas' => 'required|integer|min:1',
             'total' => 'required|numeric',
             'estado' => 'nullable|in:pendiente,confirmada,cancelada,completada',
             'nota' => 'nullable|string|max:500',
         ]);
 
-        $r = Reservation::create($request->only([
-            'usuario_id','propiedad_id','check_in','check_out','num_personas','total','estado','nota'
-        ]));
+        $data = $request->all();
+        if (empty($data['usuario_id']) && auth()->check()) {
+            $data['usuario_id'] = auth()->id();
+        }
+
+        if ($request->filled('propiedad_id')) {
+            $pId = $request->propiedad_id;
+            $newIn = Carbon::parse($request->check_in)->startOfDay();
+            $newOut = Carbon::parse($request->check_out)->startOfDay();
+            $overlap = Reservation::where('propiedad_id', $pId)
+                ->where('estado', '!=', 'cancelada')
+                ->where(function($q) use ($newIn, $newOut) {
+                    $q->where('check_in', '<', $newOut->toDateString())
+                      ->where('check_out', '>', $newIn->toDateString());
+                })->exists();
+            if ($overlap) {
+                return back()->withInput()->withErrors(['check_in' => 'Las fechas seleccionadas están ocupadas para esa propiedad.']);
+            }
+        }
+ 
+        $r = Reservation::create([
+            'usuario_id'   => $data['usuario_id'] ?? null,
+            'propiedad_id' => $data['propiedad_id'] ?? null,
+            'check_in'     => $data['check_in'],
+            'check_out'    => $data['check_out'],
+            'num_personas' => $data['num_personas'],
+            'total'        => $data['total'],
+            'estado'       => $data['estado'] ?? 'pendiente',
+            'nota'         => $data['nota'] ?? null,
+        ]);
 
         if ($request->wantsJson()) {
             return response()->json($r, 201);

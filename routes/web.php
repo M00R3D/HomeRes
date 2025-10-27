@@ -56,3 +56,7 @@ Route::middleware(['web','auth'])->group(function(){
     Route::delete('/reservaciones/{id}', [ReservationController::class, 'destroy'])
         ->name('reservaciones.destroy');
 });
+Route::middleware('auth')->get('/propiedades/{id}/reservar', [ReservationController::class, 'createForPropiedad'])
+    ->name('reservaciones.create_for_propiedad');
+Route::middleware('auth')->get('/propiedades/{id}/reserved-dates', [ReservationController::class, 'reservedDates'])
+    ->name('reservaciones.reserved_dates');

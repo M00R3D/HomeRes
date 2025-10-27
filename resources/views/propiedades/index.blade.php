@@ -145,6 +145,7 @@
 
             <div class="pr-actions" aria-hidden="false">
               <a href="{{ route('propiedades.show', $prop->id) }}" class="pr-btn" style="background:#f3f4f6;color:#111;border-radius:8px;border:1px solid #e6e9ee;">Ver detalles</a>
+              <a href="{{ route('reservaciones.create_for_propiedad', $prop->id) }}" class="pr-btn" style="background:linear-gradient(90deg,#06b6d4,#3b82f6);color:#fff;border-radius:8px;text-decoration:none;">Solicitar reserva</a>
               <div class="muted">{{ ucfirst($prop->estado) }}</div>
             </div>
           </div>
