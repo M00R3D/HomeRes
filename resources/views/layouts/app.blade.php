@@ -26,6 +26,7 @@
       <a class="nav-item" href="/users">Usuarios</a>
       @if(auth()->check() && auth()->user()->rol === 'admin')
         <a class="nav-item" href="{{ route('images.index') }}">Imágenes</a>
+        <a class="nav-item" href="{{ route('tarjetas.index') }}">Tarjetas</a>
       @endif
       <form method="POST" action="{{ route('logout') }}" class="nav-item logout-form" style="display:flex;">
         @csrf
