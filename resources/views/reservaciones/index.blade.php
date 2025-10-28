@@ -10,53 +10,140 @@
 @endphp
 
 <style>
+:root{
+  --accent-1: #6366f1;
+  --accent-2: #06b6d4;
+  --danger-1: #ef4444;
+  --danger-2: #f97316;
+  --muted: #6b7280;
+  --card-bg: #fff;
+  --shadow: 0 12px 34px rgba(2,6,23,0.06);
+  --radius: 10px;
+  --btn-radius: 8px;
+  --transition: .16s ease;
+}
+
 .container{max-width:1400px;margin:0 auto;padding:18px;}
 .split { display:flex; gap:18px; align-items:flex-start; }
 .left { flex:1.6; min-width:420px; }
 .right { width:360px; }
-.card-wide{ background:#fff;padding:14px;border-radius:12px;box-shadow:0 12px 34px rgba(2,6,23,0.06); }
-.table { width:100%; border-collapse:collapse; background:#fff; border-radius:8px; padding:8px; }
+.card-wide{ background:var(--card-bg);padding:14px;border-radius:12px;box-shadow:var(--shadow); }
+
+.table { width:100%; border-collapse:collapse; background:var(--card-bg); border-radius:8px; padding:8px; }
 .table th, .table td{ padding:8px 10px; text-align:left; border-bottom:1px solid #f3f4f6; vertical-align:top; }
-.badge { padding:6px 10px;border-radius:999px;font-weight:700;font-size:0.85rem; display:inline-block; }
-.badge-pendiente{ background:#f59e0b;color:#111; }
-.badge-confirmada{ background:#10b981;color:#fff; }
-.badge-cancelada{ background:#ef4444;color:#fff; }
-.small{ font-size:0.9rem;color:#6b7280; }
-.action-btn{ padding:8px 10px;border-radius:8px;border:0;font-weight:700;cursor:pointer; }
-.action-btn.view{ background:transparent;color:#2563eb;border:1px solid #e6e9ee; }
-.action-btn.primary{ background:linear-gradient(90deg,#6366f1,#06b6d4);color:#fff; }
-.action-btn.danger{ background:linear-gradient(90deg,#ef4444,#f97316);color:#fff; }
+
+.rv-thumb{ width:80px;height:56px;border-radius:8px;overflow:hidden;border:1px solid #eef2f7; display:flex; align-items:center; justify-content:center; background:#fbfdff; }
+.rv-thumb img{ width:100%;height:100%;object-fit:cover;display:block; transition: transform var(--transition), filter var(--transition), opacity var(--transition); }
 .rv-days { display:flex;gap:6px;flex-wrap:wrap;margin-top:8px; }
 .rv-day { min-width:64px;padding:8px;border-radius:8px;text-align:center;background:#f8fafc;border:1px solid #eef2f7;font-size:12px;color:#374151; }
 .rv-day .date { font-weight:800; display:block; margin-bottom:6px; }
-.rv-thumb{ width:100px;height:64px;border-radius:8px;overflow:hidden;border:1px solid #eef2f7; display:flex; align-items:center; justify-content:center; }
-.rv-thumb img{ width:100%;height:100%;object-fit:cover;display:block }
 
-@if(!$isAdmin)
-.rv-day { min-width:90px; padding:10px; }
-.rv-thumb{ width:140px; height:90px; }
-.rv-days { gap:10px; }
-@endif
+.action-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border-radius:var(--btn-radius);
+  border:0;
+  font-weight:700;
+  font-size:0.92rem;
+  line-height:1;
+  cursor:pointer;
+  transition: transform var(--transition), box-shadow var(--transition), opacity var(--transition);
+  text-decoration:none;
+  color: #0f172a;
+  background: transparent;
+  border:1px solid #e6e9ee;
+  box-shadow:none;
+}
+
+.action-btn.view{
+  background:transparent;
+  color:#2563eb;
+  border:1px solid rgba(37,99,235,0.12);
+}
+.action-btn.view:hover{ transform: translateY(-2px); box-shadow: 0 8px 20px rgba(37,99,235,0.08); }
+
+.action-btn.primary{
+  color:#fff;
+  background: linear-gradient(90deg,var(--accent-1),var(--accent-2));
+  border: 0;
+  box-shadow: 0 8px 20px rgba(99,102,241,0.12);
+}
+.action-btn.primary:hover{ transform: translateY(-2px); box-shadow: 0 14px 40px rgba(6,182,212,0.12); }
+
+.action-btn.danger{
+  color:#fff;
+  background: linear-gradient(90deg,var(--danger-1),var(--danger-2));
+  border:0;
+}
+.action-btn.danger:hover{ transform: translateY(-2px); box-shadow: 0 10px 30px rgba(239,68,68,0.12); }
+
+.action-btn.small{ padding:6px 8px; font-size:0.85rem; }
+
+.action-btn[disabled], .action-btn.disabled {
+  opacity:0.56;
+  cursor:not-allowed;
+  transform:none;
+  box-shadow:none;
+}
 
 .btn-group-col{ display:flex;flex-direction:column;gap:8px;align-items:flex-start; }
-.muted{ color:#6b7280; }
 
-@media (max-width:1100px){
-  .container{padding:12px;}
-  .rv-thumb{ width:120px; height:80px; }
+.modal, #rv-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:9999; padding:12px; }
+.modal.open, #rv-modal.open { display:flex; }
+.modal .modal-backdrop, #rv-modal > .modal-backdrop { position:absolute; inset:0; background:rgba(2,6,23,0.45); }
+
+.modal-panel, #rv-modal > div, #rv-change-confirm-modal .modal-panel {
+  position:relative;
+  background:var(--card-bg);
+  border-radius:var(--radius);
+  padding:14px;
+  width:100%;
+  max-width:720px;
+  max-height:90vh;
+  overflow:auto;
+  box-shadow: 0 18px 48px rgba(2,6,23,0.12);
+  transform: translateY(6px);
+  transition: transform var(--transition), opacity var(--transition);
+}
+.modal.open .modal-panel, #rv-modal.open > div, #rv-change-confirm-modal.open .modal-panel { transform:none; }
+
+#rv-change-confirm-modal .modal-panel { max-width:480px; padding:18px; }
+
+.modal-close, #rv-close { position:absolute; right:12px; top:8px; border:0; background:transparent; font-size:18px; cursor:pointer; padding:6px; border-radius:8px; transition: background var(--transition); }
+.modal-close:hover, #rv-close:hover { background: rgba(15,23,42,0.04); }
+
+.modal-panel h2, .modal-panel h3 { margin:0 0 8px 0; font-size:1.05rem; }
+
+.modal-panel .modal-actions, #rv-change-confirm-modal .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+
+@media (max-width:720px){
+  .modal-panel, #rv-modal > div { max-width:calc(100% - 24px); padding:12px; }
+  .action-btn { font-size:0.88rem; padding:7px 9px; }
+}
+
+.action-btn:focus, .modal-close:focus, .link-button:focus { outline: 3px solid rgba(99,102,241,0.14); outline-offset:2px; }
+
+.table tbody tr.row-cancelled {
+  filter: blur(0.8px) brightness(0.85);
+  transition: filter .18s ease, background .18s ease, transform .18s ease;
+  background: linear-gradient(180deg,#eef2f4,#f7f9fb);
+}
+.table tbody tr.row-cancelled td { color: #6b7280; opacity: 0.95; }
+.table tbody tr.row-cancelled .rv-thumb img{ filter: grayscale(100%) contrast(0.9); opacity: 0.8; transform: scale(1); }
+@media (min-width:901px){
+  .table tbody tr.row-cancelled:hover { filter: none; transform: translateY(-1px); background: linear-gradient(180deg,#ffffff,#fbfdff); }
+  .table tbody tr.row-cancelled:hover .rv-thumb img{ filter: none; opacity: 1; transform: scale(1.03); }
+  .table tbody tr.row-cancelled:hover .action-btn, .table tbody tr.row-cancelled:hover a, .table tbody tr.row-cancelled:hover button{ opacity: 1; filter:none; }
 }
 @media (max-width:900px){
-  .split { flex-direction:column-reverse; gap:12px; }
-  .card-wide{ padding:12px; }
-  .rv-day { min-width:72px; padding:8px; font-size:11px; }
-  .rv-thumb { width:120px; height:72px; }
-  .table{ display:block; overflow:auto; width:100%; }
-  .table th, .table td{ white-space:nowrap; }
+  .table tbody tr.row-cancelled { filter: none; background: linear-gradient(180deg,#f6f7f8,#fafafa); }
+  .table tbody tr.row-cancelled .rv-thumb img{ filter: grayscale(100%); opacity:0.85; }
 }
-@media (max-width:640px){
-  .rv-days > div[style*="grid-template-columns"] { grid-template-columns: repeat(2, 1fr) !important; }
-  .rv-day { min-height:48px; }
-}
+
+.muted{ color:var(--muted); }
+.small{ font-size:0.9rem;color:var(--muted); }
 </style>
 
 <div class="container">
@@ -119,7 +206,52 @@
         @endif
       </div>
 
-      <form id="rv-filters" method="GET" action="{{ url('/reservaciones') }}" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <form id="rv-filters" method="GET" action="{{ url('/reservaciones') }}" style="margin-top:10px;">
+        @if($isAdmin)
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+            <input name="id" placeholder="ID" value="{{ request('id') }}" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;width:80px;">
+
+            <select name="usuario_id" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
+              <option value="">-- Cliente --</option>
+              @foreach($usuarios ?? [] as $u)
+                <option value="{{ $u->id }}" {{ (string)request('usuario_id') === (string)$u->id ? 'selected' : '' }}>
+                  {{ $u->nombre }} {{ $u->apellido }}
+                </option>
+              @endforeach
+            </select>
+
+            <select name="propiedad_id" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
+              <option value="">-- Propiedad --</option>
+              @foreach($propiedades ?? [] as $p)
+                <option value="{{ $p->id }}" {{ (string)request('propiedad_id') === (string)$p->id ? 'selected' : '' }}>
+                  {{ $p->nombre }} {{ $p->codigo ? '· ' . $p->codigo : '' }}
+                </option>
+              @endforeach
+            </select>
+
+            <select name="estado" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
+              <option value="">-- Estado --</option>
+              @foreach(['pendiente','confirmada','cancelada','completada'] as $st)
+                <option value="{{ $st }}" {{ request('estado') === $st ? 'selected' : '' }}>{{ ucfirst($st) }}</option>
+              @endforeach
+            </select>
+
+            <label style="display:flex;align-items:center;gap:6px;">
+              <span class="small" style="margin-right:4px;">Desde</span>
+              <input type="date" name="check_in" value="{{ request('check_in') }}" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;">
+              <span class="small" style="margin-right:4px;">Hasta</span>
+              <input type="date" name="check_out" value="{{ request('check_out') }}" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
+            </label>
+
+            <div style="margin-left:auto;display:flex;gap:8px;">
+              <button type="submit" class="action-btn primary">Buscar</button>
+              <button type="button" id="rv-filters-clear" class="action-btn view">Limpiar</button>
+            </div>
+          </div>
+        @else
+        @endif
       </form>
 
       <div style="margin-top:12px;overflow:auto;">
@@ -158,7 +290,7 @@
                 $displayDays = $showAll ? $daysArray : [($daysArray[0] ?? $checkIn), ($daysArray[$totalDays-1] ?? ($checkOut ? $checkOut->copy()->subDay() : $checkIn))];
               @endphp
 
-              <tr>
+              <tr class="{{ (($r->estado ?? '') === 'cancelada') ? 'row-cancelled' : 'rv-row' }}">
                 <td style="width:120px;">
                   <div class="rv-thumb" aria-hidden="true">
                     @if($imgPath)
@@ -370,6 +502,24 @@
 </div>
 
 @push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const clearBtn = document.getElementById('rv-filters-clear');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function(){
+      const form = document.getElementById('rv-filters');
+      if (!form) return;
+      Array.from(form.elements).forEach(el => {
+        if (!el.name) return;
+        if (el.type === 'select-one' || el.type === 'text' || el.type === 'date' || el.type === 'number' || el.tagName.toLowerCase() === 'input') {
+          el.value = '';
+        }
+      });
+      form.submit();
+    });
+  }
+});
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
 

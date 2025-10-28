@@ -92,11 +92,23 @@
 
   @php
     use Carbon\Carbon;
-    use Carbon\CarbonPeriod;
     $checkIn = Carbon::parse($r->check_in);
     $checkOut = Carbon::parse($r->check_out);
     $today = Carbon::today();
-    $period = CarbonPeriod::create($checkIn, '1 day', $checkOut);
+
+    $daysArray = [];
+    if ($checkIn && $checkOut) {
+      $d = $checkIn->copy();
+      while ($d->lt($checkOut)) {
+        $daysArray[] = $d->copy();
+        $d->addDay();
+        if (count($daysArray) > 10000) break;
+      }
+    }
+    $totalDays = count($daysArray);
+    $maxVisibleDays = 30;
+    $showAllDays = $totalDays <= $maxVisibleDays;
+
     if ($checkIn->greaterThan($today)) {
       $summary = 'Falta ' . $today->diffInDays($checkIn) . ' día' . ($today->diffInDays($checkIn) !== 1 ? 's' : '') . ' para el check-in';
     } elseif ($checkOut->lessThan($today)) {
@@ -129,24 +141,36 @@
     </style>
 
     <div class="rv-days" role="list" aria-label="Fechas reservación">
-      @foreach($period as $d)
-        @php
-          $cls = $d->isToday() ? 'today' : ($d->lessThan($today) ? 'past' : 'upcoming');
-          $relative = $d->isToday() ? 'Hoy' : ($d->greaterThan($today) ? 'En ' . $today->diffInDays($d) . 'd' : 'Hace ' . $d->diffInDays($today) . 'd');
-          $isCheckIn = $d->isSameDay($checkIn);
-          $isCheckOut = $d->isSameDay($checkOut);
-        @endphp
-        <div class="rv-day {{ $cls }}" role="listitem" title="{{ $relative }} - {{ $d->format('d M Y') }}">
-          @if($isCheckIn)
-            <span class="rv-badge checkin" aria-hidden="true">IN</span>
-          @elseif($isCheckOut)
-            <span class="rv-badge checkout" aria-hidden="true">OUT</span>
-          @endif
-          <span class="date">{{ $d->format('d') }}</span>
-          <span class="label">{{ $d->format('D') }}</span>
-          <div style="font-size:0.75rem;margin-top:6px;color:rgba(0,0,0,0.6)">{{ $relative }}</div>
+      @if($showAllDays)
+        @foreach($daysArray as $d)
+          @php
+            $cls = 'rv-day';
+            if ($d->isToday()) $cls .= ' today';
+            elseif ($d->lt(Carbon::today())) $cls .= ' past';
+          @endphp
+          <div class="{{ $cls }}" title="{{ $d->toDateString() }}">
+            <div class="date">{{ $d->format('d') }}</div>
+            <div style="font-size:11px;color:#6b7280;">{{ $d->format('M') }}</div>
+          </div>
+        @endforeach
+      @else
+        {{-- demasiados días: mostrar compactado (check-in → check-out) --}}
+        <div style="display:flex;gap:10px;align-items:center;width:100%;flex-wrap:wrap;">
+          <div class="rv-day" title="{{ ($daysArray[0] ?? $checkIn)->toDateString() }}" style="min-width:140px;padding:10px;text-align:center;">
+            <div style="font-weight:800">{{ ($daysArray[0] ?? $checkIn)->format('d M Y') }}</div>
+            <div class="small">Check-in</div>
+          </div>
+
+          <div style="font-weight:900;color:#6b7280;font-size:20px;">→</div>
+
+          <div class="rv-day" title="{{ ($daysArray[$totalDays-1] ?? $checkOut->copy()->subDay())->toDateString() }}" style="min-width:140px;padding:10px;text-align:center;">
+            <div style="font-weight:800">{{ ($daysArray[$totalDays-1] ?? $checkOut->copy()->subDay())->format('d M Y') }}</div>
+            <div class="small">Check-out</div>
+          </div>
+
+          <div class="small-muted" style="margin-left:auto;">Total días: {{ $totalDays }}</div>
         </div>
-      @endforeach
+      @endif
     </div>
   </div>
 
