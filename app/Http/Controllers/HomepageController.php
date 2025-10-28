@@ -9,9 +9,28 @@ class HomepageController extends Controller
 {
     public function index(Request $request)
     {
-        $hp = Homepage::orderByDesc('id')->first();
-        if ($request->wantsJson()) return response()->json($hp);
-        return view('homepage.index', ['homepage' => $hp]);
+        $homepages = Homepage::orderByDesc('id')->get();
+        $folderFiles = [];
+        $first = $homepages->first();
+        if ($first && !empty($first->image_folder)) {
+            $folder = trim($first->image_folder, "/\\");
+            $target = public_path($folder);
+            if (is_dir($target)) {
+                $allowed = ['jpg','jpeg','png','webp','gif','svg'];
+                $all = @scandir($target) ?: [];
+                foreach ($all as $f) {
+                    if ($f === '.' || $f === '..') continue;
+                    $path = $target . DIRECTORY_SEPARATOR . $f;
+                    if (! is_file($path)) continue;
+                    $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+                    if (! in_array($ext, $allowed)) continue;
+                    $folderFiles[] = asset($folder . '/' . $f);
+                }
+            }
+        }
+
+        if ($request->wantsJson()) return response()->json($homepages);
+        return view('homepage.index', compact('homepages', 'folderFiles'));
     }
 
     public function store(Request $request)

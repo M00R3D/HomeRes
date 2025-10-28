@@ -6,11 +6,25 @@
   <title>{{ config('app.name', 'HomeRes') }}</title>
   <meta name="csrf-token" content="{{ csrf_token() }}" >
   <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
+  <style>
+    .content{
+      padding: 24px;
+      box-sizing: border-box;
+      max-width: 1200px;
+      margin: 0 auto; 
+    }
+    .sidebar .brand, .sidebar .nav { padding-left: 14px; padding-right: 14px; }
+    .topbar { padding: 8px 16px; box-sizing: border-box; }
+    @media (max-width:900px){
+      .content{ padding: 16px; max-width: 100%; }
+      .sidebar .brand, .sidebar .nav { padding-left: 8px; padding-right: 8px; }
+    }
+  </style>
 </head>
 <body class="app-root">
   <aside id="sidebar" class="sidebar">
     <div class="brand">
-      <a href="{{ url('/') }}" class="brand-link">
+      <a class="brand-link" href="{{ route('homepage.index') }}">
         <img src="{{ asset('logos/logoHomeRes.png') }}" alt="logo" class="brand-logo" />
         <span class="brand-text">HomeRes</span>
       </a>
@@ -18,6 +32,8 @@
     </div>
 
     <nav class="nav">
+      <a class="nav-item" href="{{ route('homepage.index') }}">Inicio</a>
+      <div style="height:8px;"></div>
       <a class="nav-item" href="{{ route('dashboard') ?? '/dashboard' }}">Dashboard</a>
       <a class="nav-item" href="/reservaciones">Reservaciones</a>
       <a class="nav-item" href="/propiedades">Propiedades</a>
