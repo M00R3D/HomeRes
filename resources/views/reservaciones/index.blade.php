@@ -5,7 +5,6 @@
 @section('content')
 @php
   use Carbon\Carbon;
-  use Carbon\CarbonPeriod;
   $currentUser = $currentUser ?? auth()->user();
   $isAdmin = $isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin');
 @endphp
@@ -33,7 +32,6 @@
 .rv-thumb{ width:100px;height:64px;border-radius:8px;overflow:hidden;border:1px solid #eef2f7; display:flex; align-items:center; justify-content:center; }
 .rv-thumb img{ width:100%;height:100%;object-fit:cover;display:block }
 
-/* aumentar tamaño de tarjetas/miniaturas para usuarios NO admin */
 @if(!$isAdmin)
 .rv-day { min-width:90px; padding:10px; }
 .rv-thumb{ width:140px; height:90px; }
@@ -42,6 +40,23 @@
 
 .btn-group-col{ display:flex;flex-direction:column;gap:8px;align-items:flex-start; }
 .muted{ color:#6b7280; }
+
+@media (max-width:1100px){
+  .container{padding:12px;}
+  .rv-thumb{ width:120px; height:80px; }
+}
+@media (max-width:900px){
+  .split { flex-direction:column-reverse; gap:12px; }
+  .card-wide{ padding:12px; }
+  .rv-day { min-width:72px; padding:8px; font-size:11px; }
+  .rv-thumb { width:120px; height:72px; }
+  .table{ display:block; overflow:auto; width:100%; }
+  .table th, .table td{ white-space:nowrap; }
+}
+@media (max-width:640px){
+  .rv-days > div[style*="grid-template-columns"] { grid-template-columns: repeat(2, 1fr) !important; }
+  .rv-day { min-height:48px; }
+}
 </style>
 
 <div class="container">
@@ -51,156 +66,10 @@
     <div style="background:#ecfdf5;color:#065f46;padding:10px;border-radius:8px;margin:8px 0;font-weight:700;">{{ session('success') }}</div>
   @endif
 
-  <div class="split">
-    <div class="left">
-      <div class="card-wide" style="margin-bottom:12px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <h2 style="margin:0;font-size:1.05rem">Lista de reservaciones</h2>
-          @if($isAdmin)
-            <button id="btn-new" style="background:#06b6d4;color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;">Nueva reservación</button>
-          @endif
-        </div>
-
-        <form id="rv-filters" method="GET" action="{{ url('/reservaciones') }}" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        </form>
-
-        <div style="margin-top:12px;overflow:auto;">
-          <table class="table" aria-label="Reservaciones">
-            <thead>
-              <tr>
-                <th>Imagen</th>
-                <th>ID</th>
-                <th>Propiedad</th>
-                <th>Cliente</th>
-                <th>Fechas</th>
-                <th>Total</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-                <th style="width:200px">Cambiar estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              @forelse($reservaciones ?? [] as $r)
-                @php
-                  $imgPath = optional($r->propiedad)->ruta_img ?? ($r->ruta_img ?? null);
-                  $checkIn = $r->check_in ? Carbon::parse($r->check_in) : null;
-                  $checkOut = $r->check_out ? Carbon::parse($r->check_out) : null;
-                  $period = ($checkIn && $checkOut) ? CarbonPeriod::create($checkIn, '1 day', $checkOut) : collect();
-                @endphp
-
-                <tr>
-                  <td style="width:120px;">
-                    <div class="rv-thumb" aria-hidden="true">
-                      @if($imgPath)
-                        <img src="{{ asset($imgPath) }}" alt="Imagen propiedad">
-                      @else
-                        <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f3f4f6;color:#9ca3af;font-size:12px;">Sin imagen</div>
-                      @endif
-                    </div>
-                  </td>
-
-                  <td style="vertical-align:middle;">{{ $r->id }}</td>
-
-                  <td style="vertical-align:middle;">
-                    <div style="font-weight:700;">{{ $r->propiedad->nombre ?? ($r->propiedad_nombre ?? ($r->propiedad_id ?? '-')) }}</div>
-                    <div class="small">{{ optional($r->propiedad)->codigo ?? '' }}</div>
-                  </td>
-
-                  <td style="vertical-align:middle;">{{ $r->user->nombre ?? '-' }} {{ $r->user->apellido ?? '' }}</td>
-
-                  <td>
-                    <div style="font-weight:700;">
-                      {{ $checkIn ? $checkIn->format('d M Y') : '-' }} — {{ $checkOut ? $checkOut->format('d M Y') : '-' }}
-                    </div>
-
-                    <div class="rv-days" role="list" aria-label="Fechas reserva {{ $r->id }}">
-                      @if($period && $period->count())
-                        @foreach($period as $d)
-                          @php
-                            $cls = 'rv-day';
-                            if ($d->isToday()) $cls .= ' today';
-                            elseif ($d->lessThan(Carbon::today())) $cls .= ' past';
-                          @endphp
-                          <div class="{{ $cls }}">
-                            <div class="date">{{ $d->format('d') }}</div>
-                            <div style="font-size:11px;color:#6b7280;">{{ $d->format('M') }}</div>
-                          </div>
-                        @endforeach
-                      @endif
-                    </div>
-                  </td>
-
-                  <td style="vertical-align:middle;">${{ number_format($r->total ?? 0, 2, ',', '.') }}</td>
-
-                  <td style="vertical-align:middle;">
-                    @if(($r->estado ?? '') === 'pendiente') <span class="badge badge-pendiente">Pendiente</span>
-                    @elseif(($r->estado ?? '') === 'confirmada') <span class="badge badge-confirmada">Confirmada</span>
-                    @elseif(($r->estado ?? '') === 'cancelada') <span class="badge badge-cancelada">Cancelada</span>
-                    @else <span class="badge">{{ $r->estado }}</span>
-                    @endif
-                  </td>
-
-                  <td style="vertical-align:middle;">
-                    @if($isAdmin)
-                      <div class="btn-group-col">
-                        <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn view">Ver</a>
-
-                        <button type="button" class="action-btn primary" data-edit data-res='@json($r)' data-update-url="{{ route('reservaciones.update', $r->id) }}">Editar</button>
-
-                        <form method="POST" action="{{ route('reservaciones.destroy', $r->id) }}" style="display:inline;">
-                          @csrf
-                          @method('DELETE')
-                          <button class="action-btn danger" type="button" data-confirm="¿Eliminar reservación {{ addslashes($r->id) }}?">Eliminar</button>
-                        </form>
-                      </div>
-                    @else
-                      <div class="btn-group-col">
-                        <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn view">Ver</a>
-
-                        @if(in_array($r->estado, ['pendiente','confirmada']))
-                          <form method="POST" action="{{ route('reservaciones.changeEstado', $r->id) }}" class="request-cancel-form" style="display:inline;">
-                            @csrf
-                            <input type="hidden" name="estado" value="cancelada" />
-                            <button type="button" class="action-btn danger request-cancel-btn" data-id="{{ $r->id }}">Solicitar cancelación</button>
-                          </form>
-                        @endif
-                      </div>
-                    @endif
-                  </td>
-
-                  <td style="vertical-align:middle;">
-                    @if($isAdmin)
-                      <form id="form-change-{{ $r->id }}" action="{{ route('reservaciones.changeEstado', $r->id) }}" method="POST" style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
-                        @csrf
-                        <input type="hidden" name="estado" value="">
-                        @if(($r->estado ?? '') !== 'confirmada')
-                          <button type="button" class="action-btn primary" data-change data-id="{{ $r->id }}" data-estado="confirmada">Confirmar</button>
-                        @endif
-                        @if(($r->estado ?? '') !== 'pendiente')
-                          <button type="button" class="action-btn view" data-change data-id="{{ $r->id }}" data-estado="pendiente">Pendiente</button>
-                        @endif
-                        @if(($r->estado ?? '') !== 'cancelada')
-                          <button type="button" class="action-btn danger" data-change data-id="{{ $r->id }}" data-estado="cancelada">Cancelar</button>
-                        @endif
-                      </form>
-                    @else
-                      <div class="muted">Solo administración</div>
-                    @endif
-                  </td>
-                </tr>
-              @empty
-                <tr><td colspan="9" class="muted">No hay reservaciones aún.</td></tr>
-              @endforelse
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <aside class="right">
-      <div class="card-wide" style="padding:12px;">
+  <div style="display:flex;gap:18px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;">
+    <div style="flex:1; min-width:260px;">
+      <div class="card-wide">
         <h2 style="margin:0;font-size:1.05rem;">Resumen</h2>
-
         <div style="margin-top:12px;">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <div style="font-weight:700;">Total</div>
@@ -223,16 +92,204 @@
           </div>
         </div>
       </div>
+    </div>
 
-      <div class="card-wide" style="margin-top:12px;padding:12px;">
+    <div style="width:320px; min-width:220px;">
+      <div class="card-wide">
         <h3 style="margin:0 0 8px 0;font-size:1rem;">Atajos</h3>
-        <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
           <a href="{{ route('dashboard') }}" class="small">Volver al dashboard</a>
           <a href="/propiedades" class="small">Ver propiedades</a>
           <a href="/notificaciones" class="small">Notificaciones</a>
+          @if($isAdmin)
+            <a href="{{ function_exists('route') && \Illuminate\Support\Facades\Route::has('images.index') ? route('images.index') : url('/imagenes') }}" class="small">Imágenes</a>
+            <a href="{{ route('tarjetas.index') ?? '#' }}" class="small">Tarjetas</a>
+          @endif
         </div>
       </div>
-    </aside>
+    </div>
+  </div>
+
+  <div style="margin-top:0;">
+    <div class="card-wide" style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h2 style="margin:0;font-size:1.05rem">Lista de reservaciones</h2>
+        @if($isAdmin)
+          <button id="btn-new" style="background:#06b6d4;color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;">Nueva reservación</button>
+        @endif
+      </div>
+
+      <form id="rv-filters" method="GET" action="{{ url('/reservaciones') }}" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      </form>
+
+      <div style="margin-top:12px;overflow:auto;">
+        <table class="table" aria-label="Reservaciones">
+          <thead>
+            <tr>
+              <th>Imagen</th>
+              <th>ID</th>
+              <th>Propiedad</th>
+              <th>Cliente</th>
+              <th>Fechas</th>
+              <th>Total</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+              <th style="width:200px">Cambiar estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            @forelse($reservaciones ?? [] as $r)
+              @php
+                $imgPath = optional($r->propiedad)->ruta_img ?? ($r->ruta_img ?? null);
+                $checkIn = $r->check_in ? Carbon::parse($r->check_in) : null;
+                $checkOut = $r->check_out ? Carbon::parse($r->check_out) : null;
+                $daysArray = [];
+                if ($checkIn && $checkOut) {
+                  $d = $checkIn->copy();
+                  while ($d->lt($checkOut)) {
+                    $daysArray[] = $d->copy();
+                    $d->addDay();
+                    if (count($daysArray) > 10000) break;
+                  }
+                }
+                $totalDays = count($daysArray);
+                $maxVisible = 25;
+                $showAll = $totalDays <= $maxVisible;
+                $displayDays = $showAll ? $daysArray : [($daysArray[0] ?? $checkIn), ($daysArray[$totalDays-1] ?? ($checkOut ? $checkOut->copy()->subDay() : $checkIn))];
+              @endphp
+
+              <tr>
+                <td style="width:120px;">
+                  <div class="rv-thumb" aria-hidden="true">
+                    @if($imgPath)
+                      <img src="{{ asset($imgPath) }}" alt="Imagen propiedad">
+                    @else
+                      <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f3f4f6;color:#9ca3af;font-size:12px;">Sin imagen</div>
+                    @endif
+                  </div>
+                </td>
+
+                <td style="vertical-align:middle;">{{ $r->id }}</td>
+
+                <td style="vertical-align:middle;">
+                  <div style="font-weight:700;">{{ $r->propiedad->nombre ?? ($r->propiedad_nombre ?? ($r->propiedad_id ?? '-')) }}</div>
+                  <div class="small">{{ optional($r->propiedad)->codigo ?? '' }}</div>
+                </td>
+
+                <td style="vertical-align:middle;">{{ $r->user->nombre ?? '-' }} {{ $r->user->apellido ?? '' }}</td>
+
+                <td>
+                  <div style="font-weight:700;">
+                    {{ $checkIn ? $checkIn->format('d M Y') : '-' }} — {{ $checkOut ? $checkOut->format('d M Y') : '-' }}
+                  </div>
+
+                  <div class="rv-days" role="list" aria-label="Fechas reserva {{ $r->id }}">
+                    @if($showAll)
+                      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;width:100%;">
+                        @foreach($displayDays as $d)
+                          @php
+                            $cls = 'rv-day';
+                            if ($d->isToday()) $cls .= ' today';
+                            elseif ($d->lt(Carbon::today())) $cls .= ' past';
+                          @endphp
+                          <div class="{{ $cls }}" title="{{ $d->toDateString() }}">
+                            <div class="date">{{ $d->format('d') }}</div>
+                            <div style="font-size:11px;color:#6b7280;">{{ $d->format('M') }}</div>
+                          </div>
+                        @endforeach
+                        @php
+                          $cells = count($displayDays);
+                          $fill = (5 - ($cells % 5)) % 5;
+                        @endphp
+                        @for($i=0;$i<$fill;$i++)
+                          <div style="background:transparent;height:56px;border-radius:8px"></div>
+                        @endfor
+                      </div>
+                    @else
+                      <div style="display:flex;gap:8px;align-items:center;">
+                        <div class="rv-day" title="{{ $displayDays[0]->toDateString() }}" style="min-width:120px;padding:10px;text-align:center;">
+                          <div style="font-weight:800">{{ $displayDays[0]->format('d M Y') }}</div>
+                          <div class="small">Check-in</div>
+                        </div>
+
+                        <div style="font-weight:900;color:#6b7280;">…</div>
+
+                        <div class="rv-day" title="{{ $displayDays[1]->toDateString() }}" style="min-width:120px;padding:10px;text-align:center;">
+                          <div style="font-weight:800">{{ $displayDays[1]->format('d M Y') }}</div>
+                          <div class="small">Check-out</div>
+                        </div>
+
+                        <div class="small-muted" style="margin-left:auto;">Total días: {{ $totalDays }}</div>
+                      </div>
+                    @endif
+                  </div>
+                </td>
+
+                <td style="vertical-align:middle;">${{ number_format($r->total ?? 0, 2, ',', '.') }}</td>
+
+                <td style="vertical-align:middle;">
+                  @if(($r->estado ?? '') === 'pendiente') <span class="badge badge-pendiente">Pendiente</span>
+                  @elseif(($r->estado ?? '') === 'confirmada') <span class="badge badge-confirmada">Confirmada</span>
+                  @elseif(($r->estado ?? '') === 'cancelada') <span class="badge badge-cancelada">Cancelada</span>
+                  @else <span class="badge">{{ $r->estado }}</span>
+                  @endif
+                </td>
+
+                <td style="vertical-align:middle;">
+                  @if($isAdmin)
+                    <div class="btn-group-col">
+                      <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn view">Ver</a>
+
+                      <button type="button" class="action-btn primary" data-edit data-res='@json($r)' data-update-url="{{ route('reservaciones.update', $r->id) }}">Editar</button>
+
+                      <form method="POST" action="{{ route('reservaciones.destroy', $r->id) }}" style="display:inline;">
+                        @csrf
+                        @method('DELETE')
+                        <button class="action-btn danger" type="button" data-confirm="¿Eliminar reservación {{ addslashes($r->id) }}?">Eliminar</button>
+                      </form>
+                    </div>
+                  @else
+                    <div class="btn-group-col">
+                      <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn view">Ver</a>
+
+                      @if(in_array($r->estado, ['pendiente','confirmada']))
+                        <form method="POST" action="{{ route('reservaciones.changeEstado', $r->id) }}" class="request-cancel-form" style="display:inline;">
+                          @csrf
+                          <input type="hidden" name="estado" value="cancelada" />
+                          <button type="button" class="action-btn danger request-cancel-btn" data-id="{{ $r->id }}">Solicitar cancelación</button>
+                        </form>
+                      @endif
+                    </div>
+                  @endif
+                </td>
+
+                <td style="vertical-align:middle;">
+                  @if($isAdmin)
+                    <form id="form-change-{{ $r->id }}" action="{{ route('reservaciones.changeEstado', $r->id) }}" method="POST" style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+                      @csrf
+                      <input type="hidden" name="estado" value="">
+                      @if(($r->estado ?? '') !== 'confirmada')
+                        <button type="button" class="action-btn primary" data-change data-id="{{ $r->id }}" data-estado="confirmada">Confirmar</button>
+                      @endif
+                      @if(($r->estado ?? '') !== 'pendiente')
+                        <button type="button" class="action-btn view" data-change data-id="{{ $r->id }}" data-estado="pendiente">Pendiente</button>
+                      @endif
+                      @if(($r->estado ?? '') !== 'cancelada')
+                        <button type="button" class="action-btn danger" data-change data-id="{{ $r->id }}" data-estado="cancelada">Cancelar</button>
+                      @endif
+                    </form>
+                  @else
+                    <div class="muted">Solo administración</div>
+                  @endif
+                </td>
+              </tr>
+            @empty
+              <tr><td colspan="9" class="muted">No hay reservaciones aún.</td></tr>
+            @endforelse
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -418,7 +475,7 @@ document.addEventListener('DOMContentLoaded', function(){
         const id = btn.getAttribute('data-id');
         const form = btn.closest('form');
         showChangeModal('Solicitar cancelación', '¿Deseas solicitar la cancelación de la reservación #' + id + '?', { okLabel: 'Solicitar', cancelLabel: 'Cancelar' });
-        pendingAction = { type: 'delete-like', form: form }; // will submit form (changeEstado -> cancelada)
+        pendingAction = { type: 'delete-like', form: form };
         return;
       }
     }
