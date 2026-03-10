@@ -1,11 +1,22 @@
 @extends('layouts.app')
-
+@php
+  use App\Models\Comentario;
+  use Illuminate\Support\Str;
+  $currentUser = $currentUser ?? auth()->user();
+  $isAdmin = $isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin');
+@endphp
 @section('content')
   <div class="page-header">
     <h1>Reservaciones</h1>
+    @if ($isAdmin)
     <div class="actions">
       <button id="open-new" class="btn-primary">Nueva Reservación</button>
     </div>
+    @else
+    <div class="actions">
+      <a href="/propiedades" class="btn-primary">Reservar una propiedad</a>
+    </div>
+    @endif
   </div>
 
   <div class="card table-card">
@@ -18,7 +29,7 @@
             <th>Costo</th>
             <th>Llegada</th>
             <th>Salida</th>
-            <th>Detalle</th>
+            
             <th>Acciones</th>
           </tr>
         </thead>
@@ -31,11 +42,11 @@
               <td>${{ number_format($r->total ?? 0, 2, ',', '.') }}</td>
               <td>{{ isset($r->check_in) ? \Carbon\Carbon::parse($r->check_in)->format('d M Y') : '-' }}</td>
               <td>{{ isset($r->check_out) ? \Carbon\Carbon::parse($r->check_out)->format('d M Y') : '-' }}</td>
-              <td><button class="link-button" onclick="alert('Detalle: {{ addslashes($r->nota ?? '') }}')">Ver</button></td>
               <td>
-                @if(!($isAdmin ?? false) && (($r->estado ?? '') === 'pendiente'))
+                @if (($r->estado ?? '') === 'pendiente' || ($r->estado ?? '') === 'confirmada' || ($r->estado ?? '') === 'finalizada' || ($r->estado ?? '') === 'en progreso')
                   <button class="open-schedule link-button">Ver cronograma</button>
-                @else
+                @endif
+                @if ($isAdmin)
                   <a class="link-button" href="#">Editar</a>
                   <a class="link-button danger" href="#">Borrar</a>
                 @endif
@@ -77,20 +88,7 @@
     })();
   </script>
 
-  @if(!($isAdmin ?? false))
-    <div class="card table-card" style="margin-top:18px;">
-      <h3 style="margin:0 0 12px 0">Reservaciones canceladas</h3>
-      @php $canceladas = collect($reservaciones)->filter(fn($x) => ($x->estado ?? '') === 'cancelada'); @endphp
-      @if($canceladas->isEmpty())
-        <p class="muted">No hay reservaciones canceladas.</p>
-      @else
-        <ul style="margin:0;padding-left:18px;">
-          @foreach($canceladas as $c)
-            <li>#{{ $c->id }} — {{ $c->cabana_nombre ?? ($c->propiedad->nombre ?? '') }} ({{ $c->check_in }} → {{ $c->check_out }})</li>
-          @endforeach
-        </ul>
-      @endif
-    </div>
+    
 
     <div id="schedule-modal" class="modal" aria-hidden="true" style="display:none;position:fixed;inset:0;width:100vw;height:100vh;z-index:20000;">
       <div class="modal-backdrop" data-close></div>
@@ -190,6 +188,7 @@
             const checkIn = tr.dataset.checkin;
             const checkOut = tr.dataset.checkout;
             const id = tr.dataset.id;
+            console.debug('row click handler', {id, checkIn, checkOut});
             openScheduleIfPossible(id, checkIn, checkOut);
           });
           tr.addEventListener('mouseenter', ()=> tr.classList.add('hover'));
@@ -197,7 +196,21 @@
         });
 
         document.querySelectorAll('.open-schedule').forEach(btn=>{
-          btn.addEventListener('click', function(e){ e.stopPropagation(); const tr = e.target.closest('tr'); openScheduleIfPossible(tr.dataset.id, tr.dataset.checkin, tr.dataset.checkout); });
+          btn.addEventListener('click', function(e){ e.stopPropagation(); const tr = e.target.closest('tr'); console.debug('button click handler', {id: tr && tr.dataset.id}); openScheduleIfPossible(tr.dataset.id, tr.dataset.checkin, tr.dataset.checkout); });
+        });
+
+        // Delegate clicks as a fallback in case elements are re-rendered or listeners not attached
+        document.addEventListener('click', function(e){
+          const btn = e.target.closest && e.target.closest('.open-schedule');
+          if (btn) {
+            e.preventDefault(); e.stopPropagation(); const tr = btn.closest('tr'); console.debug('delegated .open-schedule click', tr && tr.dataset); if(tr) openScheduleIfPossible(tr.dataset.id, tr.dataset.checkin, tr.dataset.checkout);
+            return;
+          }
+          const row = e.target.closest && e.target.closest('tr.reserv-row.pending');
+          if (row && !e.target.closest('a') && !e.target.closest('button')) {
+            console.debug('delegated row click', row.dataset);
+            openScheduleIfPossible(row.dataset.id, row.dataset.checkin, row.dataset.checkout);
+          }
         });
 
         document.querySelectorAll('#schedule-modal [data-close]').forEach(el=>el.addEventListener('click', hideScheduleModal));
@@ -289,7 +302,9 @@
               if (isPastAll) {
                 const marker = document.createElement('div'); marker.className = 'passed-marker';
                 const mdot = document.createElement('span'); mdot.className = 'dot'; marker.appendChild(mdot);
-                const txt = document.createElement('div'); txt.textContent = 'Reservación finalizada'; marker.appendChild(txt);
+                const check_out = b;
+                const txt = document.createElement('div'); txt.textContent = 'Reservación finalizada, finalizó el: ' + check_out;
+                marker.appendChild(txt);
                 container.appendChild(marker);
               }
 
@@ -307,6 +322,5 @@
         }
       })();
     </script>
-  @endif
 
 @endsection
