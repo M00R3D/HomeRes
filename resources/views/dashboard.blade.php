@@ -154,7 +154,7 @@
         background: linear-gradient(90deg,#71836e,#a7c0a3); color: #fff; border-color: #0369a1;
         box-shadow: 0 14px 34px rgba(59,130,246,0.12);
       }
-/* comentarioasgjlasgdjlsajegliasjegli */
+
       /* Day dot */
       .rv-day .day-dot { position: absolute; right: 8px; top: 8px; width: 10px; height: 10px; border-radius: 999px; display: inline-block; box-shadow: 0 2px 6px rgba(2,6,23,0.12); }
 
