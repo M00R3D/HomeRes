@@ -1,61 +1,153 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
 
-## About Laravel
+# HomeRes — Resumen rápido de Vistas, Controladores, Seeders y Migraciones
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Resumen breve del propósito de cada archivo proporcionado. Útil para onboarding y para localizar rápidamente la lógica.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Vistas (resources/views)
+- layouts/app.blade.php  
+  Plantilla base: sidebar, topbar, incluye CSS global (dashboard.css) y secciones para contenido y scripts.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- auth/login.blade.php  
+  Formulario de inicio de sesión con estilos de auth.css; muestra mensajes flash y modal de registro.
 
-## Learning Laravel
+- dashboard.blade.php  
+  Panel principal de reservaciones: encabezado, tabla (vacía en el snippet) y modal para nueva reservación. Contiene JS mínimo para abrir/cerrar modales.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- propiedades/index.blade.php  
+  Listado de propiedades con grid responsivo y CSS propio (propiedades.css).
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+- propiedades/show.blade.php  
+  Página de detalle de propiedad; carga estilos y obtiene reservas/comentarios relacionados.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- propiedades/reservar.blade.php  
+  Página de reserva para una propiedad: calendario, estilos y lógica para seleccionar fechas.
 
-## Laravel Sponsors
+- usuarios/index.blade.php  
+  Listado de usuarios con posibilidad de crear/editar en modales; maneja mensajes de éxito y errores.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- reservaciones/index.blade.php  
+  Listado de reservaciones con layout de dos columnas y estilos para tablas y tarjetas.
 
-### Premium Partners
+- reservaciones/show.blade.php  
+  Vista detalle de una reservación: muestra comentarios y modales relacionados con la reserva.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+- pagos/index.blade.php  
+  Listado de pagos con estilos reutilizados de tarjetas/tablas y botones.
 
-## Contributing
+- notificaciones/index.blade.php  
+  Listado y ordenamiento de notificaciones (usa $estadoOrder para ordenar) y estilos para modal/listas.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- tarjetas/index (implied) / imágenes/index.blade.php  
+  Gestor de imágenes y uploader con previsualizaciones.
 
-## Code of Conduct
+## Controladores (app/Http/Controllers)
+- AuthController  
+  Maneja login, registro y logout; usa Auth::attempt y validaciones básicas.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+- UserController  
+  CRUD de usuarios; index devuelve lista (y JSON si se solicita), store/validate para creación.
 
-## Security Vulnerabilities
+- PropiedadController  
+  Index con filtros (tipo, estado, q). Métodos CRUD (store/show/update/destroy) implementados parcial o implícitamente.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+- ReservationController  
+  Lógica de reservaciones: index, creación ligada a propiedad, fechas reservadas, store/show/update/destroy y cambio de estado.
 
-## License
+- PaymentController  
+  Index paginado con relaciones reservation y tarjeta.assignedUser; store/show/update/destroy implementados parcialmente.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- NotificationController  
+  CRUD de notificaciones y helper para obtener valores ENUM desde DB; incluye markAsVisto.
+
+- ImageController  
+  Gestión de carpetas públicas, subida y listado de imágenes.
+
+- ComentarioController  
+  CRUD básico de comentarios; store valida fecha y crea registro.
+
+- CabinController  
+  CRUD para cabañas (modelo Cabin), valida ruta_img, devuelve JSON.
+
+- HomepageController  
+  CRUD para contenido de la página principal; lista y obtiene archivos de carpeta configurada.
+
+- TarjetaSimuladaController  
+  CRUD y operaciones de saldo (deposit/withdraw), asignación a usuario; contiene helper schemaHasColumn. (nota: el snippet muestra llaves incompletas en el attachment).
+
+## Seeders (database/seeders)
+- DatabaseSeeder  
+  Llama a todos los seeders en orden: Usuarios, Propiedades, Cabanas, Reservaciones, Pagos, TarjetasSimuladas, Homepage, Notificaciones, Comentarios.
+
+- UsuariosTableSeeder  
+  Inserta usuarios de ejemplo (admin, recepcionista, cliente). Observación: hay duplicados/variantes de "Job Moore" en distintos snippets — revisar coherencia de emails/roles.
+
+- PropiedadesTableSeeder  
+  Inserta una propiedad de ejemplo (Casa Jason) con precio, capacidad y ruta de imagen.
+
+- CabanasTableSeeder  
+  Inserta varias cabañas de prueba.
+
+- ReservacionesTableSeeder  
+  Inserta reservaciones de ejemplo (vinculadas a usuario_id y propiedad/cabaña).
+
+- PagosTableSeeder  
+  Inserta pagos asociados a reservaciones (monto, método, estado).
+
+- TarjetasSimuladasSeeder  
+  Crea tarjetas de prueba con saldo y datos de tarjeta.
+
+- HomepageSeeder  
+  Inserta configuración de homepage (banner, carpeta de imágenes, eslogan).
+
+- NotificacionesTableSeeder  
+  Inserta notificaciones de ejemplo (estados: abierta/vista).
+
+- ComentariosTableSeeder  
+  Inserta comentarios asociados a reservaciones con calificaciones.
+
+## Migraciones (database/migrations)
+- 2025_10_27_090200_create_homepage_table.php  
+  Crea tabla `homepage` con campos para banner, carpeta de imágenes, eslogan y timestamps.
+
+- 2025_10_27_090000_create_tarjetas_simuladas_table.php  
+  Crea `tarjetas_simuladas` (numero, nombre, expiración, cvv, saldo).
+
+- 2025_10_27_090100_create_pagos_table.php & 2025_10_22_051626_create_pagos_table.php  
+  Crean la tabla `pagos` (reservacion_id, monto, metodo_pago) y FK a `reservaciones`. Hay dos versiones — mantener la correcta (evitar duplicados).
+
+- 2025_10_22_051624_create_reservaciones_table.php  
+  Crea `reservaciones` con `cabana_id`, fechas y FK a `cabanas`.
+
+- 2025_10_22_051623_create_propiedades_table.php  
+  Crea `propiedades` con tipo (enum), codigo, nombre, descripcion, capacidad y timestamps.
+
+- 2025_10_22_051622_create_cabanas_table.php  
+  Crea `cabanas` (codigo, nombre, precio_noche, etc.).
+
+- 2025_10_22_051621_create_usuarios_table.php  
+  Crea `usuarios` (nombre, apellido, email, password, rol, timestamps).
+
+- 2025_10_22_051625_create_comentarios_table.php  
+  Crea `comentarios` con FK a usuarios.
+
+- 2025_10_22_051625_create_notificaciones_table.php  
+  Crea `notificaciones` con FK a `propiedades`.
+
+- 0001_01_01_* y 0001_01_01_* (cache, jobs, users)  
+  Tablas de infraestructura (cache, jobs, failed_jobs, users/sessions) con columnas mínimas.
+
+- Migraciones de alteración (problemáticas detectadas):
+  - 2025_10_27_100000_add_id_tarjeta_to_usuarios_table.php  
+  - 2025_10_27_091000_add_tarjeta_id_to_pagos_table.php  
+  - 2025_10_27_000000_change_reservaciones_cabana_to_propiedad.php  
+  Observación: en varios archivos de ALTER hay bloques incompletos o `catch`/llaves sueltas en los snippets — esto provocará errores de parseo al correr `php artisan migrate`. Revisar y corregir sintaxis y flujo (Schema::table callback debe cerrarse correctamente).
+
+## Problemas y sugerencias rápidas
+- Revisar migraciones "duplicadas" o versiones conflictivas de la misma tabla (pagos, users): mantener una versión canónica para evitar colisiones.
+- Corregir migraciones con llaves/catch incompletos (ver archivos indicados).
+- Unificar campos: la app usa `cabana_id` y `propiedad_id` en Reservaciones; decidir y migrar consistentemente a uno (migración change_reservaciones... intenta eso).
+- Verificar seeders para emails/IDs coherentes y evitar duplicados de usuarios.
+- Añadir timestamps/fecha_pago coherente en pagos si se espera trazabilidad (Payment model tiene fecha_pago en $fillable pero migración no siempre la crea).
+
+Fin. Si quieres, puedo generar un README más detallado por sección o un checklist para corregir las migraciones.
