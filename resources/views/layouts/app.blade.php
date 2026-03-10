@@ -21,6 +21,12 @@
     }
   </style>
 </head>
+@php
+  use App\Models\Comentario;
+  use Illuminate\Support\Str;
+  $currentUser = $currentUser ?? auth()->user();
+  $isAdmin = $isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin');
+@endphp
 <body class="app-root">
   <aside id="sidebar" class="sidebar">
     <div class="brand">
@@ -39,7 +45,7 @@
       <a class="nav-item" href="/propiedades">Propiedades</a>
       <a class="nav-item" href="/notificaciones">Notificaciones</a>
       <a class="nav-item" href="/users">Usuarios</a>
-      @if(auth()->check() && auth()->user()->rol === 'admin')
+      @if($isAdmin)
         <a class="nav-item" href="{{ route('images.index') }}">Imágenes</a>
         <a class="nav-item" href="{{ route('tarjetas.index') }}">Tarjetas</a>
         <a class="nav-item" href="{{ route('pagos.index') }}">Pagos</a>
@@ -57,6 +63,9 @@
       <div class="topbar-right">
         <a href="#" class="top-action">Notificaciones</a>
         <a href="#" class="top-action">Perfil</a>
+        @if($isAdmin)
+          <span class="top-action" style="color:#ef4444;font-weight:700;">Usted inicio sesion como Administrador</span>
+        @endif
       </div>
     </header>
 
