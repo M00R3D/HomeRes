@@ -24,7 +24,8 @@
         </thead>
         <tbody>
           @forelse($reservaciones ?? [] as $r)
-            <tr>
+            <tr class="reserv-row @if(($r->estado ?? '') === 'pendiente') pending @endif @if(($r->estado ?? '') === 'cancelada') cancelled @endif"
+                data-checkin="{{ $r->check_in }}" data-checkout="{{ $r->check_out }}" data-id="{{ $r->id }}">
               <td class="estado {{ \Illuminate\Support\Str::slug($r->estado ?? 'pendiente') }}">{{ $r->estado ?? 'pendiente' }}</td>
               <td>{{ $r->cabana_nombre ?? $r->cabana_id ?? '-' }}</td>
               <td>${{ number_format($r->total ?? 0, 2, ',', '.') }}</td>
@@ -32,8 +33,12 @@
               <td>{{ isset($r->check_out) ? \Carbon\Carbon::parse($r->check_out)->format('d M Y') : '-' }}</td>
               <td><button class="link-button" onclick="alert('Detalle: {{ addslashes($r->nota ?? '') }}')">Ver</button></td>
               <td>
-                <a class="link-button" href="#">Editar</a>
-                <a class="link-button danger" href="#">Borrar</a>
+                @if(!($isAdmin ?? false) && (($r->estado ?? '') === 'pendiente'))
+                  <button class="open-schedule link-button">Ver cronograma</button>
+                @else
+                  <a class="link-button" href="#">Editar</a>
+                  <a class="link-button danger" href="#">Borrar</a>
+                @endif
               </td>
             </tr>
           @empty
@@ -71,4 +76,237 @@
       closes && closes.forEach(c => c.addEventListener('click', hide));
     })();
   </script>
+
+  @if(!($isAdmin ?? false))
+    <div class="card table-card" style="margin-top:18px;">
+      <h3 style="margin:0 0 12px 0">Reservaciones canceladas</h3>
+      @php $canceladas = collect($reservaciones)->filter(fn($x) => ($x->estado ?? '') === 'cancelada'); @endphp
+      @if($canceladas->isEmpty())
+        <p class="muted">No hay reservaciones canceladas.</p>
+      @else
+        <ul style="margin:0;padding-left:18px;">
+          @foreach($canceladas as $c)
+            <li>#{{ $c->id }} — {{ $c->cabana_nombre ?? ($c->propiedad->nombre ?? '') }} ({{ $c->check_in }} → {{ $c->check_out }})</li>
+          @endforeach
+        </ul>
+      @endif
+    </div>
+
+    <div id="schedule-modal" class="modal" aria-hidden="true" style="display:none;position:fixed;inset:0;width:100vw;height:100vh;z-index:20000;">
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-panel modal-card" style="max-width:820px;margin:0 auto;">
+        <button class="modal-close" data-close style="position:absolute;right:12px;top:12px;background:none;border:0;font-size:18px;">✕</button>
+        <div style="padding:18px;">
+          <h3 id="schedule-title">Cronograma</h3>
+          <div id="schedule-today" style="margin-top:6px;color:#065f46;font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px;">
+            <svg width="10" height="10" viewBox="0 0 10 10" style="flex:0 0 auto;">
+              <circle cx="5" cy="5" r="5" fill="#06b6d4"></circle>
+            </svg>
+            <span id="schedule-today-text">Hoy</span>
+          </div>
+          <div id="schedule-today-banner" style="display:none;margin-top:12px;">
+            <div class="schedule-banner" id="schedule-banner-content"></div>
+          </div>
+          <div id="schedule-calendar" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      /* Row hover */
+      .reserv-row.pending:hover { background: rgba(99,102,241,0.06); cursor: pointer; }
+
+      /* Modal card */
+      .modal-card { background: #fff; border-radius: 10px; box-shadow: 0 12px 48px rgba(2,6,23,0.12); }
+
+      /* Grid */
+      .rv-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; width: 100%; }
+
+      /* Day tile base */
+      .rv-day {
+        min-width: 64px; padding: 10px 12px; border-radius: 10px; text-align: center;
+        background: #f8fafc; border: 1px solid #eef2f7; font-size: 13px; color: #374151; position: relative;
+        transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+      }
+      .rv-day .date { font-weight: 800; display: block; margin-bottom: 6px; }
+
+      /* Past days (muted) */
+      .rv-day.past { opacity: 0.55; filter: grayscale(.12); }
+      .rv-day.past .day-dot { background: #94a3b8; }
+
+      /* Waiting days (before reservation) */
+      .rv-day.waiting { background: #fff7ed; border: 1px dashed #f59e0b; color: #92400e; }
+      .rv-day.waiting .day-dot { background: #f59e0b; }
+
+      /* In-range (reserved) */
+      .rv-day.in-range { background: linear-gradient(90deg,#06b6d4,#6366f1); color: #fff; font-weight: 700; }
+      .rv-day.in-range .day-dot { background: rgba(255,255,255,0.95); box-shadow: 0 0 0 2px rgba(99,102,241,0.12) inset; }
+
+      /* Today (highest priority) */
+      .rv-day.today {
+        box-shadow: 0 12px 30px rgba(6,182,212,0.14); border-color: #06b6d4; background: linear-gradient(180deg,#71836e,#a7c0a3);
+        transform: translateY(-2px);
+      }
+      .rv-day.today .day-dot { background: #30a364; box-shadow: 0 0 0 3px rgba(6,182,212,0.12) inset; }
+
+      /* Combination: today inside range */
+      .rv-day.in-range.today {
+        background: linear-gradient(90deg,#71836e,#a7c0a3); color: #fff; border-color: #0369a1;
+        box-shadow: 0 14px 34px rgba(59,130,246,0.12);
+      }
+
+      /* Day dot */
+      .rv-day .day-dot { position: absolute; right: 8px; top: 8px; width: 10px; height: 10px; border-radius: 999px; display: inline-block; box-shadow: 0 2px 6px rgba(2,6,23,0.12); }
+
+      .small, .small-muted { font-size: 0.9rem; color: #6b7280; }
+
+      .rv-day.start { box-shadow: 0 0 0 3px rgba(99,102,241,0.08); }
+      .rv-days.past-all .rv-day { opacity: 0.5; filter: grayscale(.18); }
+
+      .passed-marker { display: flex; align-items: center; gap: 8px; padding-left: 8px; margin-top: 6px; color: #6b7280; }
+      .passed-marker .dot { width: 10px; height: 10px; border-radius: 999px; background: #94a3b8; box-shadow: 0 2px 6px rgba(2,6,23,0.08); }
+
+      .rv-waiting { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+      .rv-waiting-label { font-size: 12px; color: #92400e; font-weight: 700; margin-bottom: 6px; }
+
+      /* Banner (kept but muted) */
+      .schedule-banner { background: linear-gradient(90deg,#06b6d4,#60a5fa); color: #052e2e; padding: 10px 12px; border-radius: 10px; font-weight: 800; display: flex; align-items: center; gap: 10px; font-size: 15px; }
+      .schedule-banner svg { flex: 0 0 auto; }
+
+      .muted { color: #6b7280; }
+      .rv-summary { display: flex; gap: 8px; align-items: center; }
+    </style>
+
+    <script>
+      (function(){
+        function safeParseISO(d){ if(!d) return null; try { return new Date(d + 'T00:00:00'); } catch(e){return null;} }
+        function openScheduleIfPossible(id,a,b){ if(!a || !b){ alert('Fechas no disponibles para esta reservación'); return; } openScheduleModal(id,a,b); }
+
+        // click on row to open (and keep existing button behavior)
+        document.querySelectorAll('.reserv-row.pending').forEach(tr=>{
+          tr.addEventListener('click', function(e){
+            const target = e.target;
+            if (target.closest('a') || (target.tagName === 'BUTTON' && !target.classList.contains('open-schedule'))) return;
+            const checkIn = tr.dataset.checkin;
+            const checkOut = tr.dataset.checkout;
+            const id = tr.dataset.id;
+            openScheduleIfPossible(id, checkIn, checkOut);
+          });
+          tr.addEventListener('mouseenter', ()=> tr.classList.add('hover'));
+          tr.addEventListener('mouseleave', ()=> tr.classList.remove('hover'));
+        });
+
+        document.querySelectorAll('.open-schedule').forEach(btn=>{
+          btn.addEventListener('click', function(e){ e.stopPropagation(); const tr = e.target.closest('tr'); openScheduleIfPossible(tr.dataset.id, tr.dataset.checkin, tr.dataset.checkout); });
+        });
+
+        document.querySelectorAll('#schedule-modal [data-close]').forEach(el=>el.addEventListener('click', hideScheduleModal));
+        document.addEventListener('keydown', function(e){ if(e.key === 'Escape') hideScheduleModal(); });
+
+        function hideScheduleModal(){ const m = document.getElementById('schedule-modal'); if(m){ m.style.display='none'; m.classList.remove('open'); } }
+
+        function parseISO(d){ return safeParseISO(d); }
+        function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+        function fmtDate(d){ return d.toISOString().slice(0,10); }
+        function datesBetween(a,b){ const out=[]; let cur=parseISO(a); const end=parseISO(b); if(!cur || !end) return out; while(cur<=end){ out.push(fmtDate(cur)); cur = addDays(cur,1);} return out; }
+
+        function openScheduleModal(id, a, b){
+          const m = document.getElementById('schedule-modal');
+          console.debug('openScheduleModal called', {id,a,b, modalExists: !!m});
+          if(!m) return;
+          m.style.display='flex'; m.style.alignItems='center'; m.style.justifyContent='center'; m.classList.add('open');
+          document.getElementById('schedule-title').textContent = 'Reservación #' + id + ' — ' + a + ' → ' + b;
+          // mostrar fecha actual en formato agradable
+          try {
+            const today = new Date();
+            const txt = today.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+            const el = document.getElementById('schedule-today-text'); if(el) el.textContent = 'Hoy • ' + txt;
+          } catch(e){}
+          renderCalendarRange(a,b);
+          setTimeout(()=>{ m.querySelector('.modal-panel') && m.querySelector('.modal-panel').offsetHeight; }, 10);
+        }
+
+        function renderCalendarRange(a,b){
+          const start = parseISO(a); const end = parseISO(b);
+          const container = document.getElementById('schedule-calendar'); container.innerHTML=''; const range = datesBetween(a,b);
+          const days = range.slice(); const maxVisible = 25;
+          if (days.length === 0) { container.innerHTML = '<div class="muted">Fechas no disponibles</div>'; return; }
+            if (days.length <= maxVisible) {
+              const todayISO = (new Date()).toISOString().slice(0,10);
+
+              // compute start/end and determine if fully past
+              const startISO = a; const endISO = b;
+              const isPastAll = endISO < todayISO;
+
+              // compute waiting range (days between tomorrow and day before start)
+              let waitRange = [];
+              const startDateObj = parseISO(startISO);
+              const todayObj = parseISO(todayISO);
+              if (startDateObj && todayObj && startISO > todayISO) {
+                const waitStart = addDays(todayObj, 1);
+                const waitEnd = addDays(startDateObj, -1);
+                const waitStartISO = fmtDate(waitStart); const waitEndISO = fmtDate(waitEnd);
+                waitRange = datesBetween(waitStartISO, waitEndISO);
+                if (waitRange.length > 0) {
+                  if (waitRange.length <= 10) {
+                    const label = document.createElement('div'); label.className='rv-waiting-label'; label.textContent = 'Días de espera'; container.appendChild(label);
+                    const waitGrid = document.createElement('div'); waitGrid.className='rv-waiting';
+                    waitRange.forEach(isoW => {
+                      const dW = new Date(isoW + 'T00:00:00');
+                      const wEl = document.createElement('div'); wEl.className='rv-day waiting';
+                      const dateElW = document.createElement('div'); dateElW.className='date'; dateElW.textContent = ('0'+dW.getDate()).slice(-2);
+                      const mElW = document.createElement('div'); mElW.style.fontSize='11px'; mElW.style.color='#92400e'; mElW.textContent = dW.toLocaleString(undefined,{month:'short'});
+                      const dotW = document.createElement('span'); dotW.className='day-dot'; wEl.appendChild(dotW);
+                      // highlight waiting-day if it's today
+                      if (isoW === todayISO) {
+                        wEl.classList.add('today');
+                      }
+                      wEl.appendChild(dateElW); wEl.appendChild(mElW); waitGrid.appendChild(wEl);
+                    }); container.appendChild(waitGrid);
+                  } else {
+                    const info = document.createElement('div'); info.className='small-muted'; info.textContent = 'Faltan ' + waitRange.length + ' días hasta ' + startDateObj.toLocaleDateString(); container.appendChild(info);
+                  }
+                }
+              }
+
+              const grid = document.createElement('div'); grid.className = 'rv-days' + (isPastAll ? ' past-all' : '');
+              days.forEach(iso => {
+                const d = new Date(iso + 'T00:00:00');
+                const dayEl = document.createElement('div'); dayEl.className = 'rv-day';
+                const dateEl = document.createElement('div'); dateEl.className = 'date'; dateEl.textContent = ('0'+d.getDate()).slice(-2);
+                const mEl = document.createElement('div'); mEl.style.fontSize='11px'; mEl.style.color='#6b7280'; mEl.textContent = d.toLocaleString(undefined,{month:'short'});
+                // status classes
+                if (iso === a) dayEl.classList.add('start'); if (iso === b) dayEl.classList.add('end');
+                if (iso < todayISO) dayEl.classList.add('past');
+                if (iso === todayISO) dayEl.classList.add('today');
+                if (range.includes(iso)) dayEl.classList.add('in-range');
+                // dot indicator
+                const dot = document.createElement('span'); dot.className = 'day-dot'; dayEl.appendChild(dot);
+                dayEl.appendChild(dateEl); dayEl.appendChild(mEl); grid.appendChild(dayEl);
+              }); container.appendChild(grid);
+
+              // if reservation fully past, append a dot marker after the last day
+              if (isPastAll) {
+                const marker = document.createElement('div'); marker.className = 'passed-marker';
+                const mdot = document.createElement('span'); mdot.className = 'dot'; marker.appendChild(mdot);
+                const txt = document.createElement('div'); txt.textContent = 'Reservación finalizada'; marker.appendChild(txt);
+                container.appendChild(marker);
+              }
+
+              // (banner logic removed) - we highlight the specific tile(s) instead
+            } else {
+            const wrapper = document.createElement('div'); wrapper.className='rv-summary';
+            const first = days[0]; const last = days[days.length-1];
+            const firstDate = new Date(first + 'T00:00:00'); const lastDate = new Date(last + 'T00:00:00');
+            const firstEl = document.createElement('div'); firstEl.className='rv-day'; firstEl.style.minWidth='140px'; firstEl.style.padding='10px'; firstEl.innerHTML = '<div style="font-weight:800">'+firstDate.toLocaleDateString()+'</div><div class="small">Check-in</div>';
+            const dots = document.createElement('div'); dots.style.fontWeight='900'; dots.style.color='#6b7280'; dots.textContent = '…'; dots.style.padding='0 8px';
+            const lastEl = document.createElement('div'); lastEl.className='rv-day'; lastEl.style.minWidth='140px'; lastEl.style.padding='10px'; lastEl.innerHTML = '<div style="font-weight:800">'+lastDate.toLocaleDateString()+'</div><div class="small">Check-out</div>';
+            const info = document.createElement('div'); info.className='small-muted'; info.style.marginLeft='auto'; info.textContent = 'Total días: ' + days.length;
+            wrapper.appendChild(firstEl); wrapper.appendChild(dots); wrapper.appendChild(lastEl); wrapper.appendChild(info); container.appendChild(wrapper);
+          }
+        }
+      })();
+    </script>
+  @endif
+
 @endsection
