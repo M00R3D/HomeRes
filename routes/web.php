@@ -28,10 +28,12 @@ Route::middleware('auth')->group(function () {
     Route::resource('propiedades', PropiedadController::class)->names('propiedades');
     Route::resource('notificaciones', NotificationController::class)->names('notificaciones');
     Route::resource('pagos', \App\Http\Controllers\PaymentController::class)->names('pagos');
-    Route::resource('tarjetas', \App\Http\Controllers\TarjetaSimuladaController::class)->names('tarjetas');
     Route::post('tarjetas/{id}/deposit', [\App\Http\Controllers\TarjetaSimuladaController::class,'deposit'])->name('tarjetas.deposit');
     Route::post('tarjetas/{id}/withdraw', [\App\Http\Controllers\TarjetaSimuladaController::class,'withdraw'])->name('tarjetas.withdraw');
     Route::post('tarjetas/{id}/assign', [\App\Http\Controllers\TarjetaSimuladaController::class,'assign'])->name('tarjetas.assign');
+    Route::get('tarjetas/check', [\App\Http\Controllers\TarjetaSimuladaController::class,'check'])->name('tarjetas.check');
+    Route::post('tarjetas/create-random', [\App\Http\Controllers\TarjetaSimuladaController::class,'createRandom'])->name('tarjetas.create_random');
+    Route::resource('tarjetas', \App\Http\Controllers\TarjetaSimuladaController::class)->names('tarjetas');
     Route::resource('homepage', \App\Http\Controllers\HomepageController::class)->only(['index','store','update','show','destroy'])->names('homepage');
 });
 

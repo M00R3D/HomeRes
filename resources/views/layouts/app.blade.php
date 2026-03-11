@@ -45,9 +45,9 @@
       <a class="nav-item" href="/propiedades">Propiedades</a>
       <a class="nav-item" href="/notificaciones">Notificaciones</a>
       <a class="nav-item" href="/users">Usuarios</a>
+      <a class="nav-item" href="{{ route('tarjetas.index') }}">Tarjetas</a>
       @if($isAdmin)
         <a class="nav-item" href="{{ route('images.index') }}">Imágenes</a>
-        <a class="nav-item" href="{{ route('tarjetas.index') }}">Tarjetas</a>
         <a class="nav-item" href="{{ route('pagos.index') }}">Pagos</a>
       @endif
       <form method="POST" action="{{ route('logout') }}" class="nav-item logout-form" style="display:flex;">

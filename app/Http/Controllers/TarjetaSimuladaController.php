@@ -38,6 +38,17 @@ class TarjetaSimuladaController extends Controller
         $data['saldo'] = $data['saldo'] ?? 0;
         $t = TarjetaSimulada::create($data);
 
+        // If requested, assign the created tarjeta to the authenticated user
+        if ($request->filled('assign_to_user') && $request->user()) {
+            $userId = $request->user()->id;
+            if (schemaHasColumn('usuarios', 'id_tarjeta')) {
+                \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $userId)->update(['id_tarjeta' => $t->id]);
+            } elseif (schemaHasColumn('tarjetas_simuladas', 'usuario_id')) {
+                $t->usuario_id = $userId;
+                $t->save();
+            }
+        }
+
         return redirect()->back()->with('success','Tarjeta creada');
     }
 
@@ -62,6 +73,18 @@ class TarjetaSimuladaController extends Controller
         ]);
 
         $t->update($data);
+
+        // If requested, assign the tarjeta to the authenticated user
+        if ($request->filled('assign_to_user') && $request->user()) {
+            $userId = $request->user()->id;
+            if (schemaHasColumn('usuarios', 'id_tarjeta')) {
+                \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $userId)->update(['id_tarjeta' => $t->id]);
+            } elseif (schemaHasColumn('tarjetas_simuladas', 'usuario_id')) {
+                $t->usuario_id = $userId;
+                $t->save();
+            }
+        }
+
         return redirect()->back()->with('success','Tarjeta actualizada');
     }
 
@@ -121,6 +144,91 @@ class TarjetaSimuladaController extends Controller
             return redirect()->back()->with('success','Tarjeta asignada al usuario (tarjetas_simuladas.usuario_id actualizada)');
         }
         return redirect()->back()->with('error','Ni usuarios.id_tarjeta ni tarjetas_simuladas.usuario_id existen. Agrega una columna para guardar la asignación.');
+    }
+
+    /**
+     * Buscar tarjeta por número (AJAX)
+     */
+    public function check(Request $request)
+    {
+        $numero = $request->query('numero', '');
+        $numero = preg_replace('/\D/', '', $numero);
+        if (strlen($numero) !== 16) {
+            return response()->json(['error' => 'Formato inválido'], 422);
+        }
+        // Try to find by exact match first, otherwise search by last4 and normalize
+        $t = TarjetaSimulada::where('numero_tarjeta', $numero)->first();
+        if (!$t) {
+            $last4 = substr($numero, -4);
+            $candidates = TarjetaSimulada::where('numero_tarjeta', 'like', '%' . $last4)->get();
+            foreach ($candidates as $cand) {
+                $candNum = preg_replace('/\D/', '', $cand->numero_tarjeta ?? '');
+                if ($candNum === $numero) { $t = $cand; break; }
+            }
+        }
+        if (!$t) return response()->json(['found' => false], 404);
+        return response()->json([
+            'found' => true,
+            'tarjeta' => [
+                'id' => $t->id,
+                'numero_tarjeta' => $t->numero_tarjeta,
+                'saldo' => $t->saldo,
+                'nombre' => $t->nombre,
+                'expiracion' => $t->expiracion,
+            ]
+        ]);
+    }
+
+    /**
+     * Crear una tarjeta con número aleatorio único y opcionalmente asignarla al usuario autenticado.
+     * Retorna JSON cuando se invoca vía AJAX.
+     */
+    public function createRandom(Request $request)
+    {
+        $assign = $request->filled('assign_to_user') && $request->user();
+
+        $attempts = 0;
+        $numero = null;
+        do {
+            $numero = '';
+            for ($i = 0; $i < 16; $i++) { $numero .= mt_rand(0,9); }
+            $exists = TarjetaSimulada::where('numero_tarjeta', $numero)->exists();
+            $attempts++;
+        } while ($exists && $attempts < 20);
+
+        if ($exists) {
+            return response()->json(['error' => 'No fue posible generar un número único'], 500);
+        }
+
+        $cvv = str_pad((string)mt_rand(0,999), 3, '0', STR_PAD_LEFT);
+        // expiracion aleatoria 24-60 meses en el futuro
+        $mm = str_pad((string)mt_rand(1,12),2,'0',STR_PAD_LEFT);
+        $yy = date('y', strtotime('+' . mt_rand(24,60) . ' months'));
+        $exp = $mm . '/' . $yy;
+
+        $t = TarjetaSimulada::create([
+            'numero_tarjeta' => $numero,
+            'nombre' => 'Tarjeta creada',
+            'expiracion' => $exp,
+            'cvv' => $cvv,
+            'saldo' => 0,
+        ]);
+
+        if ($assign) {
+            $userId = $request->user()->id;
+            if (schemaHasColumn('usuarios', 'id_tarjeta')) {
+                DB::table('usuarios')->where('id', $userId)->update(['id_tarjeta' => $t->id]);
+            } elseif (schemaHasColumn('tarjetas_simuladas', 'usuario_id')) {
+                $t->usuario_id = $userId;
+                $t->save();
+            }
+        }
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['created' => true, 'tarjeta' => $t]);
+        }
+
+        return redirect()->back()->with('success','Tarjeta creada automáticamente');
     }
 }
 
