@@ -19,7 +19,21 @@
   </div>
 
   @php
-    $imgPath = $r->propiedad->ruta_img ?? ($r->ruta_img ?? null);
+    $imgPathRaw = $r->propiedad->ruta_img ?? ($r->ruta_img ?? null);
+    $thumbUrl = null;
+    if (!empty($imgPathRaw)) {
+      $ruta = ltrim($imgPathRaw, '/\\');
+      $full = public_path($ruta);
+      if (is_dir($full)) {
+        $files = @scandir($full) ?: [];
+        foreach ($files as $f) {
+          $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+          if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) { $thumbUrl = asset($ruta . '/' . $f); break; }
+        }
+      } elseif (is_file($full)) {
+        $thumbUrl = asset($ruta);
+      }
+    }
     use App\Models\Comentario;
     $comentarios = Comentario::with('user')->where('reservacion_id', $r->id)->orderByDesc('fecha_creacion')->get();
   @endphp
@@ -44,9 +58,9 @@
 
   <div style="display:flex;gap:18px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;">
     <div style="flex:0 0 40%;max-width:480px;min-width:220px;">
-      @if($imgPath)
+      @if($thumbUrl)
         <div style="width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:8px;box-shadow:0 8px 20px rgba(2,6,23,0.06);">
-          <img src="{{ asset($imgPath) }}" alt="Imagen propiedad" style="width:100%;height:100%;object-fit:cover;display:block;">
+          <img src="{{ $thumbUrl }}" alt="Imagen propiedad" style="width:100%;height:100%;object-fit:cover;display:block;">
         </div>
       @else
         <div style="width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border-radius:8px;color:#9ca3af;">Sin imagen</div>
@@ -77,13 +91,6 @@
           <div style="background:linear-gradient(180deg,rgba(15,23,42,0.02),rgba(15,23,42,0.01));border-radius:10px;padding:10px;color:#0f172a;box-shadow:inset 0 1px 0 rgba(255,255,255,0.6);">
             <div style="font-weight:800;margin-bottom:6px;">Nota</div>
             <div style="color:#374151;white-space:pre-wrap;">{{ $r->nota ?? '—' }}</div>
-          </div>
-
-          <div style="display:flex;gap:8px;justify-content:flex-end;">
-            <a href="{{ route('reservaciones.index') }}" class="btn btn-alt" style="padding:8px 10px;border-radius:8px;">Volver</a>
-            @if($isAdmin)
-            <button id="btn-edit-2" class="btn-edit" type="button" style="padding:8px 10px;border-radius:8px;">Editar</button>
-            @endif
           </div>
         </div>
       </div>

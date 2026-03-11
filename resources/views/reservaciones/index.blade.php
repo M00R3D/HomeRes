@@ -272,7 +272,23 @@
           <tbody>
             @forelse($reservaciones ?? [] as $r)
               @php
-                $imgPath = optional($r->propiedad)->ruta_img ?? ($r->ruta_img ?? null);
+                $imgPathRaw = optional($r->propiedad)->ruta_img ?? ($r->ruta_img ?? null);
+                $thumbUrl = null;
+                if (!empty($imgPathRaw)) {
+                  $ruta = ltrim($imgPathRaw, '/\\');
+                  $full = public_path($ruta);
+                  if (is_dir($full)) {
+                    $files = @scandir($full) ?: [];
+                    foreach ($files as $f) {
+                      $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+                      if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) { $thumbUrl = asset($ruta . '/' . $f); break; }
+                    }
+                  } elseif (is_file($full)) {
+                    $thumbUrl = asset($ruta);
+                  } else {
+                    if (pathinfo($ruta, PATHINFO_EXTENSION)) { $thumbUrl = null; }
+                  }
+                }
                 $checkIn = $r->check_in ? Carbon::parse($r->check_in) : null;
                 $checkOut = $r->check_out ? Carbon::parse($r->check_out) : null;
                 $daysArray = [];
@@ -293,8 +309,8 @@
               <tr class="{{ (($r->estado ?? '') === 'cancelada') ? 'row-cancelled' : 'rv-row' }}">
                 <td style="width:120px;">
                   <div class="rv-thumb" aria-hidden="true">
-                    @if($imgPath)
-                      <img src="{{ asset($imgPath) }}" alt="Imagen propiedad">
+                    @if($thumbUrl)
+                      <img src="{{ $thumbUrl }}" alt="Imagen propiedad">
                     @else
                       <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f3f4f6;color:#9ca3af;font-size:12px;">Sin imagen</div>
                     @endif
