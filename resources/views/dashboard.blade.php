@@ -47,7 +47,7 @@
                   <button class="open-schedule link-button">Ver cronograma</button>
                 @endif
                 @if ($isAdmin)
-                  <a class="link-button" href="#">Editar</a>
+                  <a href="{{ route('reservaciones.edit', $r->id) }}" class="action-btn primary">Editar</a>
                   <a class="link-button danger" href="#">Borrar</a>
                 @endif
               </td>

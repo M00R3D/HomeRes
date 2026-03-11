@@ -372,7 +372,7 @@
                     <div class="btn-group-col">
                       <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn view">Ver</a>
 
-                      <button type="button" class="action-btn primary" data-edit data-res='@json($r)' data-update-url="{{ route('reservaciones.update', $r->id) }}">Editar</button>
+                      <a href="{{ route('reservaciones.edit', $r->id) }}" class="action-btn primary">Editar</a>
 
                       <form method="POST" action="{{ route('reservaciones.destroy', $r->id) }}" style="display:inline;">
                         @csrf

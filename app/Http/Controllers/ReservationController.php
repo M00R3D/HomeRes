@@ -136,6 +136,24 @@ class ReservationController extends Controller
         return view('reservaciones.show', compact('r','usuarios','propiedades','currentUser'));
     }
 
+    public function editView(Request $request, $id)
+    {
+        $currentUser = auth()->user();
+        if (! $currentUser || ($currentUser->rol ?? '') !== 'admin') {
+            abort(403);
+        }
+
+        $r = Reservation::with(['user','propiedad'])->find($id);
+        if (!$r) {
+            abort(404);
+        }
+
+        $usuarios = User::all();
+        $propiedades = Propiedad::all();
+
+        return view('reservaciones.edit', compact('r','usuarios','propiedades','currentUser'));
+    }
+
     public function update(Request $request, $id)
     {
         $r = Reservation::find($id);

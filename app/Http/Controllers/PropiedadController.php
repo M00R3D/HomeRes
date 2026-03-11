@@ -46,7 +46,55 @@ class PropiedadController extends Controller
     public function show($id)
     {
         $propiedad = Propiedad::findOrFail($id);
-        return view('propiedades.show', ['propiedad' => $propiedad]);
+        // Build gallery from ruta_img which may be a file or a folder under public/
+        $gallery = [];
+        try {
+            $base = public_path();
+            $ruta = $propiedad->ruta_img ?? '';
+            if ($ruta) {
+                $full = $base . DIRECTORY_SEPARATOR . ltrim($ruta, '/\\');
+                if (is_dir($full)) {
+                    $files = @scandir($full) ?: [];
+                    foreach ($files as $f) {
+                        if (in_array(strtolower(pathinfo($f, PATHINFO_EXTENSION)), ['jpg','jpeg','png','webp','gif'])) {
+                            $gallery[] = trim($ruta, '/\\') . '/' . $f;
+                        }
+                    }
+                } elseif (is_file($full)) {
+                    // include the file itself
+                    $gallery[] = $ruta;
+                    // also try folder where the file is located
+                    $folder = dirname($ruta);
+                    $fullFolder = $base . DIRECTORY_SEPARATOR . ltrim($folder, '/\\');
+                    if (is_dir($fullFolder)) {
+                        $files = @scandir($fullFolder) ?: [];
+                        foreach ($files as $f) {
+                            if (in_array(strtolower(pathinfo($f, PATHINFO_EXTENSION)), ['jpg','jpeg','png','webp','gif'])) {
+                                $candidate = trim($folder, '/\\') . '/' . $f;
+                                if (!in_array($candidate, $gallery)) $gallery[] = $candidate;
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            $gallery = [];
+        }
+
+        return view('propiedades.show', ['propiedad' => $propiedad, 'gallery' => $gallery]);
+    }
+
+    public function edit($id)
+    {
+        $propiedad = Propiedad::findOrFail($id);
+        $folders = $this->listImageFolders();
+        return view('propiedades.edit', ['propiedad' => $propiedad, 'imageFolders' => $folders]);
+    }
+
+    public function create()
+    {
+        $folders = $this->listImageFolders();
+        return view('propiedades.create', ['imageFolders' => $folders]);
     }
 
     public function update(Request $request, $id)
@@ -77,5 +125,60 @@ class PropiedadController extends Controller
         $propiedad->delete();
 
         return redirect()->route('propiedades.index')->with('success', 'Propiedad eliminada exitosamente.');
+    }
+
+    /**
+     * Scan public/ for folders that contain image files and return relative paths.
+     */
+    private function listImageFolders(): array
+    {
+        $base = public_path();
+        $folders = [];
+
+        try {
+            // Check uploads folder first
+            $uploads = $base . DIRECTORY_SEPARATOR . 'uploads';
+            if (is_dir($uploads)) {
+                $subs = @scandir($uploads) ?: [];
+                foreach ($subs as $s) {
+                    if ($s === '.' || $s === '..') continue;
+                    $full = $uploads . DIRECTORY_SEPARATOR . $s;
+                    if (is_dir($full)) {
+                        $folders[] = 'uploads/' . $s;
+                    }
+                }
+            }
+
+            // Also scan top-level public directories for image-containing folders
+            $top = @scandir($base) ?: [];
+            $ignore = ['css','js','build','storage','vendor','fonts','logo','logos'];
+            foreach ($top as $entry) {
+                if ($entry === '.' || $entry === '..') continue;
+                if (in_array(strtolower($entry), $ignore)) continue;
+                $full = $base . DIRECTORY_SEPARATOR . $entry;
+                if (!is_dir($full)) continue;
+                // check if this folder contains image files or subfolders with images
+                $hasImg = false;
+                $files = @scandir($full) ?: [];
+                foreach ($files as $f) {
+                    if ($f === '.' || $f === '..') continue;
+                    $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+                    if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) { $hasImg = true; break; }
+                    if (is_dir($full . DIRECTORY_SEPARATOR . $f)) {
+                        $subFiles = @scandir($full . DIRECTORY_SEPARATOR . $f) ?: [];
+                        foreach ($subFiles as $sf) {
+                            if (in_array(strtolower(pathinfo($sf, PATHINFO_EXTENSION)), ['jpg','jpeg','png','webp','gif'])) { $hasImg = true; break 2; }
+                        }
+                    }
+                }
+                if ($hasImg) $folders[] = $entry;
+            }
+        } catch (\Throwable $e) {
+            // ignore and return whatever collected
+        }
+
+        $folders = array_values(array_unique($folders));
+        sort($folders);
+        return $folders;
     }
 }

@@ -26,6 +26,9 @@ Route::get('/dashboard', function () {
 Route::middleware('auth')->group(function () {
     Route::resource('users', UserController::class)->names('users');
     Route::resource('propiedades', PropiedadController::class)->names('propiedades');
+    Route::get('propiedades/{id}', [PropiedadController::class, 'show'])->name('propiedades.show');
+    Route::get('propiedades/{id}/edit', [PropiedadController::class, 'edit'])->name('propiedades.edit');
+    Route::get('propiedades/create', [PropiedadController::class, 'create'])->name('propiedades.create');
     Route::resource('notificaciones', NotificationController::class)->names('notificaciones');
     Route::resource('pagos', \App\Http\Controllers\PaymentController::class)->names('pagos');
     Route::post('tarjetas/{id}/deposit', [\App\Http\Controllers\TarjetaSimuladaController::class,'deposit'])->name('tarjetas.deposit');
@@ -38,6 +41,7 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/reservaciones', [ReservationController::class, 'index'])->middleware('auth')->name('reservaciones.index');
+Route::get('/reservaciones/{id}/edit', [ReservationController::class, 'editView'])->middleware('auth')->name('reservaciones.edit');
 Route::get('/reservaciones/{id}', [ReservationController::class, 'showView'])->middleware('auth')->name('reservaciones.show');
 Route::get('/', function () {
     return auth()->check() ? redirect()->route('dashboard') : redirect()->route('login');

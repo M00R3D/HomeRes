@@ -1,0 +1,328 @@
+@extends('layouts.app')
+
+@section('title', 'Editar propiedad - ' . ($propiedad->nombre ?? ''))
+
+@section('content')
+<div style="max-width:1100px;margin:18px auto;padding:12px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <h1 style="margin:0">Editar propiedad</h1>
+    <a href="{{ route('propiedades.show', $propiedad->id) }}" class="link-button">Volver</a>
+  </div>
+
+  @if(session('success'))
+    <div style="background:#ecfdf5;color:#065f46;padding:10px;border-radius:8px;margin-bottom:12px;font-weight:700;">{{ session('success') }}</div>
+  @endif
+
+  @if($errors->any())
+    <div style="background:#fff5f5;color:#9b1c1c;padding:10px;border-radius:8px;margin-bottom:12px;">
+      <ul style="margin:0;padding-left:18px;">
+        @foreach($errors->all() as $err)
+          <li>{{ $err }}</li>
+        @endforeach
+      </ul>
+    </div>
+  @endif
+
+  <form method="POST" action="{{ route('propiedades.update', $propiedad->id) }}" style="background:#fff;padding:14px;border-radius:10px;box-shadow:0 8px 24px rgba(2,6,23,0.06);">
+    @csrf
+    @method('PUT')
+
+    <div style="display:grid;grid-template-columns:1fr 360px;gap:12px;">
+      <div>
+        <label class="small">Nombre</label>
+        <input name="nombre" value="{{ old('nombre', $propiedad->nombre) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+
+        <label class="small" style="margin-top:8px;display:block;">Código</label>
+        <input name="codigo" value="{{ old('codigo', $propiedad->codigo) }}" style="width:200px;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+
+        <label class="small" style="margin-top:8px;display:block;">Tipo</label>
+        <select name="tipo" style="padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+          <option value="casa" {{ $propiedad->tipo==='casa' ? 'selected' : '' }}>Casa</option>
+          <option value="cabaña" {{ $propiedad->tipo==='cabaña' ? 'selected' : '' }}>Cabaña</option>
+          <option value="departamento" {{ $propiedad->tipo==='departamento' ? 'selected' : '' }}>Departamento</option>
+        </select>
+
+        <label class="small" style="margin-top:8px;display:block;">Descripción</label>
+        <textarea name="descripcion" rows="5" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">{{ old('descripcion', $propiedad->descripcion) }}</textarea>
+
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <div style="flex:1">
+            <label class="small">Capacidad</label>
+            <input type="number" name="capacidad" min="1" value="{{ old('capacidad', $propiedad->capacidad) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+          </div>
+          <div style="flex:1">
+            <label class="small">Precio noche</label>
+            <input type="number" name="precio_noche" step="0.01" value="{{ old('precio_noche', $propiedad->precio_noche) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+          </div>
+        </div>
+
+        <label class="small" style="margin-top:8px;display:block;">Ubicación</label>
+        <input name="ubicacion" value="{{ old('ubicacion', $propiedad->ubicacion) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+
+        <label class="small" style="margin-top:8px;display:block;">Servicios (separados por coma)</label>
+        <input name="servicios" value="{{ old('servicios', $propiedad->servicios) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+
+        <label class="small" style="margin-top:8px;display:block;">Estado</label>
+        <select name="estado" style="padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+          <option value="disponible" {{ $propiedad->estado==='disponible' ? 'selected' : '' }}>Disponible</option>
+          <option value="ocupada" {{ $propiedad->estado==='ocupada' ? 'selected' : '' }}>Ocupada</option>
+          <option value="mantenimiento" {{ $propiedad->estado==='mantenimiento' ? 'selected' : '' }}>Mantenimiento</option>
+        </select>
+
+        <label class="small" style="margin-top:8px;display:block;">Ruta de imágenes (carpeta en public/, por ejemplo: uploads/propiedades/1)</label>
+        <input id="ruta_img_input" name="ruta_img" value="{{ old('ruta_img', $propiedad->ruta_img) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+
+      </div>
+
+      <div>
+        <div style="background:#fff;padding:10px;border-radius:8px;border:1px solid #eef2f7;">
+          <div style="font-weight:800;margin-bottom:8px;">Galería actual</div>
+          @php
+            $gallery = [];
+            $ruta = $propiedad->ruta_img ?? '';
+            if ($ruta) {
+              $base = public_path();
+              $full = $base . DIRECTORY_SEPARATOR . ltrim($ruta, '/\\');
+              if (is_dir($full)) {
+                $files = @scandir($full) ?: [];
+                foreach ($files as $f) {
+                  if (in_array(strtolower(pathinfo($f, PATHINFO_EXTENSION)), ['jpg','jpeg','png','webp','gif'])) {
+                    $gallery[] = trim($ruta, '/\\') . '/' . $f;
+                  }
+                }
+              } elseif (is_file($full)) {
+                $gallery[] = $ruta;
+              }
+            }
+          @endphp
+
+          @if(empty($gallery))
+            <div style="color:#6b7280;">No se encontraron imágenes en la ruta especificada.</div>
+          @else
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
+              @foreach($gallery as $g)
+                <img src="{{ asset($g) }}" style="width:100%;height:100px;object-fit:cover;border-radius:8px;" alt="">
+              @endforeach
+            </div>
+          @endif
+        </div>
+
+        <div style="margin-top:12px;color:#6b7280;font-size:0.9rem;">Para subir nuevas imágenes, coloca los archivos en la carpeta indicada dentro de <strong>public/</strong> (ej: <em>public/uploads/propiedades/1</em>).</div>
+        
+        <div style="margin-top:12px;">
+          <div style="font-weight:800;margin-bottom:8px;">Seleccionar carpeta de imágenes</div>
+          @php $folders = $imageFolders ?? []; @endphp
+          @if(empty($folders))
+            <div style="color:#6b7280;">No se encontraron carpetas de imágenes en <strong>public/</strong>.</div>
+          @else
+            <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;">
+              <div id="folder-list" style="display:flex;flex-direction:column;gap:6px;flex:1;">
+                @foreach($folders as $f)
+                  <button type="button" class="folder-item" data-folder="{{ $f }}" style="text-align:left;padding:8px;border-radius:8px;border:1px solid #eef2f7;background:#fff;">{{ $f }}</button>
+                @endforeach
+              </div>
+              <div style="margin-left:8px;">
+                <button id="open-explorer-btn" type="button" style="padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#06b6d4;color:#fff;">Abrir explorador</button>
+              </div>
+            </div>
+            <div style="margin-top:8px;color:#6b7280;font-size:0.9rem;">Carpeta/imagen seleccionada: <strong id="selected-folder-display">{{ old('ruta_img', $propiedad->ruta_img) }}</strong></div>
+          @endif
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+      <button class="action-btn primary" type="submit">Guardar</button>
+      <a href="{{ route('propiedades.index') }}" class="action-btn" style="background:#fff;border:1px solid #e5e7eb;">Cancelar</a>
+    </div>
+  </form>
+</div>
+
+@endsection
+
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var items = document.querySelectorAll('.folder-item');
+  var input = document.getElementById('ruta_img_input');
+  var display = document.getElementById('selected-folder-display');
+  items.forEach(function(b){
+    b.addEventListener('click', function(){
+      var f = this.getAttribute('data-folder');
+      if (input) input.value = f;
+      if (display) display.textContent = f;
+      // visual highlight
+      items.forEach(function(x){ x.style.boxShadow = ''; x.style.borderColor = '#eef2f7'; });
+      this.style.boxShadow = '0 6px 18px rgba(2,6,23,0.06)';
+      this.style.borderColor = '#06b6d4';
+    });
+  });
+
+  // Image explorer modal logic
+  var openBtn = document.getElementById('open-explorer-btn');
+  if (openBtn) {
+    openBtn.addEventListener('click', function(){
+      openImageExplorer();
+    });
+  }
+
+  async function openImageExplorer(){
+    // create modal if not exists
+    if (! document.getElementById('image-explorer-modal')) createExplorerModal();
+    var modal = document.getElementById('image-explorer-modal');
+    modal.style.display = 'flex';
+    await (window.loadDirs ? window.loadDirs() : (typeof loadDirs === 'function' ? loadDirs() : Promise.resolve()));
+  }
+
+  function createExplorerModal(){
+    // inject styles once
+    if (!document.getElementById('image-explorer-styles')) {
+      var s = document.createElement('style'); s.id = 'image-explorer-styles'; s.innerHTML = `
+        .uploader { border:2px dashed #e5e7eb; border-radius:10px; padding:18px; display:flex; flex-direction:column; gap:10px; align-items:center; text-align:center; background:#fff; transition: all .18s ease; }
+        .uploader.dragover { background:#ecfeff; border-color:#06b6d4; box-shadow: 0 8px 28px rgba(6,182,212,0.08); transform: translateY(-2px); }
+        .preview-list { display:flex; gap:8px; flex-wrap:wrap; width:100%; }
+        .preview { width:120px; height:90px; border-radius:8px; overflow:hidden; background:#f3f4f6; display:flex; align-items:center; justify-content:center; font-size:12px; color:#6b7280; position:relative; }
+        .preview img { width:100%; height:100%; object-fit:cover; display:block; }
+        .drop-hint { padding:6px 10px; border-radius:6px; background:rgba(6,182,212,0.06); color:#065f46; font-weight:700; display:none; }
+        .uploader.dragover .drop-hint { display:block; }
+      `; document.head.appendChild(s);
+    }
+    var modal = document.createElement('div');
+    modal.id = 'image-explorer-modal';
+    modal.style = 'display:none;position:fixed;inset:0;background:rgba(2,6,23,0.5);align-items:center;justify-content:center;z-index:9999;padding:12px;';
+    modal.innerHTML = `
+      <div style="width:900px;max-width:calc(100% - 40px);background:#fff;border-radius:10px;padding:12px;display:flex;gap:12px;">
+        <div style="width:260px;">
+          <div style="font-weight:800;margin-bottom:8px;">Carpetas</div>
+          <div id="explorer-dirs" style="display:flex;flex-direction:column;gap:6px;max-height:520px;overflow:auto;padding-right:6px;"></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+            <div style="flex:1;font-weight:800;">Archivos</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input id="explorer-folder-input" placeholder="Nueva carpeta (uploads/mi_carpeta)" style="padding:6px;border:1px solid #e5e7eb;border-radius:6px;">
+              <input id="explorer-namebase" placeholder="Base nombre (opcional)" style="padding:6px;border:1px solid #e5e7eb;border-radius:6px;">
+            </div>
+          </div>
+          <div id="explorer-dropzone" class="uploader" style="flex:0 0 140px;">
+            <div>Arrastra y suelta imágenes aquí para subir</div>
+            <div class="drop-hint">Suelta aquí para subir</div>
+            <input id="explorer-file-input" type="file" accept="image/*" multiple style="display:block;">
+            <div id="explorer-previews" class="preview-list"></div>
+            <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end;">
+              <button id="explorer-upload-btn" style="background:#06b6d4;color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;">Subir</button>
+              <button id="explorer-close-btn" style="background:#ef4444;color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;">Cerrar</button>
+            </div>
+          </div>
+          <div id="explorer-files" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:12px;overflow:auto;max-height:300px;padding-right:6px;"></div>
+        </div>
+        <div style="width:220px;">
+          <div style="font-weight:800;margin-bottom:8px;">Seleccion</div>
+          <div style="min-height:48px;" id="explorer-selection">Ninguno</div>
+          <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end;">
+            <button id="explorer-choose-folder" style="padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#06b6d4;color:#fff;">Usar carpeta</button>
+            <button id="explorer-choose-file" style="padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#2563eb;color:#fff;">Usar imagen</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    attachExplorerHandlers(modal);
+  }
+
+  function attachExplorerHandlers(modal){
+    var close = modal.querySelector('#explorer-close-btn');
+    close.addEventListener('click', function(){ modal.style.display = 'none'; });
+    var drop = modal.querySelector('#explorer-dropzone');
+    var fileInput = modal.querySelector('#explorer-file-input');
+    var previews = modal.querySelector('#explorer-previews');
+    var uploadBtn = modal.querySelector('#explorer-upload-btn');
+    var dirContainer = modal.querySelector('#explorer-dirs');
+    var filesContainer = modal.querySelector('#explorer-files');
+    var selection = modal.querySelector('#explorer-selection');
+    var chooseFolderBtn = modal.querySelector('#explorer-choose-folder');
+    var chooseFileBtn = modal.querySelector('#explorer-choose-file');
+    var folderInput = modal.querySelector('#explorer-folder-input');
+    var nameBase = modal.querySelector('#explorer-namebase');
+
+    var staged = [];
+    var currentFolder = '';
+    var selectedFile = null;
+
+    function renderPreviews(){ previews.innerHTML = ''; staged.forEach((f,i)=>{ const el=document.createElement('div'); el.className='preview'; const img=document.createElement('img'); img.src=URL.createObjectURL(f); el.appendChild(img); previews.appendChild(el); }); }
+
+    drop.addEventListener('dragover', function(e){ e.preventDefault(); drop.classList.add('dragover'); });
+    drop.addEventListener('dragleave', function(e){ const rect = drop.getBoundingClientRect(); const x = e.clientX, y = e.clientY; if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) drop.classList.remove('dragover'); });
+    drop.addEventListener('drop', function(e){ e.preventDefault(); drop.classList.remove('dragover'); const dt = e.dataTransfer; if (dt && dt.files) { for(const f of dt.files) if (f.type && f.type.startsWith('image/')) staged.push(f); renderPreviews(); } });
+    fileInput.addEventListener('change', function(){ for(const f of fileInput.files) if (f.type && f.type.startsWith('image/')) staged.push(f); renderPreviews(); });
+
+    uploadBtn.addEventListener('click', async function(){
+      if (staged.length === 0) { alert('Selecciona imágenes para subir'); return; }
+      var folder = folderInput.value || currentFolder || 'uploads';
+      var fd = new FormData(); staged.forEach(f=>fd.append('files[]', f)); fd.append('folder', folder); fd.append('filename_base', nameBase.value||'');
+      var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')||'';
+      uploadBtn.disabled = true; uploadBtn.textContent = 'Subiendo...';
+      try {
+        const resp = await fetch("{{ route('images.upload') }}", { method:'POST', headers:{'X-CSRF-TOKEN': token, 'Accept':'application/json'}, body: fd, credentials:'same-origin' });
+        const data = await resp.json().catch(()=>({}));
+        if (resp.ok) {
+          staged = []; renderPreviews();
+          await loadFiles(folder);
+          alert('Subida completa');
+        } else {
+          alert((data && data.message) ? data.message : 'Error al subir');
+        }
+      } catch(err){ console.error(err); alert('Error de red'); }
+      uploadBtn.disabled = false; uploadBtn.textContent = 'Subir';
+    });
+
+    async function loadDirs(){
+      try {
+        const resp = await fetch("{{ route('images.dirs') }}", { credentials:'same-origin' });
+        const data = await resp.json(); dirContainer.innerHTML = '';
+        data.dirs.forEach(d=>{ const b=document.createElement('button'); b.type='button'; b.textContent=d; b.className='folder-item'; b.style='text-align:left;padding:8px;border-radius:8px;border:1px solid #eef2f7;background:#fff;'; b.addEventListener('click', function(){ currentFolder = d; folderInput.value = d; loadFiles(d); selection.textContent = d; }); dirContainer.appendChild(b); });
+      } catch(e){ console.error(e); }
+    }
+
+    async function loadFiles(folder){
+      currentFolder = folder;
+      try{
+        const resp = await fetch("{{ route('images.list') }}?folder="+encodeURIComponent(folder), { credentials:'same-origin' });
+        const data = await resp.json(); filesContainer.innerHTML = '';
+        // render subfolders first (if any)
+        if (data.dirs && data.dirs.length) {
+          data.dirs.forEach(sd=>{
+            const fwrap = document.createElement('div');
+            fwrap.style = 'display:flex;align-items:center;justify-content:center;height:100px;border-radius:8px;background:#fff;border:1px dashed #e6eef6;cursor:pointer;';
+            fwrap.textContent = sd;
+            fwrap.addEventListener('click', function(){ loadFiles(folder + '/' + sd); selection.textContent = folder + '/' + sd; folderInput.value = folder + '/' + sd; });
+            filesContainer.appendChild(fwrap);
+          });
+        }
+        // then image files
+        (data.files||[]).forEach(fname=>{
+          const wrap = document.createElement('div'); wrap.style='position:relative;border-radius:8px;overflow:hidden;background:#f8fafc;';
+          const img = document.createElement('img'); img.src = '/' + folder + '/' + fname; img.style='width:100%;height:100px;object-fit:cover;display:block;cursor:pointer;';
+          img.addEventListener('click', function(){ selectedFile = folder + '/' + fname; selection.textContent = selectedFile; });
+          img.addEventListener('error', function(){
+            // show visual error if image missing
+            const err = document.createElement('div'); err.style='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(239,68,68,0.06);color:#991b1b;font-weight:700;'; err.textContent='Archivo no encontrado';
+            if (!wrap.querySelector('.err')) { err.className='err'; wrap.appendChild(err); }
+          });
+          wrap.appendChild(img);
+          filesContainer.appendChild(wrap);
+        });
+      } catch(e){ console.error(e); }
+    }
+
+    // expose helper functions so outer scope can call them
+    try { modal.loadDirs = loadDirs; modal.loadFiles = loadFiles; } catch(e){}
+    window.loadDirs = function(){ var m = document.getElementById('image-explorer-modal'); if (m && m.loadDirs) return m.loadDirs(); };
+    window.loadFiles = function(folder){ var m = document.getElementById('image-explorer-modal'); if (m && m.loadFiles) return m.loadFiles(folder); };
+
+    chooseFolderBtn.addEventListener('click', function(){ var val = folderInput.value || currentFolder; if (!val) { alert('Selecciona o ingresa una carpeta'); return; } if (input) input.value = val; if (display) display.textContent = val; modal.style.display='none'; });
+    chooseFileBtn.addEventListener('click', function(){ if (!selectedFile) { alert('Selecciona una imagen'); return; } if (input) input.value = selectedFile; if (display) display.textContent = selectedFile; modal.style.display='none'; });
+  }
+});
+</script>
+@endsection

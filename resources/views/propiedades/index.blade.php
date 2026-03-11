@@ -48,7 +48,7 @@
 
     <div style="display:flex;gap:8px;align-items:center;">
       @if($isAdmin)
-        <button id="pr-new" class="pr-btn edit">Crear propiedad</button>
+        <a href="{{ route('propiedades.create') }}" class="pr-btn edit">Crear propiedad</a>
       @endif
     </div>
   </header>
@@ -78,8 +78,27 @@
             @forelse($propiedades ?? [] as $prop)
             <tr>
               <td style="width:120px;">
-                @if(!empty($prop->ruta_img))
-                  <img src="{{ asset($prop->ruta_img) }}" style="width:100px;height:64px;object-fit:cover;border-radius:8px;">
+                @php
+                  $thumbUrl = null;
+                  if (!empty($prop->ruta_img)) {
+                    $ruta = ltrim($prop->ruta_img, '/\\');
+                    $full = public_path($ruta);
+                    if (is_dir($full)) {
+                      $files = @scandir($full) ?: [];
+                      foreach ($files as $f) {
+                        $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+                        if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) { $thumbUrl = asset($ruta . '/' . $f); break; }
+                      }
+                    } elseif (is_file($full)) {
+                      $thumbUrl = asset($ruta);
+                    } else {
+                      // if ruta looks like a file path with extension but file missing, leave thumb null
+                      if (pathinfo($ruta, PATHINFO_EXTENSION)) { $thumbUrl = null; }
+                    }
+                  }
+                @endphp
+                @if($thumbUrl)
+                  <img src="{{ $thumbUrl }}" style="width:100px;height:64px;object-fit:cover;border-radius:8px;">
                 @else
                   <div style="width:100px;height:64px;background:#f3f4f6;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;">Sin imagen</div>
                 @endif
@@ -92,13 +111,7 @@
               <td style="vertical-align:middle;white-space:nowrap;">
                 <a href="{{ route('propiedades.show', $prop->id) }}" class="action-btn edit" style="margin-right:6px">Ver</a>
 
-                <button
-                  type="button"
-                  class="action-btn edit"
-                  data-edit
-                  data-prop='@json($prop)'
-                  data-update-url="{{ route('propiedades.update', $prop->id) }}"
-                >Editar</button>
+                <a href="{{ route('propiedades.edit', $prop->id) }}" class="action-btn edit" style="margin-right:6px">Editar</a>
 
                 <form method="POST" action="{{ route('propiedades.destroy', $prop->id) }}" style="display:inline" class="form-delete">
                   @csrf
@@ -119,7 +132,20 @@
     <div class="pr-grid" role="list">
       @forelse($propiedades ?? [] as $prop)
         @php
-          $img = !empty($prop->ruta_img) ? asset($prop->ruta_img) : null;
+          $img = null;
+          if (!empty($prop->ruta_img)) {
+            $ruta = ltrim($prop->ruta_img, '/\\');
+            $full = public_path($ruta);
+            if (is_dir($full)) {
+              $files = @scandir($full) ?: [];
+              foreach ($files as $f) {
+                $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+                if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) { $img = asset($ruta . '/' . $f); break; }
+              }
+            } elseif (is_file($full)) {
+              $img = asset($ruta);
+            }
+          }
           $comments = Comentario::with('user')
                       ->whereHas('reservation', function($q) use ($prop) { $q->where('propiedad_id', $prop->id); })
                       ->orderByDesc('fecha_creacion')
@@ -244,7 +270,7 @@
 <div id="modal-prop-edit" class="modal" aria-hidden="true" style="display:none;align-items:center;justify-content:center;">
   <div class="modal-backdrop" data-close style="position:absolute;inset:0;background:rgba(2,6,23,0.45);z-index:1000;"></div>
   <div class="modal-panel" role="dialog" aria-modal="true" style="position:relative;z-index:1200;max-width:900px;">
-    <button class="modal-close" data-close style="position:absolute;right:12px;top:12px;border:0;background:transparent;font-size:18px;">✕</button>
+    <button href="propiedades/{id}/edit" class="modal-close" data-close style="position:absolute;right:12px;top:12px;border:0;background:transparent;font-size:18px;">✕</button>
     <h3>Editar propiedad</h3>
 
     <form id="form-prop-edit" method="POST" action="#" class="form">

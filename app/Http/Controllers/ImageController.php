@@ -12,14 +12,29 @@ class ImageController extends Controller
     {
         $public = public_path();
         $entries = @scandir($public) ?: [];
-        $dirs = [];
+        $folders = [];
+        $allowed = ['jpg','jpeg','png','webp','gif','svg'];
         foreach ($entries as $e) {
             if ($e === '.' || $e === '..') continue;
             $path = $public . DIRECTORY_SEPARATOR . $e;
-            if (is_dir($path)) $dirs[] = $e;
+            if (! is_dir($path)) continue;
+            // collect up to 8 images found recursively inside this folder
+            $found = [];
+            $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($path, \FilesystemIterator::FOLLOW_SYMLINKS));
+            foreach ($it as $file) {
+                if (! $file->isFile()) continue;
+                $ext = strtolower(pathinfo($file->getFilename(), PATHINFO_EXTENSION));
+                if (! in_array($ext, $allowed)) continue;
+                // build relative path from public
+                $rel = str_replace($public . DIRECTORY_SEPARATOR, '', $file->getPathname());
+                $rel = str_replace('\\', '/', $rel);
+                $found[] = $rel;
+                if (count($found) >= 8) break;
+            }
+            $folders[] = ['name' => $e, 'images' => $found];
         }
-        sort($dirs);
-        return view('images.index', ['dirs' => $dirs]);
+        usort($folders, function($a,$b){ return strcmp($a['name'],$b['name']); });
+        return view('images.index', ['folders' => $folders]);
     }
 
     public function upload(Request $request)
@@ -32,7 +47,17 @@ class ImageController extends Controller
         ]);
 
         $folder = trim((string)$request->input('folder', 'uploads'));
-        $folder = preg_replace('/[^A-Za-z0-9\-_]/', '_', $folder) ?: 'uploads';
+        // normalize slashes and trim
+        $folder = str_replace('\\', '/', $folder);
+        $folder = trim($folder, "/ ");
+        // sanitize each path segment to allow nested folders but prevent directory traversal
+        $parts = array_filter(explode('/', $folder), function($p) { return $p !== '' && $p !== '.' && $p !== '..'; });
+        $cleanParts = [];
+        foreach ($parts as $p) {
+            $clean = preg_replace('/[^A-Za-z0-9\-_]/', '_', $p);
+            if ($clean !== '') $cleanParts[] = $clean;
+        }
+        $folder = count($cleanParts) ? implode('/', $cleanParts) : 'uploads';
         $targetDir = public_path($folder);
         if (! is_dir($targetDir)) {
             if (! @mkdir($targetDir, 0755, true)) {
@@ -105,6 +130,7 @@ class ImageController extends Controller
         $allowed = ['jpg','jpeg','png','webp','gif','svg'];
         $all = @scandir($target) ?: [];
         $files = [];
+        $subdirs = [];
         foreach ($all as $f) {
             if ($f === '.' || $f === '..') continue;
             $path = $target . DIRECTORY_SEPARATOR . $f;
@@ -113,21 +139,41 @@ class ImageController extends Controller
             if (! in_array($ext, $allowed)) continue;
             $files[] = $f;
         }
+        // also list subdirectories inside the requested folder
+        foreach ($all as $f) {
+            if ($f === '.' || $f === '..') continue;
+            $path = $target . DIRECTORY_SEPARATOR . $f;
+            if (is_dir($path)) $subdirs[] = $f;
+        }
         sort($files);
-        return response()->json(['files' => $files]);
+        sort($subdirs);
+        return response()->json(['files' => $files, 'dirs' => $subdirs]);
     }
 
     public function dirs(Request $request)
     {
         $public = public_path();
         $entries = @scandir($public) ?: [];
-        $dirs = [];
+        $folders = [];
+        $allowed = ['jpg','jpeg','png','webp','gif','svg'];
         foreach ($entries as $e) {
             if ($e === '.' || $e === '..') continue;
             $path = $public . DIRECTORY_SEPARATOR . $e;
-            if (is_dir($path)) $dirs[] = $e;
+            if (! is_dir($path)) continue;
+            $found = [];
+            $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($path, \FilesystemIterator::FOLLOW_SYMLINKS));
+            foreach ($it as $file) {
+                if (! $file->isFile()) continue;
+                $ext = strtolower(pathinfo($file->getFilename(), PATHINFO_EXTENSION));
+                if (! in_array($ext, $allowed)) continue;
+                $rel = str_replace($public . DIRECTORY_SEPARATOR, '', $file->getPathname());
+                $rel = str_replace('\\', '/', $rel);
+                $found[] = $rel;
+                if (count($found) >= 8) break;
+            }
+            $folders[] = ['name' => $e, 'images' => $found];
         }
-        sort($dirs);
-        return response()->json(['dirs' => $dirs]);
+        usort($folders, function($a,$b){ return strcmp($a['name'],$b['name']); });
+        return response()->json(['folders' => $folders]);
     }
 }

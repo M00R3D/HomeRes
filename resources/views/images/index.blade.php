@@ -44,9 +44,31 @@
     <div style="width:320px;">
       <h3>Carpetas públicas</h3>
       <div class="dir-list" id="dir-list">
-        @foreach($dirs as $d)
-          <div class="dir-item">{{ $d }}</div>
+        @foreach($folders as $f)
+          <div class="dir-item" data-folder="{{ $f['name'] }}" style="display:flex;flex-direction:column;gap:6px;padding:8px;">
+            <div style="font-weight:800;">{{ $f['name'] }}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              @if(!empty($f['images']))
+                @foreach($f['images'] as $img)
+                  <div style="width:40px;height:30px;border-radius:6px;overflow:hidden;background:#fff;border:1px solid #eef2f7;">
+                    <img src="/{{ $img }}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.opacity=0.4;this.style.filter='grayscale(60%)';">
+                  </div>
+                @endforeach
+              @else
+                <div style="color:#9ca3af;font-size:12px;">Sin imágenes</div>
+              @endif
+            </div>
+          </div>
         @endforeach
+      </div>
+      <div style="margin-top:12px;">
+        <div style="font-weight:800;margin-bottom:6px;">Navegador</div>
+        <div id="browser-current" style="font-size:0.9rem;color:#6b7280;margin-bottom:6px;">Carpeta: <strong id="browser-current-path">/</strong></div>
+        <div id="browser-files" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;overflow:auto;border:1px solid #eef2f7;border-radius:8px;padding:8px;background:#fff;min-height:160px;"></div>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
+          <div id="browser-selection" style="flex:1;color:#374151;">Seleccion: <span id="browser-selection-val">Ninguno</span></div>
+          <button id="browser-copy" style="padding:6px 10px;border-radius:8px;border:0;background:#06b6d4;color:#fff;">Copiar ruta</button>
+        </div>
       </div>
       <h3 style="margin-top:12px;">Enlaces subidos</h3>
       <div id="uploaded-list" style="display:flex;flex-direction:column;gap:6px;"></div>
@@ -67,6 +89,73 @@ document.addEventListener('DOMContentLoaded', function(){
   const namebaseInput = document.getElementById('namebase-input');
   const status = document.getElementById('status');
   const uploadedList = document.getElementById('uploaded-list');
+  const dirList = document.getElementById('dir-list');
+  const browserFiles = document.getElementById('browser-files');
+  const browserCurrentPath = document.getElementById('browser-current-path');
+  const browserSelectionVal = document.getElementById('browser-selection-val');
+  const browserCopyBtn = document.getElementById('browser-copy');
+
+  let currentBrowserFolder = '';
+  let browserSelected = null;
+
+  async function loadDirs(){
+    try{
+      const resp = await fetch("{{ route('images.dirs') }}", { credentials: 'same-origin' });
+      const data = await resp.json();
+      dirList.innerHTML = '';
+      (data.folders||[]).forEach(f=>{
+        const el = document.createElement('div'); el.className='dir-item'; el.style.display='flex'; el.style.flexDirection='column'; el.style.gap='6px'; el.style.padding='8px';
+        const title = document.createElement('div'); title.style.fontWeight='800'; title.textContent = f.name; el.appendChild(title);
+        const thumbs = document.createElement('div'); thumbs.style.display='flex'; thumbs.style.gap='6px'; thumbs.style.flexWrap='wrap';
+        if (f.images && f.images.length){
+          f.images.forEach(img=>{
+            const box = document.createElement('div'); box.style.width='40px'; box.style.height='30px'; box.style.borderRadius='6px'; box.style.overflow='hidden'; box.style.background='#fff'; box.style.border='1px solid #eef2f7';
+            const im = document.createElement('img'); im.src = '/' + img; im.style.width='100%'; im.style.height='100%'; im.style.objectFit='cover'; im.addEventListener('error', ()=>{ im.style.opacity=0.4; im.style.filter='grayscale(60%)'; });
+            box.appendChild(im); thumbs.appendChild(box);
+          });
+        } else {
+          const no = document.createElement('div'); no.style.color='#9ca3af'; no.style.fontSize='12px'; no.textContent='Sin imágenes'; thumbs.appendChild(no);
+        }
+        el.appendChild(thumbs);
+        el.setAttribute('data-folder', f.name);
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', function(){ loadFiles(f.name); });
+        dirList.appendChild(el);
+      });
+    } catch(err){ console.error(err); }
+  }
+
+  async function loadFiles(folder){
+    currentBrowserFolder = folder;
+    browserCurrentPath.textContent = folder;
+    try{
+      const resp = await fetch("{{ route('images.list') }}?folder="+encodeURIComponent(folder), { credentials:'same-origin' });
+      const data = await resp.json();
+      browserFiles.innerHTML = '';
+      if (data.dirs && data.dirs.length){
+        data.dirs.forEach(sd=>{
+          const fwrap = document.createElement('div'); fwrap.style='display:flex;align-items:center;justify-content:center;height:100px;border-radius:8px;background:#fff;border:1px dashed #e6eef6;cursor:pointer;'; fwrap.textContent = sd;
+          fwrap.addEventListener('click', ()=> loadFiles(folder + '/' + sd));
+          browserFiles.appendChild(fwrap);
+        });
+      }
+      (data.files||[]).forEach(fname=>{
+        const wrap = document.createElement('div'); wrap.style='position:relative;border-radius:8px;overflow:hidden;background:#f8fafc;';
+        const img = document.createElement('img'); img.src = '/' + folder + '/' + fname; img.style='width:100%;height:100px;object-fit:cover;display:block;cursor:pointer;';
+        img.addEventListener('click', function(){ browserSelected = folder + '/' + fname; browserSelectionVal.textContent = browserSelected; });
+        img.addEventListener('error', function(){ const err = document.createElement('div'); err.style='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(239,68,68,0.06);color:#991b1b;font-weight:700;'; err.textContent='Archivo no encontrado'; if (!wrap.querySelector('.err')){ err.className='err'; wrap.appendChild(err);} });
+        wrap.appendChild(img); browserFiles.appendChild(wrap);
+      });
+    } catch(err){ console.error(err); }
+  }
+
+  // expose for other pages
+  try{ window.loadDirs = loadDirs; window.loadFiles = loadFiles; } catch(e){}
+
+  browserCopyBtn.addEventListener('click', function(){ if (!browserSelected){ alert('Selecciona un archivo primero'); return; } navigator.clipboard?.writeText(browserSelected).then(()=> alert('Ruta copiada')).catch(()=>{ alert('No se pudo copiar'); }); });
+
+  // initialize browser dirs
+  loadDirs();
 
   let files = [];
 

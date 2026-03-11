@@ -19,16 +19,34 @@
 
   <div style="display:flex;gap:16px;flex-wrap:wrap;">
     <div style="flex:0 0 360px;">
-      @if(!empty($propiedad->ruta_img))
-        <img src="{{ asset($propiedad->ruta_img) }}" alt="{{ $propiedad->nombre }}" style="width:100%;height:260px;object-fit:cover;border-radius:10px;box-shadow:0 12px 30px rgba(2,6,23,0.06);">
-      @else
-        <div style="width:100%;height:260px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border-radius:10px;color:#9ca3af;">Sin imagen</div>
-      @endif
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-        @foreach(collect(explode(',', $propiedad->servicios ?? ''))->map(fn($s)=>trim($s))->filter()->values() as $s)
-          <span style="background:#f3f4f6;padding:6px 10px;border-radius:999px;font-weight:700;">{{ $s }}</span>
-        @endforeach
+      @php
+        $gallery = $gallery ?? [];
+        $main = $gallery[0] ?? $propiedad->ruta_img ?? null;
+      @endphp
+
+      <div style="position:relative;border-radius:10px;overflow:hidden;box-shadow:0 12px 30px rgba(2,6,23,0.06);">
+        @if($main)
+          <img id="pr-main-img" src="{{ asset($main) }}" alt="{{ $propiedad->nombre }}" style="width:100%;height:320px;object-fit:cover;display:block;">
+        @else
+          <div style="width:100%;height:320px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;color:#9ca3af;">Sin imagen</div>
+        @endif
       </div>
+
+      @if(!empty($gallery))
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+          @foreach($gallery as $g)
+            <button type="button" class="pr-thumb" data-src="{{ asset($g) }}" style="border:0;padding:0;background:transparent;cursor:pointer;width:72px;height:56px;border-radius:8px;overflow:hidden;">
+              <img src="{{ asset($g) }}" style="width:100%;height:100%;object-fit:cover;display:block;">
+            </button>
+          @endforeach
+        </div>
+      @else
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+          @foreach(collect(explode(',', $propiedad->servicios ?? ''))->map(fn($s)=>trim($s))->filter()->values() as $s)
+            <span style="background:#f3f4f6;padding:6px 10px;border-radius:999px;font-weight:700;">{{ $s }}</span>
+          @endforeach
+        </div>
+      @endif
     </div>
 
     <div style="flex:1;min-width:320px;">
@@ -85,4 +103,18 @@
   @endif
 
 </div>
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.pr-thumb').forEach(btn => {
+    btn.addEventListener('click', function(){
+      const src = this.getAttribute('data-src');
+      const main = document.getElementById('pr-main-img');
+      if(main && src) main.setAttribute('src', src);
+    });
+  });
+});
+</script>
+@endpush
+
 @endsection
