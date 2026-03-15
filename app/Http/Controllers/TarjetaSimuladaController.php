@@ -128,8 +128,43 @@ class TarjetaSimuladaController extends Controller
         $request->validate(['usuario_id' => 'required|exists:usuarios,id']);
         $t = TarjetaSimulada::find($id);
         if (!$t) return redirect()->back()->with('error','Tarjeta no encontrada');
+        $current = $request->user();
+        if ($current && (($current->rol ?? '') !== 'admin')) {
+            if (!empty($current->bloqueo_tarjetas)) {
+                return redirect()->back()->with('error','Tu cuenta está bloqueada para operaciones con tarjetas. Contacta al administrador.');
+            }
+        }
         if (schemaHasColumn('usuarios', 'id_tarjeta')) {
             $newUserId = (int) $request->usuario_id;
+
+            // Optional CVV verification: if 'cvv' provided, ensure it matches; otherwise allow admin or silent assign
+            if ($request->filled('cvv')) {
+                $cvv = trim($request->input('cvv'));
+                if (trim($t->cvv) !== $cvv) {
+                    // increment attempts for non-admin acting user
+                    if ($current && (($current->rol ?? '') !== 'admin')) {
+                        try {
+                            \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $current->id)->increment('intentos_cvv');
+                            $attempts = (int) \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $current->id)->value('intentos_cvv');
+                            if ($attempts >= 5) {
+                                \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $current->id)->update(['bloqueo_tarjetas' => true]);
+                                return redirect()->back()->with('error','CVV incorrecto. Tu cuenta ha sido bloqueada. Contacta al administrador.');
+                            }
+                            $remaining = max(0, 5 - $attempts);
+                            return redirect()->back()->with('error',"CVV incorrecto. Te quedan {$remaining} intentos antes del bloqueo.");
+                        } catch (\Throwable $e) {
+                            return redirect()->back()->with('error','CVV incorrecto');
+                        }
+                    }
+                    return redirect()->back()->with('error','CVV incorrecto');
+                }
+                // successful verification: reset attempts for acting user
+                if ($current && (($current->rol ?? '') !== 'admin')) {
+                    try {
+                        \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $current->id)->update(['intentos_cvv' => 0]);
+                    } catch (\Throwable $e) {}
+                }
+            }
 
             DB::transaction(function() use ($t, $newUserId) {
                 DB::table('usuarios')->where('id_tarjeta', $t->id)->update(['id_tarjeta' => null]);
@@ -139,6 +174,33 @@ class TarjetaSimuladaController extends Controller
             return redirect()->back()->with('success','Tarjeta asignada al usuario (usuarios.id_tarjeta actualizada)');
         }
         if (schemaHasColumn('tarjetas_simuladas', 'usuario_id')) {
+            // Optional CVV verification similar to above
+            if ($request->filled('cvv')) {
+                $cvv = trim($request->input('cvv'));
+                if (trim($t->cvv) !== $cvv) {
+                    if ($current && (($current->rol ?? '') !== 'admin')) {
+                        try {
+                            \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $current->id)->increment('intentos_cvv');
+                            $attempts = (int) \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $current->id)->value('intentos_cvv');
+                            if ($attempts >= 5) {
+                                \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $current->id)->update(['bloqueo_tarjetas' => true]);
+                                return redirect()->back()->with('error','CVV incorrecto. Tu cuenta ha sido bloqueada. Contacta al administrador.');
+                            }
+                            $remaining = max(0, 5 - $attempts);
+                            return redirect()->back()->with('error',"CVV incorrecto. Te quedan {$remaining} intentos antes del bloqueo.");
+                        } catch (\Throwable $e) {
+                            return redirect()->back()->with('error','CVV incorrecto');
+                        }
+                    }
+                    return redirect()->back()->with('error','CVV incorrecto');
+                }
+                if ($current && (($current->rol ?? '') !== 'admin')) {
+                    try {
+                        \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $current->id)->update(['intentos_cvv' => 0]);
+                    } catch (\Throwable $e) {}
+                }
+            }
+
             $t->usuario_id = $request->usuario_id;
             $t->save();
             return redirect()->back()->with('success','Tarjeta asignada al usuario (tarjetas_simuladas.usuario_id actualizada)');

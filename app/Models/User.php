@@ -25,6 +25,8 @@ class User extends Authenticatable
         'rol',
         'area',
         'id_tarjeta',
+        'intentos_cvv',
+        'bloqueo_tarjetas',
     ];
 
     protected $hidden = [
@@ -33,6 +35,8 @@ class User extends Authenticatable
 
     protected $casts = [
         'password' => 'hashed',
+        'intentos_cvv' => 'int',
+        'bloqueo_tarjetas' => 'boolean',
     ];
 
     public function reservations()

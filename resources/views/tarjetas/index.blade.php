@@ -65,7 +65,7 @@
       <div class="small" style="margin-top:6px;">Gestión de tarjetas simuladas</div>
     </div>
     <div>
-      @if ($isAdmin || $myTarjeta)
+      @if (($isAdmin || $myTarjeta) && !((($currentUser->bloqueo_tarjetas ?? false) && !$isAdmin)))
       <button id="btn-new" class="btn">Nueva tarjeta</button>
       @endif
     </div>
@@ -75,6 +75,37 @@
     <div style="background:#ecfdf5;color:#065f46;padding:10px;border-radius:8px;margin-bottom:12px;font-weight:700;">
       {{ session('success') }}
     </div>
+  @endif
+
+  @if(session('error'))
+    <div style="background:#fee2e2;color:#7f1d1b;padding:10px;border-radius:8px;margin-bottom:12px;font-weight:700;">
+      {{ session('error') }}
+    </div>
+  @endif
+
+  @if($errors->any())
+    <div style="background:#fee2e2;padding:10px;border-radius:8px;margin-bottom:12px;color:#991b1b;">
+      <ul style="margin:0;padding-left:18px;">
+        @foreach($errors->all() as $err)
+          <li>{{ $err }}</li>
+        @endforeach
+      </ul>
+    </div>
+  @endif
+
+  @if($currentUser && !$isAdmin && !empty($currentUser->bloqueo_tarjetas))
+    <div style="background:#fee2e2;color:#7f1d1b;padding:10px;border-radius:8px;margin-bottom:12px;font-weight:700;">
+      Tu cuenta está bloqueada para operaciones con tarjetas. Para agregar o asignar tarjetas debes contactar a soporte@ejemplo.com para que un administrador desbloquee tu cuenta.
+    </div>
+    <script>
+      document.addEventListener('DOMContentLoaded', function(){
+        // disable actions for blocked users
+        var ids = ['btn-new','btn-create-random','btn-assign-existing','btn-assign-confirm'];
+        ids.forEach(function(id){ var el = document.getElementById(id); if(el) el.disabled = true; });
+        // hide inline assign panels if present
+        var found = document.getElementById('found-card'); if(found) found.style.display = 'none';
+      });
+    </script>
   @endif
 
   @if($isAdmin)
@@ -591,11 +622,16 @@ document.addEventListener('DOMContentLoaded', function(){
 
   async function assignTarjetaToCurrent(tarjetaId) {
     try {
+      const payload = { usuario_id: currentUserId };
+      try {
+        const cvvEl = document.getElementById('found-cvv');
+        if (cvvEl && (cvvEl.value || '').trim()) payload.cvv = (cvvEl.value || '').trim();
+      } catch (e) {}
       const res = await fetch('/tarjetas/' + tarjetaId + '/assign', {
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': csrf, 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify({ usuario_id: currentUserId })
+        body: JSON.stringify(payload)
       });
       return res;
     } catch (err) { return null; }

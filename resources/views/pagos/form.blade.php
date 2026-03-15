@@ -12,6 +12,12 @@
 <div style="max-width:700px;margin:20px auto;padding:12px;">
   <h1>Pagar reservación</h1>
 
+  @if($currentUser && !$isAdmin && !empty($currentUser->bloqueo_tarjetas))
+    <div style="background:#fee2e2;color:#7f1d1b;padding:10px;border-radius:8px;margin-bottom:12px;font-weight:700;">
+      Tu cuenta está bloqueada para operaciones con tarjetas. Contacta a soporte@ejemplo.com para pedir que un administrador desbloquee tu cuenta.
+    </div>
+  @endif
+
   @if($errors->any())
     <div style="background:#fee2e2;padding:10px;border-radius:8px;margin-bottom:12px;color:#991b1b;">
       <ul>
@@ -70,7 +76,7 @@
 
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
       <a href="{{ route('reservaciones.index') }}" class="action-btn view">Cancelar</a>
-      <button type="submit" id="pay-submit" class="action-btn primary">Pagar ${{ number_format($total,2,',','.') }}</button>
+      <button type="submit" id="pay-submit" class="action-btn primary" @if($currentUser && !$isAdmin && !empty($currentUser->bloqueo_tarjetas)) disabled @endif>Pagar ${{ number_format($total,2,',','.') }}</button>
     </div>
   </form>
 </div>

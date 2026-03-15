@@ -132,6 +132,14 @@ class PaymentController extends Controller
 
         // Authorization: non-admin users may only pay for themselves
         $current = auth()->user();
+        // Prevent CVV-protected actions if user's tarjeta operations are blocked
+        if ($current && (($current->rol ?? '') !== 'admin')) {
+            if (!empty($current->bloqueo_tarjetas)) {
+                $msg = 'Tu cuenta está bloqueada para operaciones con tarjetas. Contacta al administrador.';
+                if ($request->wantsJson()) return response()->json(['message' => $msg], 403);
+                return back()->withInput()->withErrors(['cvv' => $msg]);
+            }
+        }
         if ($current && ($current->rol ?? '') !== 'admin') {
             if ($current->id != $usuarioId) {
                 if ($request->wantsJson()) return response()->json(['message' => 'No autorizado'], 403);
@@ -166,10 +174,21 @@ class PaymentController extends Controller
                     }
 
                     if (trim($tarjeta->cvv) !== trim($cvv)) {
-                        throw new \Exception('CVV incorrecto');
+                        // signal CVV mismatch to outer scope so we can persist attempts outside transaction
+                        throw new \Exception('CVV_MISMATCH');
                     }
 
-                    if (floatval($tarjeta->saldo) < $monto) {
+                        // Reset attempts on successful CVV check for the acting user
+                        $actingUser = auth()->user();
+                        if ($actingUser && (($actingUser->rol ?? '') !== 'admin')) {
+                            try {
+                                \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $actingUser->id)->update(['intentos_cvv' => 0]);
+                            } catch (\Throwable $e) {
+                                // ignore
+                            }
+                        }
+
+                        if (floatval($tarjeta->saldo) < $monto) {
                         throw new \Exception('Saldo insuficiente en la tarjeta');
                     }
 
@@ -227,6 +246,29 @@ class PaymentController extends Controller
 
         } catch (\Exception $e) {
             $msg = $e->getMessage() ?: 'Error procesando el pago';
+
+            // Handle CVV mismatch specifically: increment attempts outside transaction so it persists
+            if ($msg === 'CVV_MISMATCH') {
+                try {
+                    $acting = auth()->user();
+                    if ($acting && (($acting->rol ?? '') !== 'admin')) {
+                        \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $acting->id)->increment('intentos_cvv');
+                        $attempts = (int) \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $acting->id)->value('intentos_cvv');
+                        if ($attempts >= 5) {
+                            \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $acting->id)->update(['bloqueo_tarjetas' => true]);
+                            $msg = 'CVV incorrecto. Tu cuenta ha sido bloqueada después de varios intentos. Contacta al administrador.';
+                        } else {
+                            $remaining = max(0, 5 - $attempts);
+                            $msg = "CVV incorrecto. Te quedan {$remaining} intentos antes del bloqueo.";
+                        }
+                    } else {
+                        $msg = 'CVV incorrecto';
+                    }
+                } catch (\Throwable $ex) {
+                    $msg = 'CVV incorrecto';
+                }
+            }
+
             if ($request->wantsJson()) return response()->json(['message' => $msg], 400);
             return back()->withInput()->withErrors(['pagos' => $msg]);
         }
