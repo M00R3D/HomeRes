@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\TarjetaSimulada;
 use App\Models\User;
+use App\Models\Log;
 use Illuminate\Support\Facades\DB;
 
 class TarjetaSimuladaController extends Controller
@@ -37,6 +38,10 @@ class TarjetaSimuladaController extends Controller
 
         $data['saldo'] = $data['saldo'] ?? 0;
         $t = TarjetaSimulada::create($data);
+
+        try {
+            Log::entry('tarjeta', 'Tarjeta creada: #' . $t->id . ' ' . ($t->numero_tarjeta ?? ''), auth()->id(), 'tarjeta', $t->id);
+        } catch (\Throwable $e) {}
 
         // If requested, assign the created tarjeta to the authenticated user
         if ($request->filled('assign_to_user') && $request->user()) {
@@ -74,6 +79,10 @@ class TarjetaSimuladaController extends Controller
 
         $t->update($data);
 
+        try {
+            Log::entry('tarjeta', 'Tarjeta actualizada: #' . $t->id, auth()->id(), 'tarjeta', $t->id);
+        } catch (\Throwable $e) {}
+
         // If requested, assign the tarjeta to the authenticated user
         if ($request->filled('assign_to_user') && $request->user()) {
             $userId = $request->user()->id;
@@ -92,7 +101,9 @@ class TarjetaSimuladaController extends Controller
     {
         $t = TarjetaSimulada::find($id);
         if (!$t) return abort(404);
+        $num = $t->numero_tarjeta;
         $t->delete();
+        try { Log::entry('tarjeta', 'Tarjeta eliminada: #' . $id . ' ' . ($num ?? ''), auth()->id(), 'tarjeta', $id); } catch (\Throwable $e) {}
         return redirect()->back()->with('success','Tarjeta eliminada');
     }
 
@@ -115,10 +126,15 @@ class TarjetaSimuladaController extends Controller
         $t = TarjetaSimulada::find($id);
         if (!$t) return redirect()->back()->with('error','Tarjeta no encontrada');
 
+        $before = $t->saldo;
         DB::transaction(function() use ($t, $delta) {
             $t->saldo = round($t->saldo + $delta, 2);
             $t->save();
         });
+
+        try {
+            Log::entry('tarjeta', sprintf('Saldo modificado en tarjeta #%d: %s -> %s (delta %s). %s', $t->id, $before, $t->saldo, $delta, $note), auth()->id(), 'tarjeta', $t->id);
+        } catch (\Throwable $e) {}
 
         return redirect()->back()->with('success','Saldo actualizado');
     }
@@ -148,11 +164,13 @@ class TarjetaSimuladaController extends Controller
                             $attempts = (int) \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $current->id)->value('intentos_cvv');
                             if ($attempts >= 5) {
                                 \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $current->id)->update(['bloqueo_tarjetas' => true]);
+                                try { Log::entry('tarjeta', 'Asignación fallida por CVV - usuario bloqueado: usuario #' . $current->id . ' tarjeta #' . $t->id, $current->id, 'tarjeta', $t->id); } catch (\Throwable $e) {}
                                 return redirect()->back()->with('error','CVV incorrecto. Tu cuenta ha sido bloqueada. Contacta al administrador.');
                             }
                             $remaining = max(0, 5 - $attempts);
                             return redirect()->back()->with('error',"CVV incorrecto. Te quedan {$remaining} intentos antes del bloqueo.");
                         } catch (\Throwable $e) {
+                            try { Log::entry('tarjeta', 'Asignación fallida por CVV: usuario #' . ($current->id ?? 'anon') . ' tarjeta #' . $t->id, $current->id ?? null, 'tarjeta', $t->id); } catch (\Throwable $e) {}
                             return redirect()->back()->with('error','CVV incorrecto');
                         }
                     }
@@ -171,6 +189,7 @@ class TarjetaSimuladaController extends Controller
                 DB::table('usuarios')->where('id', $newUserId)->update(['id_tarjeta' => $t->id]);
             });
 
+            try { Log::entry('tarjeta', 'Tarjeta #' . $t->id . ' asignada a usuario #' . $newUserId, auth()->id(), 'tarjeta', $t->id); } catch (\Throwable $e) {}
             return redirect()->back()->with('success','Tarjeta asignada al usuario (usuarios.id_tarjeta actualizada)');
         }
         if (schemaHasColumn('tarjetas_simuladas', 'usuario_id')) {
@@ -189,6 +208,7 @@ class TarjetaSimuladaController extends Controller
                             $remaining = max(0, 5 - $attempts);
                             return redirect()->back()->with('error',"CVV incorrecto. Te quedan {$remaining} intentos antes del bloqueo.");
                         } catch (\Throwable $e) {
+                            try { Log::entry('tarjeta', 'Asignación fallida por CVV: usuario #' . ($current->id ?? 'anon') . ' tarjeta #' . $t->id, $current->id ?? null, 'tarjeta', $t->id); } catch (\Throwable $e) {}
                             return redirect()->back()->with('error','CVV incorrecto');
                         }
                     }
@@ -203,6 +223,7 @@ class TarjetaSimuladaController extends Controller
 
             $t->usuario_id = $request->usuario_id;
             $t->save();
+            try { Log::entry('tarjeta', 'Tarjeta #' . $t->id . ' asignada a usuario #' . $request->usuario_id, auth()->id(), 'tarjeta', $t->id); } catch (\Throwable $e) {}
             return redirect()->back()->with('success','Tarjeta asignada al usuario (tarjetas_simuladas.usuario_id actualizada)');
         }
         return redirect()->back()->with('error','Ni usuarios.id_tarjeta ni tarjetas_simuladas.usuario_id existen. Agrega una columna para guardar la asignación.');
@@ -259,6 +280,7 @@ class TarjetaSimuladaController extends Controller
         } while ($exists && $attempts < 20);
 
         if ($exists) {
+            try { Log::entry('tarjeta', 'Creación aleatoria fallida: no fue posible generar número único', auth()->id(), null, null); } catch (\Throwable $e) {}
             return response()->json(['error' => 'No fue posible generar un número único'], 500);
         }
 
@@ -275,6 +297,8 @@ class TarjetaSimuladaController extends Controller
             'cvv' => $cvv,
             'saldo' => 0,
         ]);
+
+        try { Log::entry('tarjeta', 'Tarjeta creada aleatoriamente: #' . $t->id . ' ' . ($t->numero_tarjeta ?? ''), auth()->id(), 'tarjeta', $t->id); } catch (\Throwable $e) {}
 
         if ($assign) {
             $userId = $request->user()->id;

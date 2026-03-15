@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Models\Propiedad;
+use App\Models\Log;
 use Carbon\Carbon; 
 
 class ReservationController extends Controller
@@ -90,6 +91,7 @@ class ReservationController extends Controller
                       ->where('check_out', '>', $newIn->toDateString());
                 })->exists();
             if ($overlap) {
+                try { Log::entry('reservacion', 'Creación fallida: fechas ocupadas para propiedad #' . $pId, auth()->id(), 'propiedad', $pId); } catch (\Throwable $e) {}
                 return back()->withInput()->withErrors(['check_in' => 'Las fechas seleccionadas están ocupadas para esa propiedad.']);
             }
         }
@@ -105,6 +107,8 @@ class ReservationController extends Controller
             'nota'         => $data['nota'] ?? null,
             'estado_pago'   => $data['estado_pago'] ?? 'pendiente',
         ]);
+
+        try { Log::entry('reservacion', 'Reservación creada: #' . $r->id, auth()->id(), 'propiedad', $r->propiedad_id); } catch (\Throwable $e) {}
 
         if ($request->wantsJson()) {
             return response()->json($r, 201);
@@ -176,6 +180,8 @@ class ReservationController extends Controller
             'usuario_id','propiedad_id','check_in','check_out','num_personas','total','estado','nota'
         ]));
 
+        try { Log::entry('reservacion', 'Reservación actualizada: #' . $r->id, auth()->id(), 'propiedad', $r->propiedad_id); } catch (\Throwable $e) {}
+
         if ($request->wantsJson()) {
             return response()->json($r);
         }
@@ -188,6 +194,7 @@ class ReservationController extends Controller
         $r = Reservation::find($id);
         if (!$r) return response()->json(['message' => 'Reservación no encontrada'], 404);
         $r->delete();
+        try { Log::entry('reservacion', 'Reservación eliminada: #' . $r->id, auth()->id(), 'propiedad', $r->propiedad_id); } catch (\Throwable $e) {}
 
         if (request()->wantsJson()) {
             return response()->json(['message' => 'Reservación eliminada']);
@@ -205,8 +212,10 @@ class ReservationController extends Controller
             'estado' => 'required|in:pendiente,confirmada,cancelada,completada',
         ]);
 
+        $old = $r->estado;
         $r->estado = $request->estado;
         $r->save();
+        try { Log::entry('reservacion', sprintf('Reservación #%d: estado cambiado %s -> %s', $r->id, $old, $r->estado), auth()->id(), 'reservacion', $r->id); } catch (\Throwable $e) {}
 
         if ($request->wantsJson()) {
             return response()->json($r);

@@ -56,7 +56,11 @@
       </form>
     </nav>
   </aside>
-
+  @if($isAdmin)
+  <nav style="padding:8px 12px;">
+    <a href="{{ route('admin.logs') }}" class="nav-item">Logs</a>
+  </nav>
+  @endif
   <div class="main">
     <header class="topbar">
       <button id="sidebar-toggle" class="icon-btn show-desktop" aria-label="Abrir menú">☰</button>

@@ -10,12 +10,14 @@ use App\Http\Controllers\ImageController;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Models\Propiedad;
+use App\Http\Controllers\LogController;
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
     Route::post('/register', [AuthController::class, 'register'])->name('register.post');
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
+Route::get('/admin/logs', [LogController::class, 'index'])->middleware('auth')->name('admin.logs');
 Route::get('/dashboard', function () {
     $reservaciones = Reservation::with(['user','propiedad'])->orderByDesc('created_at')->get();
     $usuarios = User::all();
