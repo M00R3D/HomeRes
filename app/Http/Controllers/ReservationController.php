@@ -71,6 +71,7 @@ class ReservationController extends Controller
             'total' => 'required|numeric',
             'estado' => 'nullable|in:pendiente,confirmada,cancelada,completada',
             'nota' => 'nullable|string|max:500',
+            'estado_pago' => 'nullable|in:pendiente,pagado,cancelado',
         ]);
 
         $data = $request->all();
@@ -102,6 +103,7 @@ class ReservationController extends Controller
             'total'        => $data['total'],
             'estado'       => $data['estado'] ?? 'pendiente',
             'nota'         => $data['nota'] ?? null,
+            'estado_pago'   => $data['estado_pago'] ?? 'pendiente',
         ]);
 
         if ($request->wantsJson()) {

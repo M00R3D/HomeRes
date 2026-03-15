@@ -17,7 +17,8 @@ class Payment extends Model
         'monto',
         'metodo_pago',
         'estado',
-        'fecha_pago'
+        'fecha_pago',
+        'usuario_id',
     ];
     public $timestamps = false;
 

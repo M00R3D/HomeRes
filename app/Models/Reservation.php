@@ -19,7 +19,8 @@ class Reservation extends Model
         'num_personas',
         'total',
         'estado',
-        'nota'
+        'nota',
+        'estado_pago',
     ];
 
     public $timestamps = true;

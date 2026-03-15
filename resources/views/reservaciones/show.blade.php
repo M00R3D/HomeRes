@@ -15,6 +15,11 @@
       @if($isAdmin)
         <button id="btn-edit" class="btn-edit" type="button">Editar</button>
       @endif
+
+      @php $canPay = (($r->estado ?? '') === 'pendiente' || ($r->estado ?? '') === 'confirmada') && (($r->estado_pago ?? '') !== 'pagado'); @endphp
+      @if($canPay && ( $isAdmin || ($currentUser && ($currentUser->id ?? null) === ($r->usuario_id ?? null)) ))
+        <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar</a>
+      @endif
     </div>
   </div>
 

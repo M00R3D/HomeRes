@@ -244,10 +244,11 @@
           <div style="display:flex;gap:12px;align-items:flex-start;">
             <div style="flex:1;">
               <div style="font-weight:800">{{ Str::limit($myTarjeta->nombre,40) }}</div>
-              <div class="small">Número: <span class="mask">{{ preg_replace('/\D/','', $myTarjeta->numero_tarjeta ?? '') ? '**** **** **** ' . substr(preg_replace('/\D/','', $myTarjeta->numero_tarjeta ?? ''), -4) : '-' }}</span></div>
+              <div class="small">Número: <span class="mask">{{  $myTarjeta->numero_tarjeta }}</span></div>
               <div class="small">Expiración: {{ $myTarjeta->expiracion ?? '-' }}</div>
               <div class="small">Saldo: ${{ number_format($myTarjeta->saldo ?? 0,2,',','.') }}</div>
               <div class="small" style="margin-top:8px;color:#6b7280;">Si necesitas más saldo, un administrador puede agregarlo a tu tarjeta.</div>
+              <div class="small" style="margin-top:8px;color:#6b7280;">El CVV de tu tarjeta es {{ $myTarjeta->cvv ?? 'N/A' }}.</div>
             </div>
             <div style="min-width:220px;text-align:right">
               <button id="btn-edit-my" class="btn">Cambiar tarjeta</button>

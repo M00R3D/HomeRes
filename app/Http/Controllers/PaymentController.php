@@ -7,6 +7,9 @@ use Illuminate\Http\Request;
 use App\Models\Payment;
 use App\Models\Reservation;
 use App\Models\TarjetaSimulada;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 class PaymentController extends Controller
 {
@@ -49,6 +52,36 @@ class PaymentController extends Controller
         return view('pagos.show', ['payment' => $p]);
     }
 
+    /**
+     * Mostrar formulario de pago para una reservación (público autenticado / admin)
+     */
+    public function form(Request $request, $id)
+    {
+        $reservacion = Reservation::find($id);
+        if (!$reservacion) return abort(404);
+
+        $current = auth()->user();
+        $isAdmin = $current && (($current->rol ?? '') === 'admin');
+
+        // Non-admin users: only allow paying with their assigned card. If they have none, redirect to tarjetas index.
+        if (!$isAdmin) {
+            if (!$current) return redirect()->route('login');
+            // if user has no assigned card, redirect to tarjetas
+            if (empty($current->id_tarjeta)) {
+                return redirect()->route('tarjetas.index')->with('success', 'No tienes una tarjeta asociada. Agrega una para poder pagar.');
+            }
+            $tarjetas = TarjetaSimulada::where('id', $current->id_tarjeta)->get();
+        } else {
+            // admin may choose any tarjeta
+            $tarjetas = TarjetaSimulada::orderByDesc('id')->get();
+        }
+
+        return view('pagos.form', [
+            'reservacion' => $reservacion,
+            'tarjetas' => $tarjetas,
+        ]);
+    }
+
     public function update(Request $request, $id)
     {
         $p = Payment::find($id);
@@ -75,5 +108,127 @@ class PaymentController extends Controller
         $p->delete();
         if ($request->wantsJson()) return response()->json(['message'=>'Eliminado']);
         return redirect()->route('pagos.index')->with('success','Pago eliminado');
+    }
+
+    /**
+     * Procesar pago desde el formulario público/administración
+     */
+    public function procesarPago(Request $request)
+    {
+        $request->validate([
+            'reservacion_id' => 'required|exists:reservaciones,id',
+            'tarjeta_id' => 'nullable|exists:tarjetas_simuladas,id',
+            'usuario_id' => 'required|exists:usuarios,id',
+            'monto' => 'required|numeric|min:0.01',
+            'metodo_pago' => 'required|string|in:tarjeta,efectivo',
+            'cvv' => 'nullable|string',
+        ]);
+
+        $reservacionId = $request->input('reservacion_id');
+        $tarjetaId = $request->input('tarjeta_id');
+        $usuarioId = $request->input('usuario_id');
+        $monto = floatval($request->input('monto'));
+        $metodo = $request->input('metodo_pago');
+
+        // Authorization: non-admin users may only pay for themselves
+        $current = auth()->user();
+        if ($current && ($current->rol ?? '') !== 'admin') {
+            if ($current->id != $usuarioId) {
+                if ($request->wantsJson()) return response()->json(['message' => 'No autorizado'], 403);
+                abort(403);
+            }
+        }
+
+        // Procesamiento por método
+        try {
+            if ($metodo === 'tarjeta') {
+                if (empty($tarjetaId)) {
+                    return back()->withInput()->withErrors(['tarjeta_id' => 'Selecciona una tarjeta para pagar.']);
+                }
+
+                $cvv = $request->input('cvv');
+                if (empty($cvv)) {
+                    return back()->withInput()->withErrors(['cvv' => 'CVV requerido para pagos con tarjeta.']);
+                }
+
+                $result = DB::transaction(function() use ($tarjetaId, $monto, $cvv, $usuarioId, $reservacionId, $metodo) {
+                    $tarjeta = TarjetaSimulada::where('id', $tarjetaId)->lockForUpdate()->first();
+                    if (!$tarjeta) throw new \Exception('Tarjeta no encontrada');
+
+                    // If current user is not admin, ensure the tarjeta belongs to the reservation's usuario (ownership)
+                    $user = User::find($usuarioId);
+                    $currentUser = auth()->user();
+                    $isCurrentAdmin = $currentUser && (($currentUser->rol ?? '') === 'admin');
+                    if (! $isCurrentAdmin) {
+                        if ($user && !empty($user->id_tarjeta) && $user->id_tarjeta != $tarjeta->id) {
+                            throw new \Exception('La tarjeta seleccionada no pertenece al usuario.');
+                        }
+                    }
+
+                    if (trim($tarjeta->cvv) !== trim($cvv)) {
+                        throw new \Exception('CVV incorrecto');
+                    }
+
+                    if (floatval($tarjeta->saldo) < $monto) {
+                        throw new \Exception('Saldo insuficiente en la tarjeta');
+                    }
+
+                    // Debitar
+                    $tarjeta->saldo = round(floatval($tarjeta->saldo) - $monto, 2);
+                    $tarjeta->save();
+
+                    // Crear pago
+                    $p = Payment::create([
+                        'reservacion_id' => $reservacionId,
+                        'tarjeta_id' => $tarjeta->id,
+                        'monto' => $monto,
+                        'metodo_pago' => $metodo,
+                        'estado' => 'pagado',
+                        'fecha_pago' => Carbon::now(),
+                        'usuario_id' => $usuarioId,
+                    ]);
+
+                    // Actualizar reservación
+                    $r = Reservation::find($reservacionId);
+                    if ($r) {
+                        $r->estado_pago = 'pagado';
+                        if (($r->estado ?? '') !== 'confirmada') $r->estado = 'confirmada';
+                        $r->save();
+                    }
+
+                    return $p;
+                });
+
+                if ($request->wantsJson()) return response()->json($result);
+                return redirect()->route('reservaciones.show', $reservacionId)->with('success', 'Pago realizado correctamente');
+
+            } else {
+                // Efectivo u otros métodos: crear pago y marcar reservación
+                $p = Payment::create([
+                    'reservacion_id' => $reservacionId,
+                    'tarjeta_id' => null,
+                    'monto' => $monto,
+                    'metodo_pago' => $metodo,
+                    'estado' => 'pagado',
+                    'fecha_pago' => Carbon::now(),
+                    'usuario_id' => $usuarioId,
+                ]);
+
+                $r = Reservation::find($reservacionId);
+                if ($r) {
+                    $r->estado_pago = 'pagado';
+                    if (($r->estado ?? '') !== 'confirmada') $r->estado = 'confirmada';
+                    $r->save();
+                }
+
+                if ($request->wantsJson()) return response()->json($p);
+                return redirect()->route('reservaciones.show', $reservacionId)->with('success', 'Pago registrado (efectivo)');
+            }
+
+        } catch (\Exception $e) {
+            $msg = $e->getMessage() ?: 'Error procesando el pago';
+            if ($request->wantsJson()) return response()->json(['message' => $msg], 400);
+            return back()->withInput()->withErrors(['pagos' => $msg]);
+        }
     }
 }

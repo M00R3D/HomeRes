@@ -388,6 +388,8 @@
                     <div class="btn-group-col">
                       <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn view">Ver</a>
 
+                      <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar</a>
+
                       <a href="{{ route('reservaciones.edit', $r->id) }}" class="action-btn primary">Editar</a>
 
                       <form method="POST" action="{{ route('reservaciones.destroy', $r->id) }}" style="display:inline;">
@@ -400,7 +402,9 @@
                     <div class="btn-group-col">
                       <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn view">Ver</a>
 
-                      @if(in_array($r->estado, ['pendiente','confirmada']))
+                      @if(in_array($r->estado, ['pendiente','confirmada']) && (($r->estado_pago ?? '') !== 'pagado'))
+                        <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar</a>
+
                         <form method="POST" action="{{ route('reservaciones.changeEstado', $r->id) }}" class="request-cancel-form" style="display:inline;">
                           @csrf
                           <input type="hidden" name="estado" value="cancelada" />
