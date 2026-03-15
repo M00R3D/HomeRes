@@ -28,6 +28,9 @@
             <th>Nombre</th>
             <th>Apellido</th>
             <th>Email</th>
+            <th>Tarjeta</th>
+            <th>Intentos CVV</th>
+            <th>Bloqueo</th>
             <th>Rol</th>
             <th>Área</th>
             <th>Acciones</th>
@@ -39,28 +42,23 @@
               <td>{{ $user->nombre }}</td>
               <td>{{ $user->apellido }}</td>
               <td>{{ $user->email }}</td>
+              <td>{{ optional($user->tarjeta)->numero_tarjeta ?? '-' }}</td>
+              <td>{{ $user->intentos_cvv ?? 0 }}</td>
+              <td>{{ ($user->bloqueo_tarjetas ?? false) ? 'Bloqueado' : 'Activo' }}</td>
               <td>{{ $user->rol }}</td>
               <td>{{ $user->area ?? '-' }}</td>
               <td>
                 <div class="btn-group">
-                  <button
-                    class="action-btn edit"
-                    data-edit
-                    data-id="{{ $user->id }}"
-                    data-nombre="{{ e($user->nombre) }}"
-                    data-apellido="{{ e($user->apellido) }}"
-                    data-email="{{ e($user->email) }}"
-                    data-rol="{{ $user->rol }}"
-                    data-area="{{ e($user->area) }}"
-                    data-update-url="{{ route('users.update', $user->id) }}"
-                    type="button"
-                  >
-                    Editar</button>
+                  <a class="action-btn edit" href="{{ route('users.edit', $user->id) }}">Editar</a>
 
                   <form method="POST" action="{{ route('users.destroy', $user->id) }}" style="display:inline">
                     @csrf
                     @method('DELETE')
                     <button class="action-btn delete" type="submit" data-confirm="¿Borrar usuario {{ addslashes($user->nombre) }}?">Borrar</button>
+                  </form>
+                  <form method="POST" action="{{ route('users.toggleBloqueo', $user->id) }}" style="display:inline;margin-left:8px;">
+                    @csrf
+                    <button class="action-btn" type="submit">{{ ($user->bloqueo_tarjetas ?? false) ? 'Quitar bloqueo' : 'Bloquear pagos' }}</button>
                   </form>
                 </div>
               </td>
@@ -103,35 +101,7 @@
     </div>
   </div>
 
-  <div id="modal-edit" class="modal" aria-hidden="true">
-    <div class="modal-backdrop" data-close></div>
-    <div class="modal-panel">
-      <button class="modal-close" data-close>✕</button>
-      <h3>Editar usuario</h3>
-
-      <form id="form-edit" method="POST" action="#" class="form">
-        @csrf
-        @method('PUT')
-        <label class="field"><span class="label-text">Nombre</span><input id="e-nombre" name="nombre" required /></label>
-        <label class="field"><span class="label-text">Apellido</span><input id="e-apellido" name="apellido" /></label>
-        <label class="field"><span class="label-text">Email</span><input id="e-email" type="email" name="email" required /></label>
-        <label class="field"><span class="label-text">Nueva contraseña (dejar vacío para mantener)</span><input id="e-password" type="password" name="password" /></label>
-        <label class="field"><span class="label-text">Rol</span>
-          <select id="e-rol" name="rol">
-            <option value="cliente">cliente</option>
-            <option value="recepcionista">recepcionista</option>
-            <option value="admin">admin</option>
-          </select>
-        </label>
-        <label class="field"><span class="label-text">Área</span><input id="e-area" name="area" /></label>
-
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-          <button class="btn" type="submit">Guardar</button>
-          <button type="button" class="btn btn-danger" data-close>Cancelar</button>
-        </div>
-      </form>
-    </div>
-  </div>
+  <!-- Admin edit page used instead of inline modal -->
 
   <div id="confirm-overlay" class="confirm-overlay" aria-hidden="true" style="display:none;">
     <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">

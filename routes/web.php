@@ -25,6 +25,7 @@ Route::get('/dashboard', function () {
 })->middleware('auth')->name('dashboard');
 Route::middleware('auth')->group(function () {
     Route::resource('users', UserController::class)->names('users');
+    Route::post('users/{id}/toggle-bloqueo', [UserController::class, 'toggleBloqueo'])->name('users.toggleBloqueo');
     Route::resource('propiedades', PropiedadController::class)->names('propiedades');
     Route::get('propiedades/{id}', [PropiedadController::class, 'show'])->name('propiedades.show');
     Route::get('propiedades/{id}/edit', [PropiedadController::class, 'edit'])->name('propiedades.edit');

@@ -53,4 +53,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Notification::class, 'usuario_id', 'id');
     }
+
+    public function tarjeta()
+    {
+        return $this->belongsTo(\App\Models\TarjetaSimulada::class, 'id_tarjeta', 'id');
+    }
 }
