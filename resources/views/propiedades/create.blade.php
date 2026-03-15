@@ -231,18 +231,31 @@ document.addEventListener('DOMContentLoaded', function(){
     async function loadDirs(){
       try {
         const resp = await fetch("{{ route('images.dirs') }}", { credentials:'same-origin' });
-        const data = await resp.json(); dirContainer.innerHTML = '';
-        data.dirs.forEach(d=>{ const b=document.createElement('button'); b.type='button'; b.textContent=d; b.className='folder-item'; b.style='text-align:left;padding:8px;border-radius:8px;border:1px solid #eef2f7;background:#fff;'; b.addEventListener('click', function(){ currentFolder = d; folderInput.value = d; loadFiles(d); selection.textContent = d; }); dirContainer.appendChild(b); });
-      } catch(e){ console.error(e); }
+        const data = await resp.json().catch(()=>({})); dirContainer.innerHTML = '';
+        // support two response shapes: { dirs: [...] } or { folders: [{name, images}, ...] }
+        let dirs = [];
+        if (Array.isArray(data.dirs)) dirs = data.dirs;
+        else if (Array.isArray(data.folders)) dirs = data.folders.map(f=>f.name);
+        dirs.forEach(d=>{ const b=document.createElement('button'); b.type='button'; b.textContent=d; b.className='folder-item'; b.setAttribute('data-folder', d); b.style='text-align:left;padding:8px;border-radius:8px;border:1px solid #eef2f7;background:#fff;'; b.addEventListener('click', function(){ currentFolder = d; folderInput.value = d; loadFiles(d); selection.textContent = d; }); dirContainer.appendChild(b); });
+        if (Array.isArray(data.folders)) {
+          data.folders.forEach(fobj=>{
+            if (!fobj.name || !Array.isArray(fobj.images) || fobj.images.length===0) return;
+            const btn = dirContainer.querySelector("button[data-folder='"+fobj.name+"']");
+            if (btn) {
+              const info = document.createElement('div'); info.style='font-size:12px;color:#6b7280;margin-top:4px;'; info.textContent = fobj.images.length + ' imagen(es)'; btn.appendChild(info);
+            }
+          });
+        }
+      } catch(e){ console.error('loadDirs error', e); }
     }
 
     async function loadFiles(folder){
       currentFolder = folder;
       try{
         const resp = await fetch("{{ route('images.list') }}?folder="+encodeURIComponent(folder), { credentials:'same-origin' });
-        const data = await resp.json(); filesContainer.innerHTML = '';
+        const data = await resp.json().catch(()=>({})); filesContainer.innerHTML = '';
         // render subfolders first
-        if (data.dirs && data.dirs.length) {
+        if (Array.isArray(data.dirs) && data.dirs.length) {
           data.dirs.forEach(sd=>{
             const fwrap = document.createElement('div');
             fwrap.style = 'display:flex;align-items:center;justify-content:center;height:100px;border-radius:8px;background:#fff;border:1px dashed #e6eef6;cursor:pointer;';
@@ -251,7 +264,7 @@ document.addEventListener('DOMContentLoaded', function(){
             filesContainer.appendChild(fwrap);
           });
         }
-        (data.files||[]).forEach(fname=>{
+        (Array.isArray(data.files) ? data.files : []).forEach(fname=>{
           const wrap = document.createElement('div'); wrap.style='position:relative;border-radius:8px;overflow:hidden;background:#f8fafc;';
           const img = document.createElement('img'); img.src = '/' + folder + '/' + fname; img.style='width:100%;height:100px;object-fit:cover;display:block;cursor:pointer;';
           img.addEventListener('click', function(){ selectedFile = folder + '/' + fname; selection.textContent = selectedFile; });
