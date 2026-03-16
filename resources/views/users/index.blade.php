@@ -38,13 +38,13 @@
         </thead>
         <tbody>
           @forelse($users ?? [] as $user)
-            <tr>
+            <tr data-user-id="{{ $user->id }}">
               <td>{{ $user->nombre }}</td>
               <td>{{ $user->apellido }}</td>
               <td>{{ $user->email }}</td>
               <td>{{ optional($user->tarjeta)->numero_tarjeta ?? '-' }}</td>
               <td>{{ $user->intentos_cvv ?? 0 }}</td>
-              <td>{{ ($user->bloqueo_tarjetas ?? false) ? 'Bloqueado' : 'Activo' }}</td>
+              <td class="col-bloqueo">{{ ($user->bloqueo_tarjetas ?? false) ? 'Bloqueado' : 'Activo' }}</td>
               <td>{{ $user->rol }}</td>
               <td>{{ $user->area ?? '-' }}</td>
               <td>
@@ -56,7 +56,7 @@
                     @method('DELETE')
                     <button class="action-btn delete" type="submit" data-confirm="¿Borrar usuario {{ addslashes($user->nombre) }}?">Borrar</button>
                   </form>
-                  <form method="POST" action="{{ route('users.toggleBloqueo', $user->id) }}" style="display:inline;margin-left:8px;">
+                  <form method="POST" action="{{ route('users.toggleBloqueo', $user->id) }}" style="display:inline;margin-left:8px;" data-ajax-toggle>
                     @csrf
                     <button class="action-btn" type="submit">{{ ($user->bloqueo_tarjetas ?? false) ? 'Quitar bloqueo' : 'Bloquear pagos' }}</button>
                   </form>
@@ -181,6 +181,57 @@
       confirmOverlay.addEventListener('click', function(e){ if(e.target === confirmOverlay) { pendingForm = null; hide(confirmOverlay); } });
       document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ pendingForm = null; hide(confirmOverlay); }});
       document.addEventListener('keydown', function(e){ if(e.key === 'Escape'){ hide(modalNew); hide(modalEdit); }});
+    })();
+
+    (function(){
+      const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+      document.querySelectorAll('form[data-ajax-toggle]').forEach(form => {
+        form.addEventListener('submit', function(e){
+          e.preventDefault();
+          const url = form.action;
+          fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({})
+          }).then(async r => {
+            const ct = (r.headers.get('content-type') || '').toLowerCase();
+            let body = null;
+            if (ct.includes('application/json')) {
+              try {
+                body = await r.json();
+              } catch (e) {
+                body = null;
+              }
+            } else {
+              // not JSON (likely HTML login/CSRF page or error). capture text for debugging.
+              try { body = await r.text(); } catch (e) { body = null; }
+            }
+            return { status: r.status, body };
+          }).then(res => {
+            // If server returned HTML (e.g. login page), redirect to login/refresh so user can re-authenticate
+            if (typeof res.body === 'string' && res.body.trim().startsWith('<!doctype')) {
+              window.location.reload();
+              return;
+            }
+
+            if (res.status === 200 && res.body && typeof res.body === 'object') {
+              // update row UI
+              const tr = form.closest('tr[data-user-id]');
+              if (tr) {
+                const bloqueoCell = tr.querySelector('.col-bloqueo');
+                if (bloqueoCell) bloqueoCell.textContent = res.body.bloqueo_tarjetas ? 'Bloqueado' : 'Activo';
+                const intentosCell = tr.querySelector('td:nth-child(5)');
+                if (intentosCell && typeof res.body.intentos_cvv !== 'undefined') intentosCell.textContent = res.body.intentos_cvv;
+                const btn = form.querySelector('button');
+                if (btn) btn.textContent = res.body.bloqueo_tarjetas ? 'Quitar bloqueo' : 'Bloquear pagos';
+              }
+            } else {
+              const msg = (res.body && res.body.message) ? res.body.message : (typeof res.body === 'string' ? res.body : 'Error al actualizar bloqueo');
+              alert(msg);
+            }
+          }).catch(err => { console.error(err); alert('Error de red'); });
+        });
+      });
     })();
   </script>
 @endsection

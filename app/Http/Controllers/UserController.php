@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Log;
 use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
@@ -40,6 +41,8 @@ class UserController extends Controller
         // reload model for response
         $u->refresh();
 
+        try { Log::entry('usuario', 'Bloqueo ' . ($new ? 'activado' : 'removido') . ' para usuario #' . $u->id, $actor->id, 'usuario', $u->id); } catch (\Throwable $e) {}
+
         if ($request->wantsJson()) return response()->json(['bloqueo_tarjetas' => (bool)$new, 'intentos_cvv' => $u->intentos_cvv]);
 
         return redirect()->route('users.index')->with('success', $new ? 'Pagos con tarjeta bloqueados para usuario' : 'Bloqueo de pagos con tarjeta removido');
@@ -57,6 +60,8 @@ class UserController extends Controller
         ]);
         $data = $request->only(['nombre','apellido','email','password','rol','area']);
         $user = User::create($data);
+
+        try { Log::entry('usuario', 'Usuario creado: #' . $user->id . ' ' . ($user->email ?? ''), auth()->id(), 'usuario', $user->id); } catch (\Throwable $e) {}
 
         if ($request->wantsJson()) {
             return response()->json($user, 201);
@@ -123,6 +128,8 @@ class UserController extends Controller
             DB::table('usuarios')->where('id', $u->id)->update($direct);
         }
 
+        try { Log::entry('usuario', 'Usuario actualizado: #' . $u->id, $actor->id ?? auth()->id(), 'usuario', $u->id); } catch (\Throwable $e) {}
+
         if ($request->wantsJson()) return response()->json($u);
 
         return redirect()->route('users.index')->with('success', 'Usuario actualizado');
@@ -150,7 +157,9 @@ class UserController extends Controller
             abort(404);
         }
 
+        $uid = $u->id;
         $u->delete();
+        try { Log::entry('usuario', 'Usuario eliminado: #' . $uid, auth()->id(), 'usuario', $uid); } catch (\Throwable $e) {}
 
         if ($request->wantsJson()) return response()->json(['message' => 'Usuario eliminado']);
 
@@ -169,6 +178,8 @@ class UserController extends Controller
         $u->rol = $request->rol;
         if ($request->filled('area')) $u->area = $request->area;
         $u->save();
+
+        try { Log::entry('usuario', 'Rol cambiado para usuario #' . $u->id . ' a ' . $u->rol, auth()->id(), 'usuario', $u->id); } catch (\Throwable $e) {}
 
         return response()->json($u);
     }
