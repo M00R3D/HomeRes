@@ -165,6 +165,12 @@ class ReservationController extends Controller
         $r = Reservation::find($id);
         if (!$r) return response()->json(['message' => 'Reservación no encontrada'], 404);
 
+        $actor = auth()->user();
+        if (! $actor || ($actor->rol ?? '') !== 'admin') {
+            if ($request->wantsJson()) return response()->json(['message' => 'No autorizado'], 403);
+            abort(403);
+        }
+
         $request->validate([
             'usuario_id' => 'sometimes|exists:usuarios,id',
             'propiedad_id' => 'sometimes|exists:propiedades,id',
@@ -173,12 +179,14 @@ class ReservationController extends Controller
             'num_personas' => 'sometimes|integer|min:1',
             'total' => 'sometimes|numeric',
             'estado' => 'sometimes|in:pendiente,confirmada,cancelada,completada',
+            'estado_pago' => 'sometimes|in:pendiente,pagado,parcial,fallido,failed',
             'nota' => 'nullable|string|max:500',
         ]);
 
-        $r->update($request->only([
-            'usuario_id','propiedad_id','check_in','check_out','num_personas','total','estado','nota'
-        ]));
+        $fields = $request->only([
+            'usuario_id','propiedad_id','check_in','check_out','num_personas','total','estado','nota','estado_pago'
+        ]);
+        $r->update($fields);
 
         try { Log::entry('reservacion', 'Reservación actualizada: #' . $r->id, auth()->id(), 'propiedad', $r->propiedad_id); } catch (\Throwable $e) {}
 

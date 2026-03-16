@@ -21,6 +21,25 @@
         <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar</a>
       @endif
     </div>
+
+    {{-- Payment status strip (smooth, colorful) --}}
+    @php
+      $ep = strtolower(trim((string)($r->estado_pago ?? 'pendiente')));
+      if ($ep === 'pagado') { $stripBg = 'linear-gradient(90deg,#10b981,#059669)'; $epLabel = 'Pagado'; }
+      elseif ($ep === 'pendiente') { $stripBg = 'linear-gradient(90deg,#f59e0b,#f97316)'; $epLabel = 'Pendiente'; }
+      elseif ($ep === 'fallido' || $ep === 'failed') { $stripBg = 'linear-gradient(90deg,#ef4444,#dc2626)'; $epLabel = 'Fallido'; }
+      elseif ($ep === 'parcial') { $stripBg = 'linear-gradient(90deg,#6366f1,#06b6d4)'; $epLabel = 'Parcial'; }
+      else { $stripBg = '#6b7280'; $epLabel = ucfirst($ep ?: 'Pendiente'); }
+    @endphp
+
+    <div style="margin-bottom:12px;">
+      <div style="height:12px;border-radius:12px;overflow:hidden;background:transparent;box-shadow:0 6px 18px rgba(2,6,23,0.04);transition:all .36s ease;">
+        <div style="height:12px;width:100%;background:{{ $stripBg }};transition:background .36s ease;"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+        <span style="display:inline-flex;align-items:center;padding:6px 12px;border-radius:999px;background:rgba(0,0,0,0.04);font-weight:800;color:#0f172a;font-size:0.9rem;">Estado pago: <span style="margin-left:8px;padding:6px 10px;border-radius:999px;color:#fff;background:{{ $stripBg }};font-weight:900;">{{ $epLabel }}</span></span>
+      </div>
+    </div>
   </div>
 
   @php

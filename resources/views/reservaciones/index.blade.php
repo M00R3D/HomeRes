@@ -144,6 +144,14 @@
 
 .muted{ color:var(--muted); }
 .small{ font-size:0.9rem;color:var(--muted); }
+
+/* Payment status badges */
+.pay-badge{ display:inline-block;padding:6px 10px;border-radius:999px;font-weight:800;color:#fff;font-size:0.85rem; }
+.pay-pagado{ background:linear-gradient(90deg,#10b981,#059669); }
+.pay-pendiente{ background:linear-gradient(90deg,#f59e0b,#f97316); }
+.pay-fallido{ background:linear-gradient(90deg,#ef4444,#dc2626); }
+.pay-parcial{ background:linear-gradient(90deg,#6366f1,#06b6d4); }
+.pay-unknown{ background:#6b7280; }
 </style>
 
 <div class="container">
@@ -265,6 +273,7 @@
               <th>Fechas</th>
               <th>Total</th>
               <th>Estado</th>
+              <th>Estado pago</th>
               <th>Acciones</th>
               <th style="width:200px">Cambiar estado</th>
             </tr>
@@ -380,6 +389,21 @@
                   @elseif(($r->estado ?? '') === 'confirmada') <span class="badge badge-confirmada">Confirmada</span>
                   @elseif(($r->estado ?? '') === 'cancelada') <span class="badge badge-cancelada">Cancelada</span>
                   @else <span class="badge">{{ $r->estado }}</span>
+                  @endif
+                </td>
+
+                <td style="vertical-align:middle;">
+                  @php $ep = strtolower(trim((string)($r->estado_pago ?? 'pendiente'))); @endphp
+                  @if($ep === 'pagado')
+                    <span class="pay-badge pay-pagado">Pagado</span>
+                  @elseif($ep === 'pendiente')
+                    <span class="pay-badge pay-pendiente">Pendiente</span>
+                  @elseif($ep === 'fallido' || $ep === 'failed')
+                    <span class="pay-badge pay-fallido">Fallido</span>
+                  @elseif($ep === 'parcial')
+                    <span class="pay-badge pay-parcial">Parcial</span>
+                  @else
+                    <span class="pay-badge pay-unknown">{{ ucfirst($ep ?: 'Pendiente') }}</span>
                   @endif
                 </td>
 
