@@ -3,183 +3,154 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Notification;
-use App\Models\User;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use App\Models\AuditLog;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\DB;
 
 class NotificationController extends Controller
 {
-    private function getEnumValues(string $table, string $column): array
+    public function __construct()
     {
-        $row = DB::selectOne('SHOW COLUMNS FROM `' . $table . '` WHERE Field = ?', [$column]);
-        if (!$row || empty($row->Type)) return [];
-        if (preg_match("/^enum\((.*)\)$/i", $row->Type, $matches)) {
-            $vals = str_getcsv($matches[1], ',', "'");
-            return array_map(fn($v)=> trim($v, "'\""), $vals);
-        }
-        return [];
+        $this->middleware('auth');
     }
 
+    // Web page: list notifications (paginated)
     public function index(Request $request)
     {
-        if ($request->wantsJson()) {
-            return response()->json(Notification::all());
-        }
-        $notificaciones = Notification::with('user')->get();
-        $usuarios = User::all();
+        $user = Auth::user();
+        $query = DatabaseNotification::where('notifiable_type', get_class($user))
+            ->where('notifiable_id', $user->id);
 
-        return view('notificaciones.index', compact('notificaciones', 'usuarios'));
+        if ($request->filled('filter') && $request->filter === 'unread') {
+            $query->whereNull('read_at');
+        }
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+        if ($request->filled('date_from')) {
+            $query->where('created_at', '>=', $request->date_from);
+        }
+        $perPage = (int) $request->get('per_page', 20);
+        $notifs = $query->orderByDesc('created_at')->paginate($perPage);
+
+        return view('notifications.index', ['notifications' => $notifs]);
     }
 
-    public function store(Request $request)
+    // Return unread count JSON
+    public function count(Request $request)
     {
-        $request->validate([
-            'usuario_id' => 'nullable|exists:usuarios,id',
-            'reservacion_id' => 'nullable|exists:reservaciones,id',
-            'propiedad_id' => 'nullable|exists:propiedades,id',
-            'estado' => 'nullable|in:cerrada,abierta,vista',
-            'tipo' => 'nullable|string',
-            'descripcion' => 'required|string|max:500',
-            'fecha_creacion' => 'nullable|date',
-            'fecha_visto' => 'nullable|date',
-        ]);
-
-        $data = $request->only([
-            'usuario_id','reservacion_id','propiedad_id','estado','tipo','descripcion','fecha_creacion','fecha_visto'
-        ]);
-        if (isset($data['id_usuario'])) {
-            $data['usuario_id'] = $data['id_usuario'];
-            unset($data['id_usuario']);
-        }
-        foreach ($data as $k => $v) {
-            if (is_string($v) && trim($v) === '') {
-                $data[$k] = null;
-            }
-        }
-        $dbEnumTypes = $this->getEnumValues('notificaciones', 'tipo');
-        $allowedTypes = !empty($dbEnumTypes)
-            ? $dbEnumTypes
-            : ['info','confirmacion','pago','alerta','mantenimiento','prueba','aprobada','rechazada','otra'];
-        $allowedEstados = ['cerrada','abierta','vista'];
-        if (empty($data['estado']) || !in_array($data['estado'], $allowedEstados, true)) {
-            $data['estado'] = 'cerrada';
-        }
-        if (empty($data['tipo']) || !in_array($data['tipo'], $allowedTypes, true)) {
-            $data['tipo'] = in_array('info', $allowedTypes, true) ? 'info' : ($allowedTypes[0] ?? 'info');
-        }
-        if (!empty($data['fecha_visto'])) {
-            try {
-                $dt = Carbon::parse(str_replace('T', ' ', $data['fecha_visto']));
-                $data['fecha_visto'] = $dt->format('Y-m-d H:i:s');
-            } catch (\Exception $e) {
-                $data['fecha_visto'] = null;
-            }
-        } else {
-            $data['fecha_visto'] = null;
-        }
-        if (empty($data['fecha_creacion'])) {
-            $data['fecha_creacion'] = Carbon::now()->format('Y-m-d H:i:s');
-        } else {
-            try {
-                $data['fecha_creacion'] = Carbon::parse($data['fecha_creacion'])->format('Y-m-d H:i:s');
-            } catch (\Exception $e) {
-                $data['fecha_creacion'] = Carbon::now()->format('Y-m-d H:i:s');
-            }
-        }
-        if (empty($data['usuario_id'])) {
-            $data['usuario_id'] = null;
-        }
-
-        $notification = Notification::create($data);
-
-        if ($request->wantsJson()) {
-            return response()->json($notification, 201);
-        }
-
-        return redirect('/notificaciones')->with('success', 'Notificación creada.');
+        $user = Auth::user();
+        $count = DatabaseNotification::where('notifiable_type', get_class($user))
+            ->where('notifiable_id', $user->id)
+            ->whereNull('read_at')
+            ->count();
+        return response()->json(['unread_count' => $count]);
     }
 
-    public function show(Request $request, $id)
+    // Dropdown: latest N notifications as JSON
+    public function dropdown(Request $request)
     {
-        $notification = Notification::find($id);
-        if (!$notification) {
-            if ($request->wantsJson()) return response()->json(['message' => 'Notificación no encontrada'], 404);
-            abort(404);
-        }
+        $user = Auth::user();
+        $limit = min(50, (int) $request->get('limit', 10));
+        $items = DatabaseNotification::where('notifiable_type', get_class($user))
+            ->where('notifiable_id', $user->id)
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(function($n){
+                return [
+                    'id' => $n->id,
+                    'type' => $n->type,
+                    'data' => $n->data,
+                    'read_at' => $n->read_at,
+                    'created_at' => $n->created_at->toDateTimeString(),
+                ];
+            });
 
-        if ($request->wantsJson()) return response()->json($notification);
-        return redirect()->back();
+        return response()->json(['notifications' => $items]);
     }
 
-    public function update(Request $request, $id)
+    public function markAsRead(Request $request, $id)
     {
-        $notification = Notification::find($id);
-        if (!$notification) {
-            if ($request->wantsJson()) return response()->json(['message' => 'Notificación no encontrada'], 404);
-            abort(404);
+        $user = Auth::user();
+        $notif = DatabaseNotification::where('id', $id)
+            ->where('notifiable_type', get_class($user))
+            ->where('notifiable_id', $user->id)
+            ->firstOrFail();
+
+        if (is_null($notif->read_at)) {
+            $notif->markAsRead();
+            $this->audit($user->id, 'mark_read', 'notification', $notif->id, $request);
         }
 
-        $request->validate([
-            'usuario_id' => 'nullable|exists:usuarios,id',
-            'reservacion_id' => 'nullable|exists:reservaciones,id',
-            'propiedad_id' => 'nullable|exists:propiedades,id',
-            'estado' => 'nullable|in:cerrada,abierta,vista',
-            // validar tipo como string aquí; normalizamos contra el ENUM antes de actualizar
-            'tipo' => 'nullable|string',
-            'descripcion' => 'sometimes|string|max:500',
-            'fecha_visto' => 'nullable|date',
-        ]);
+        return response()->json(['ok' => true]);
+    }
 
-        $data = $request->only([
-            'usuario_id','reservacion_id','propiedad_id','estado','tipo','descripcion','fecha_creacion','fecha_visto'
-        ]);
+    public function markAllRead(Request $request)
+    {
+        $user = Auth::user();
+        DatabaseNotification::where('notifiable_type', get_class($user))
+            ->where('notifiable_id', $user->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
 
-        if (isset($data['id_usuario'])) {
-            $data['usuario_id'] = $data['id_usuario'];
-            unset($data['id_usuario']);
-        }
-        if (array_key_exists('tipo', $data)) {
-            $dbEnumTypes = $this->getEnumValues('notificaciones', 'tipo');
-            if (!empty($dbEnumTypes)) {
-                if (empty($data['tipo']) || !in_array($data['tipo'], $dbEnumTypes, true)) {
-                    $data['tipo'] = in_array('info', $dbEnumTypes, true) ? 'info' : $dbEnumTypes[0];
-                }
-            }
-        }
+        $this->audit($user->id, 'mark_all_read', 'notification', null, $request);
 
-        $notification->update($data);
-
-        if ($request->wantsJson()) {
-            return response()->json($notification);
-        }
-
-        return redirect('/notificaciones')->with('success', 'Notificación actualizada.');
+        return response()->json(['ok' => true]);
     }
 
     public function destroy(Request $request, $id)
     {
-        $notification = Notification::find($id);
-        if (!$notification) {
-            if ($request->wantsJson()) return response()->json(['message' => 'Notificación no encontrada'], 404);
-            abort(404);
-        }
+        $user = Auth::user();
+        $notif = DatabaseNotification::where('id', $id)
+            ->where('notifiable_type', get_class($user))
+            ->where('notifiable_id', $user->id)
+            ->firstOrFail();
 
-        $notification->delete();
+        $notif->delete();
+        $this->audit($user->id, 'delete', 'notification', $id, $request);
 
-        if ($request->wantsJson()) return response()->json(['message' => 'Notificación eliminada']);
-        return redirect('/notificaciones')->with('success', 'Notificación eliminada.');
+        return response()->json(['ok' => true]);
     }
 
-    public function markAsVisto($id)
+    protected function audit($userId, $action, $targetType = null, $targetId = null, Request $request)
     {
-        $notification = Notification::find($id);
-        if (!$notification) return response()->json(['message' => 'Notificación no encontrada'], 404);
+        try {
+            AuditLog::create([
+                'user_id' => $userId,
+                'action' => $action,
+                'target_type' => $targetType,
+                'target_id' => $targetId,
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+            // non-fatal
+        }
+    }
 
-        $notification->estado = 'vista';
-        $notification->fecha_visto = now();
-        $notification->save();
+    // Simple preferences form & save
+    public function preferencesForm(Request $request)
+    {
+        $user = Auth::user();
+        $prefs = DB::table('notification_preferences')->where('user_id', $user->id)->first();
+        return view('profile.notifications_preferences', ['prefs' => $prefs]);
+    }
 
-        return response()->json($notification);
+    public function savePreferences(Request $request)
+    {
+        $user = Auth::user();
+        $data = [
+            'channel_email' => $request->has('channel_email'),
+            'channel_inapp' => $request->has('channel_inapp'),
+            'receive_push' => $request->has('receive_push'),
+            'categories' => $request->input('categories') ? json_encode($request->input('categories')) : null,
+        ];
+
+        DB::table('notification_preferences')->updateOrInsert(['user_id' => $user->id], $data);
+
+        return redirect()->route('notifications.preferences')->with('success', 'Preferencias guardadas');
     }
 }

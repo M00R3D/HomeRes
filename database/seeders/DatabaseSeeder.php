@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             TarjetasSimuladasSeeder::class,
             HomepageSeeder::class,
             NotificacionesTableSeeder::class,
+            NotificationSeeder::class,
             ComentariosTableSeeder::class,
         ]);
     }

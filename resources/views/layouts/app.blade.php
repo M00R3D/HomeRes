@@ -66,8 +66,8 @@
     <header class="topbar">
       <button id="sidebar-toggle" class="icon-btn show-desktop" aria-label="Abrir menú">☰</button>
       <div class="topbar-right">
-        <a href="#" class="top-action">Notificaciones</a>
-        <a href="#" class="top-action">Perfil</a>
+        @include('partials.notification-bell')
+        <a href="{{ route('notifications.preferences') }}" class="top-action">Perfil</a>
         @if($isAdmin)
           <span class="top-action" style="color:#ef4444;font-weight:700;">Usted inicio sesion como Administrador</span>
         @endif

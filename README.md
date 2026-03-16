@@ -151,3 +151,37 @@ Resumen breve del propósito de cada archivo proporcionado. Útil para onboardin
 - Añadir timestamps/fecha_pago coherente en pagos si se espera trazabilidad (Payment model tiene fecha_pago en $fillable pero migración no siempre la crea).
 
 Fin. Si quieres, puedo generar un README más detallado por sección o un checklist para corregir las migraciones.
+
+## Notificaciones / Campana (nueva)
+
+Migraciones añadidas:
+- `2026_03_15_100000_create_notifications_table.php` — tabla `notifications` para el canal `database` de Laravel.
+- `2026_03_15_100100_create_notification_preferences_table.php` — tabla `notification_preferences` para las preferencias por usuario.
+- `2026_03_15_100200_create_audit_logs_table.php` — tabla `audit_logs` para registrar acciones (mark read, delete, etc.).
+
+Clases y archivos añadidos:
+- `app/Notifications/NewMessageNotification.php` — ejemplo de notificación (database + broadcast).
+- `app/Notifications/SystemAlertNotification.php` — alerta de sistema.
+- `app/Http/Controllers/NotificationController.php` — endpoints web/API: index, count, dropdown, markAsRead, markAllRead, destroy, preferences.
+- `resources/views/partials/notification-bell.blade.php` — partial para la campana (AJAX, dropdown, marcar leído).
+- `resources/views/notifications/index.blade.php` — página paginada de notificaciones.
+- `resources/views/profile/notifications_preferences.blade.php` — UI para preferencias en perfil.
+- `database/seeders/NotificationSeeder.php` — seeder de ejemplo.
+
+Rutas añadidas:
+- Web: `/notifications`, `/notifications/count`, `/notifications/dropdown`, `/notifications/{id}/read`, `/notifications/mark-all-read`.
+- API: `/api/notifications` y endpoints equivalentes (protegidos por `auth:sanctum`).
+
+Broadcasting:
+- Las notificaciones usan canal `broadcast` en las clases de ejemplo. Para tiempo real, configurar `BROADCAST_DRIVER` (pusher o laravel-websockets) y cargar Laravel Echo en el frontend. Se incluyó soporte broadcast en las clases, pero requiere configuración de entorno.
+
+Comandos útiles:
+```
+php artisan migrate
+php artisan db:seed --class=NotificationSeeder
+
+# Ejecutar tests específicos
+php artisan test --filter NotificationsTest
+```
+
+Si quieres que implemente broadcasting con laravel-websockets y Echo frontend, lo hago a continuación.

@@ -71,3 +71,15 @@ Route::middleware('auth')->get('/propiedades/{id}/reservar', [ReservationControl
     ->name('reservaciones.create_for_propiedad');
 Route::middleware('auth')->get('/propiedades/{id}/reserved-dates', [ReservationController::class, 'reservedDates'])
     ->name('reservaciones.reserved_dates');
+
+// Notifications routes (web)
+Route::middleware('auth')->group(function() {
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/count', [\App\Http\Controllers\NotificationController::class, 'count'])->name('notifications.count');
+    Route::get('/notifications/dropdown', [\App\Http\Controllers\NotificationController::class, 'dropdown'])->name('notifications.dropdown');
+    Route::post('/notifications/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markAsRead'])->name('notifications.read');
+    Route::post('/notifications/mark-all-read', [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->name('notifications.markAllRead');
+    Route::delete('/notifications/{id}', [\App\Http\Controllers\NotificationController::class, 'destroy'])->name('notifications.destroy');
+    Route::get('/profile/notifications/preferences', [\App\Http\Controllers\NotificationController::class, 'preferencesForm'])->name('notifications.preferences');
+    Route::post('/profile/notifications/preferences', [\App\Http\Controllers\NotificationController::class, 'savePreferences'])->name('notifications.preferences.save');
+});
