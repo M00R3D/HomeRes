@@ -72,7 +72,7 @@ Route::middleware('auth')->get('/propiedades/{id}/reservar', [ReservationControl
 Route::middleware('auth')->get('/propiedades/{id}/reserved-dates', [ReservationController::class, 'reservedDates'])
     ->name('reservaciones.reserved_dates');
 
-// Notifications routes (web)
+// Notifications routes (web
 Route::middleware('auth')->group(function() {
     Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/count', [\App\Http\Controllers\NotificationController::class, 'count'])->name('notifications.count');
