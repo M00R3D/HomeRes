@@ -47,6 +47,7 @@
       <a class="nav-item" href="/users">Usuarios</a>
       <a class="nav-item" href="{{ route('tarjetas.index') }}">Tarjetas</a>
       @if($isAdmin)
+        <a class="nav-item" href="{{ route('admin.logs') }}">Logs</a>
         <a class="nav-item" href="{{ route('images.index') }}">Imágenes</a>
         <a class="nav-item" href="{{ route('pagos.index') }}">Pagos</a>
       @endif
