@@ -29,9 +29,12 @@
 const _notifTooltipStyle = document.createElement('style');
 _notifTooltipStyle.textContent = `
 .notif-item{position:relative}
-.notif-tooltip, .action-hint { position:absolute; right:12px; top:8px; padding:6px 8px; border-radius:8px; font-size:12px; opacity:0; transform:translateY(6px); transition:opacity .18s ease, transform .18s ease; pointer-events:none; backdrop-filter:blur(4px); }
-.notif-item:hover .notif-tooltip, .action-hint.show { opacity:1; transform:translateY(0); }
-.action-hint.inline{ position:static; display:inline-block; margin-left:8px; padding:4px 8px; border-radius:6px; font-size:12px; transform:none; opacity:1 }
+.notif-tooltip { position:absolute; right:8px; top:50%; max-width:calc(100% - 24px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:6px 8px; border-radius:8px; font-size:12px; opacity:0; transform:translateY(8px) translateY(-50%); transition:opacity .18s ease, transform .18s ease; pointer-events:none; backdrop-filter:blur(4px); z-index:2; }
+.notif-tooltip.notif-tooltip-detail { right:256px; max-width:calc(100% - 112px); alpha:0.45;background:rgba(0,0,0,0.6); color:#fff; }
+.notif-item:hover .notif-tooltip { opacity:1; transform:translateY(0) translateY(-50%); }
+.action-hint { transition:opacity .18s ease, transform .18s ease; }
+.action-hint.show { opacity:1; transform:translateY(0); }
+.action-hint.inline{ position:static; display:inline-block; margin-left:8px; padding:4px 8px; border-radius:6px; font-size:12px; transform:none; opacity:1; pointer-events:auto }
 `;
 document.head.appendChild(_notifTooltipStyle);
 
@@ -195,7 +198,7 @@ document.addEventListener('DOMContentLoaded', function(){
               <div style="margin-left:8px">
                 <button data-id="${n.id}" class="notif-mark-read" style="border:0;cursor:pointer">Marcar</button>
               </div>
-                <span class="notif-tooltip">Clic para ver detalle de notificación</span>
+                <span class="notif-tooltip notif-tooltip-detail">Clic para ver detalle de notificación</span>
             `;
         // click on item -> mark read then navigate or open detail
         el.addEventListener('click', async function(e){
