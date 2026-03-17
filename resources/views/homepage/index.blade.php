@@ -6,577 +6,1018 @@
 @php
   use App\Models\Reservation;
   use App\Models\Propiedad;
+
   $currentUser = $currentUser ?? auth()->user();
   $isAdmin = $isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin');
-  $first = ($homepages->first() ?? null);
-  // usar Collection para evitar llamadas a isEmpty() sobre arrays
+  $homepage = $homepage ?? null;
+  $homepageMeta = $homepageMeta ?? ['settings' => [], 'blocks' => []];
+  $settings = $homepageMeta['settings'] ?? [];
+  $blocks = $homepageMeta['blocks'] ?? [];
+
   $userReservs = collect();
-  if (!$isAdmin && $currentUser) {
-    $userReservs = Reservation::with('propiedad')->where('usuario_id', $currentUser->id)->orderByDesc('created_at')->take(6)->get();
+  if ($currentUser) {
+      $userReservs = Reservation::with('propiedad')
+          ->where('usuario_id', $currentUser->id)
+          ->orderByDesc('created_at')
+          ->take(6)
+          ->get();
   }
+
   $allProps = Propiedad::orderBy('nombre')->get();
+  $baseUrl = url('/');
+    $resolveMedia = function ($path) use ($settings, $homepage) {
+      if (! $path) {
+        return null;
+      }
+
+      $raw = trim((string) $path);
+      if ($raw === '') {
+        return null;
+      }
+
+      if (preg_match('/^(?:https?:)?\/\//', $raw) || str_starts_with($raw, 'data:')) {
+        return $raw;
+      }
+
+      $clean = ltrim(str_replace('\\', '/', $raw), '/');
+      $folder = trim((string) ($settings['image_folder'] ?? $homepage->image_folder ?? ''), '/');
+      $candidates = [$clean];
+
+      if ($folder !== '' && ! str_starts_with($clean, $folder . '/')) {
+        $candidates[] = $folder . '/' . $clean;
+      }
+      if (! str_starts_with($clean, 'uploads/')) {
+        $candidates[] = 'uploads/' . $clean;
+      }
+      if (preg_match('/^\d+\//', $clean)) {
+        $candidates[] = 'uploads_propiedades_' . strtok($clean, '/') . '_/' . basename($clean);
+      }
+      if (! str_starts_with($clean, 'logos/')) {
+        $candidates[] = 'logos/' . basename($clean);
+      }
+        if (str_contains($clean, 'banner-default')) {
+          $candidates[] = 'uploads/banner.jpg';
+        }
+
+      foreach (array_values(array_unique($candidates)) as $candidate) {
+        if (is_file(public_path($candidate))) {
+          return asset($candidate);
+        }
+      }
+
+      return null;
+    };
+
+  $quickMedia = collect($folderFiles ?? [])->map(function ($url) use ($baseUrl) {
+      if (str_starts_with($url, $baseUrl)) {
+          return ltrim(substr($url, strlen($baseUrl)), '/');
+      }
+      return $url;
+  })->values()->all();
+
+  $previewPayload = [
+      'settings' => $settings,
+      'blocks' => $blocks,
+  ];
+
+  $dynamicPayload = [
+      'reservations' => $userReservs->map(function ($rv) {
+          return [
+              'id' => $rv->id,
+              'name' => $rv->propiedad->nombre ?? ('Propiedad #' . $rv->propiedad_id),
+              'image' => $rv->propiedad->ruta_img ?? null,
+              'location' => $rv->propiedad->ubicacion ?? '',
+            'check_in' => $rv->check_in ? \Carbon\Carbon::parse($rv->check_in)->format('Y-m-d') : '',
+            'check_out' => $rv->check_out ? \Carbon\Carbon::parse($rv->check_out)->format('Y-m-d') : '',
+              'status' => $rv->estado,
+              'url' => route('reservaciones.show', $rv->id),
+          ];
+      })->values(),
+      'properties' => $allProps->map(function ($p) {
+          return [
+              'id' => $p->id,
+              'name' => $p->nombre,
+              'image' => $p->ruta_img,
+              'location' => $p->ubicacion,
+              'price' => (float) ($p->precio_noche ?? 0),
+              'showUrl' => route('propiedades.show', $p->id),
+              'reserveUrl' => route('reservaciones.create_for_propiedad', $p->id),
+          ];
+      })->values(),
+      'loggedIn' => (bool) $currentUser,
+  ];
 @endphp
 
 <style>
-/* simple responsive hero + cards layout suitable for blade (no frameworks) */
-.hp-wrap{max-width:1200px;margin:18px auto;padding:12px;}
-.hp-toggle { display:flex;align-items:center;gap:10px;margin-bottom:12px;justify-content:flex-end; }
-.hp-toggle .switch { display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; background:#fff; box-shadow:0 6px 18px rgba(2,6,23,0.04); border:1px solid #eef2f7; }
-.hp-toggle input[type="checkbox"]{ width:42px; height:26px; -webkit-appearance:none; background:#e6eefc; border-radius:999px; position:relative; outline:none; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.02); cursor:pointer; }
-.hp-toggle input[type="checkbox"]::after{ content:''; position:absolute; left:4px; top:4px; width:18px; height:18px; background:#fff; border-radius:50%; transition:transform .18s ease; transform:translateX(0); box-shadow:0 4px 12px rgba(2,6,23,0.08); }
-.hp-toggle input[type="checkbox"]:checked{ background:linear-gradient(90deg,#6366f1,#06b6d4); }
-.hp-toggle input[type="checkbox"]:checked::after{ transform:translateX(16px); }
-
-/* admin-only helpers */
-.admin-only{ display:block; }
-.preview-only{ display:none; }
-
-/* card-per-field */
-.field-card{ background:#fff;padding:12px;border-radius:10px;box-shadow:0 8px 24px rgba(2,6,23,0.04); display:flex;flex-direction:column; gap:10px; }
-.field-card .label{ font-weight:700;color:#374151; }
-.field-card .small{ color:#6b7280; font-size:0.9rem; }
-
-/* preview rules (visible when preview-mode active) */
-.preview-mode .admin-only{ display:none !important; }
-.preview-mode .preview-only{ display:block !important; }
-
-/* grid */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
-
-/* responsive tweaks */
-@media (max-width:900px){
-  .hp-toggle{ justify-content:stretch; }
-  .hp-toggle .switch{ width:100%; justify-content:space-between; padding:8px; }
-  .grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));}
-}
-
-/* Image picker modal */
-#hp-image-picker { position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:12000; padding:18px; }
-#hp-image-picker.open { display:flex; }
-#hp-image-picker .picker-back { position:absolute; inset:0; background:rgba(2,6,23,0.55); }
-#hp-image-picker .picker-panel { position:relative; z-index:2; width:100%; max-width:1100px; background:#fff; border-radius:12px; box-shadow:0 18px 48px rgba(2,6,23,0.12); padding:14px; display:grid; grid-template-columns:280px 1fr; gap:12px; max-height:80vh; overflow:auto; }
-.picker-folders { display:flex; flex-direction:column; gap:8px; }
-.picker-folder { padding:8px 10px; border-radius:8px; cursor:pointer; border:1px solid #eef2f7; background:#fbfdff; font-weight:700; color:#0f172a; }
-.picker-folder.active { background:linear-gradient(90deg,#6366f1,#06b6d4); color:#fff; box-shadow:0 8px 20px rgba(6,182,212,0.08); }
-.picker-files { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; }
-.picker-thumb { position:relative; border-radius:8px; overflow:hidden; background:#f3f4f6; height:90px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
-.picker-thumb img{ width:100%; height:100%; object-fit:cover; display:block; transition:transform .18s ease; }
-.picker-thumb:hover img{ transform:scale(1.04); }
-.picker-thumb .overlay { position:absolute; left:0; right:0; bottom:0; padding:6px; background:linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.38)); color:#fff; font-size:12px; display:flex; justify-content:space-between; gap:6px; align-items:center; }
-.picker-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
-
-/* Carousel (preview for non-admins, and for admin preview-mode) */
-.hp-carousel { position:relative; width:100%; overflow:hidden; border-radius:12px; box-shadow:0 12px 30px rgba(2,6,23,0.06); touch-action: pan-y; }
-.hp-carousel .track { display:flex; transition:transform .6s cubic-bezier(.22,.9,.3,1); }
-.hp-carousel .slide { min-width:100%; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:#f3f4f6; height:320px; }
-.hp-carousel .slide img{ width:100%; height:100%; object-fit:cover; display:block; }
-.hp-carousel .nav { position:absolute; top:50%; transform:translateY(-50%); width:100%; display:flex; justify-content:space-between; pointer-events:none; padding:0 8px; }
-.hp-carousel .nav button { pointer-events:auto; background:rgba(0,0,0,0.38); color:#fff; border:0; padding:8px 10px; border-radius:8px; cursor:pointer; }
-.hp-carousel .dots { position:absolute; left:50%; bottom:12px; transform:translateX(-50%); display:flex; gap:6px; }
-.hp-carousel .dot { width:10px; height:10px; border-radius:999px; background:rgba(255,255,255,0.6); cursor:pointer; border:1px solid rgba(0,0,0,0.06); }
-.hp-carousel .dot.active { background:#fff; box-shadow:0 6px 18px rgba(2,6,23,0.06); }
-
-/* ensure nav buttons are positioned outside slides and receive clicks */
-.hp-carousel-btn{
-  position:absolute;
-  top:50%;
-  transform:translateY(-50%);
-  z-index:6;
-  border:0;
-  padding:10px 12px;
-  border-radius:8px;
-  background:rgba(0,0,0,0.36);
-  color:#fff;
-  cursor:pointer;
-  pointer-events:auto; /* allow clicks */
-}
-.hp-carousel-btn-left{ left:12px; }
-.hp-carousel-btn-right{ right:12px; }
-
-.hp-carousel .dots{ z-index:6; bottom:14px; position:absolute; left:50%; transform:translateX(-50%); display:flex; gap:8px; }
-.hp-carousel .dot{ width:10px; height:10px; border-radius:999px; border:1px solid rgba(255,255,255,0.4); background:rgba(255,255,255,0.45); cursor:pointer; }
-.hp-carousel .dot.active{ background:#fff; box-shadow:0 8px 20px rgba(2,6,23,0.06); }
-
-/* small screens */
-@media (max-width:900px){
-  .hp-carousel .slide { height:200px; }
-  #hp-image-picker .picker-panel { grid-template-columns:1fr; }
-  .picker-folders { flex-direction:row; flex-wrap:wrap; gap:6px; }
-}
+.hp-shell{max-width:1400px;margin:18px auto;padding:12px;display:flex;flex-direction:column;gap:18px}
+.hp-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.hp-toolbar h1{margin:0;font-size:clamp(1.6rem,2vw,2.4rem)}
+.hp-toolbar-copy{color:var(--muted,#6b7280);max-width:760px}
+.hp-view-switch{display:inline-flex;align-items:center;gap:10px;padding:8px 12px;border-radius:999px;background:var(--card,#fff);box-shadow:0 10px 24px rgba(2,6,23,0.06);border:1px solid var(--input-border,#e5e7eb)}
+.hp-view-switch input[type="checkbox"]{width:44px;height:26px;-webkit-appearance:none;appearance:none;background:#dbe4f7;border-radius:999px;position:relative;cursor:pointer;transition:background .2s ease}
+.hp-view-switch input[type="checkbox"]::after{content:'';position:absolute;left:4px;top:4px;width:18px;height:18px;border-radius:999px;background:#fff;box-shadow:0 4px 12px rgba(2,6,23,0.14);transition:transform .2s ease}
+.hp-view-switch input[type="checkbox"]:checked{background:linear-gradient(90deg,var(--btn-primary,#2563eb),var(--btn-alt,#06b6d4))}
+.hp-view-switch input[type="checkbox"]:checked::after{transform:translateX(18px)}
+.hp-admin-layout{display:grid;grid-template-columns:minmax(360px, 560px) minmax(360px, 1fr);gap:18px;align-items:start}
+.hp-shell.preview-mode .hp-admin-layout{grid-template-columns:1fr}
+.hp-shell.preview-mode .hp-editor-pane{display:none}
+.hp-editor-pane,.hp-preview-pane,.hp-public-standalone{background:var(--card,#fff);border:1px solid var(--input-border,#e5e7eb);border-radius:20px;box-shadow:0 18px 50px rgba(2,6,23,0.08)}
+.hp-editor-pane{padding:18px;display:flex;flex-direction:column;gap:18px}
+.hp-preview-pane{padding:14px;position:sticky;top:18px}
+.hp-shell.preview-mode .hp-preview-pane{position:static}
+.hp-pane-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.hp-pane-head h2,.hp-pane-head h3{margin:0}
+.hp-pane-subtitle{color:var(--muted,#6b7280);font-size:.95rem}
+.hp-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.hp-field{display:flex;flex-direction:column;gap:6px}
+.hp-field label,.hp-field span{font-weight:700;color:var(--text-color,#111827);font-size:.95rem}
+.hp-field input,.hp-field textarea,.hp-field select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--input-border,#d1d5db);background:var(--input-bg,#fff);color:var(--text-color,#111827)}
+.hp-field textarea{min-height:108px;resize:vertical}
+.hp-field.compact textarea{min-height:84px}
+.hp-field-row{display:flex;gap:8px;align-items:center}
+.hp-chip-row{display:flex;flex-wrap:wrap;gap:8px}
+.hp-add-block{border:0;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer;background:var(--btn-primary,#2563eb);color:#fff}
+.hp-block-editor-list{display:flex;flex-direction:column;gap:12px}
+.hp-block-editor{border:1px solid var(--input-border,#e5e7eb);border-radius:18px;padding:14px;background:linear-gradient(180deg,rgba(255,255,255,.9),rgba(248,250,252,.96));display:flex;flex-direction:column;gap:12px;transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .2s ease;will-change:transform}
+.hp-block-editor.is-moving{box-shadow:0 16px 34px rgba(2,6,23,.12)}
+.hp-block-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.hp-block-title{display:flex;flex-direction:column;gap:4px}
+.hp-block-title strong{text-transform:capitalize}
+.hp-block-tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.hp-tool-btn{border:1px solid var(--input-border,#d1d5db);background:#fff;border-radius:10px;padding:7px 10px;cursor:pointer;font-weight:700}
+.hp-tool-btn.danger{color:#b91c1c;border-color:#fecaca;background:#fff5f5}
+.hp-tool-toggle{display:inline-flex;align-items:center;gap:6px;font-size:.9rem;color:var(--muted,#6b7280)}
+.hp-inline-list{display:flex;flex-direction:column;gap:8px}
+.hp-inline-item{display:grid;grid-template-columns:1fr 1fr 120px auto;gap:8px;align-items:end}
+.hp-inline-item.faq{grid-template-columns:1fr auto}
+.hp-inline-item.faq textarea{grid-column:1 / span 1}
+.hp-media-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+.hp-media-thumb{position:relative;border:1px solid var(--input-border,#e5e7eb);background:#f8fafc;border-radius:12px;overflow:hidden;height:72px;cursor:pointer}
+.hp-media-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.hp-media-thumb span{position:absolute;left:6px;right:6px;bottom:6px;font-size:11px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.55);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.hp-actions-row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+.hp-submit-row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.hp-reset-form{margin:0}
+.hp-preview-frame{background:linear-gradient(180deg,#fbfdff,#f5f8fc);border-radius:16px;padding:16px;min-height:720px}
+.hp-public-content{display:flex;flex-direction:column;gap:18px}
+.hp-public-content.is-narrow{max-width:960px;margin:0 auto}
+.hp-block{position:relative}
+.hp-block-hero{border-radius:24px;overflow:hidden;min-height:320px;background:#0f172a center/cover no-repeat;color:#fff;display:flex;align-items:stretch}
+.hp-block-hero.hero-sm{min-height:260px}
+.hp-block-hero.hero-md{min-height:340px}
+.hp-block-hero.hero-lg{min-height:440px}
+.hp-hero-overlay{position:absolute;inset:0;background:linear-gradient(135deg,rgba(15,23,42,var(--hero-overlay,.45)),rgba(15,23,42,.18))}
+.hp-hero-inner{position:relative;z-index:1;padding:clamp(22px,4vw,42px);display:flex;flex-direction:column;gap:12px;max-width:min(720px,100%)}
+.hp-block-hero.align-center .hp-hero-inner{margin:0 auto;text-align:center;align-items:center}
+.hp-block-hero.align-right .hp-hero-inner{margin-left:auto;text-align:right;align-items:flex-end}
+.hp-hero-inner h2{margin:0;font-size:clamp(2rem,4vw,4rem);line-height:1.02}
+.hp-eyebrow{text-transform:uppercase;letter-spacing:.18em;font-size:.75rem;font-weight:800;opacity:.82}
+.hp-subtitle{margin:0;font-size:1.05rem;color:var(--muted,#6b7280)}
+.hp-block-hero .hp-subtitle,.hp-block-hero .hp-copy{color:rgba(255,255,255,.92)}
+.hp-copy{line-height:1.7}
+.hp-actions{display:flex;gap:10px;flex-wrap:wrap}
+.hp-block-banner{display:flex;flex-direction:column;gap:10px}
+.hp-block-banner img{width:100%;display:block;border-radius:18px;object-fit:cover;min-height:200px;max-height:420px}
+.hp-block-banner.banner-sm img{min-height:160px;max-height:220px}
+.hp-block-banner.banner-md img{min-height:220px;max-height:320px}
+.hp-block-banner.banner-lg img{min-height:320px;max-height:460px}
+.hp-banner-copy{padding:8px 4px;display:flex;flex-direction:column;gap:4px}
+.hp-block-title h3{margin:0;font-size:clamp(1.6rem,2vw,3rem)}
+.hp-block-title p{margin:8px 0 0;color:var(--muted,#6b7280)}
+.hp-block-title.align-center{text-align:center}
+.hp-block-title.align-right{text-align:right}
+.hp-block-title.size-sm h3{font-size:1.5rem}
+.hp-block-title.size-md h3{font-size:2rem}
+.hp-block-title.size-lg h3{font-size:2.6rem}
+.hp-block-title.size-xl h3{font-size:3.3rem}
+.hp-block-text{padding:22px;border-radius:20px}
+.hp-block-text.style-card{background:var(--card,#fff);box-shadow:0 16px 40px rgba(2,6,23,.06)}
+.hp-block-text.style-soft{background:linear-gradient(180deg,rgba(37,99,235,.08),rgba(6,182,212,.04));border:1px solid rgba(37,99,235,.08)}
+.hp-block-text.style-plain{padding:0;background:transparent}
+.hp-block-text.align-center{text-align:center}
+.hp-block-text.align-right{text-align:right}
+.hp-block-text h3{margin:0 0 8px;font-size:1.7rem}
+.hp-block-image{display:flex;flex-direction:column;gap:10px}
+.hp-block-image img{width:100%;display:block;border-radius:20px;object-fit:cover;box-shadow:0 20px 48px rgba(2,6,23,.12)}
+.hp-block-image.width-sm{max-width:380px}
+.hp-block-image.width-md{max-width:640px}
+.hp-block-image.width-lg{max-width:860px}
+.hp-block-image.width-full{max-width:none}
+.hp-block-image.height-sm img{height:220px}
+.hp-block-image.height-md img{height:340px}
+.hp-block-image.height-lg img{height:460px}
+.hp-block-image figcaption{display:flex;flex-direction:column;gap:4px;color:var(--muted,#6b7280)}
+.hp-link-grid{display:flex;flex-wrap:wrap;gap:10px}
+.hp-block-links h3,.hp-block-faq h3,.hp-section-head h3{margin:0 0 6px;font-size:1.6rem}
+.hp-faq-list{display:flex;flex-direction:column;gap:10px}
+.hp-faq-item{background:var(--card,#fff);border:1px solid var(--input-border,#e5e7eb);border-radius:16px;padding:14px 16px}
+.hp-faq-item summary{cursor:pointer;font-weight:800}
+.hp-faq-item div{padding-top:10px;color:var(--muted,#6b7280);line-height:1.6}
+.hp-dynamic-block{display:flex;flex-direction:column;gap:12px}
+.hp-section-head{display:flex;justify-content:space-between;gap:12px;align-items:end;flex-wrap:wrap}
+.hp-section-head span{color:var(--muted,#6b7280)}
+.hp-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.hp-card-mini{background:var(--card,#fff);border:1px solid var(--input-border,#e5e7eb);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:12px;box-shadow:0 14px 38px rgba(2,6,23,.05)}
+.hp-card-media{width:100%;height:160px;border-radius:14px;overflow:hidden;background:#eef2f7}
+.hp-card-media img{width:100%;height:100%;object-fit:cover;display:block}
+.hp-card-copy{display:flex;flex-direction:column;gap:4px;color:var(--muted,#6b7280)}
+.hp-inline-actions{display:flex;gap:8px;flex-wrap:wrap}
+.hp-empty{padding:18px;border:1px dashed var(--input-border,#d1d5db);border-radius:16px;color:var(--muted,#6b7280);background:rgba(255,255,255,.56)}
+@media (max-width:1100px){.hp-admin-layout{grid-template-columns:1fr}.hp-preview-pane{position:static}.hp-form-grid{grid-template-columns:1fr}.hp-inline-item{grid-template-columns:1fr}.hp-inline-item.faq{grid-template-columns:1fr}.hp-toolbar{align-items:flex-start}}
 </style>
 
-<div class="hp-wrap" id="hp-wrap">
-  {{-- toggle only for admins --}}
+<div class="hp-shell" id="hp-shell">
+  <div class="hp-toolbar">
+    <div>
+      <h1>{{ $isAdmin ? 'Homepage Builder' : 'Inicio' }}</h1>
+      <div class="hp-toolbar-copy">
+        {{ $isAdmin ? 'Configura banners, bloques, FAQs, links e imagenes desde un singleton guardado en homepage.id = 1. La vista previa se actualiza en tiempo real.' : ($homepage->eslogan ?? 'Escapate y descansa') }}
+      </div>
+    </div>
+    @if($isAdmin)
+      <label class="hp-view-switch">
+        <span>Ver como usuario</span>
+        <input type="checkbox" id="hp-preview-toggle" aria-label="Ver como usuario normal en home">
+      </label>
+    @endif
+  </div>
+
+  @if(session('success'))
+    <div class="card" style="padding:12px;color:#065f46;background:#ecfdf5;border-radius:14px;border:1px solid #bbf7d0;">{{ session('success') }}</div>
+  @endif
+
+  @if($errors->any())
+    <div class="card" style="padding:12px;color:#991b1b;background:#fee2e2;border-radius:14px;border:1px solid #fecaca;">{{ $errors->first() }}</div>
+  @endif
+
   @if($isAdmin)
-    <div class="hp-toggle" aria-hidden="false">
-      <div style="flex:1;">
-        <h1 style="margin:0">Inicio — Administración</h1>
-      </div>
-      <div class="switch" title="Ver como usuario" style="align-self:center;">
-        <label style="display:flex;align-items:center;gap:8px;">
-          <span class="small-muted">Ver como usuario</span>
-          <input id="hp-view-toggle" type="checkbox" aria-label="Ver como usuario">
-        </label>
-      </div>
+    <div class="hp-admin-layout">
+      <form id="hp-editor-form" class="hp-editor-pane" method="POST" action="{{ route('homepage.update', 1) }}">
+        @csrf
+        @method('PUT')
+        <input type="hidden" name="meta_json" id="hp-meta-json">
+
+        <div class="hp-pane-head">
+          <div>
+            <h2>Editor de homepage</h2>
+            <div class="hp-pane-subtitle">Edita el contenido estructurado y guárdalo en una sola configuración global.</div>
+          </div>
+        </div>
+
+        <div class="hp-form-grid">
+          <div class="hp-field">
+            <label for="hp-company-name">Nombre empresa</label>
+            <input id="hp-company-name" name="nombre_empresa" value="{{ old('nombre_empresa', $homepage->nombre_empresa) }}" placeholder="HomeRes Demo">
+          </div>
+          <div class="hp-field">
+            <label for="hp-location">Ubicación</label>
+            <input id="hp-location" name="ubicacion" value="{{ old('ubicacion', $homepage->ubicacion) }}" placeholder="Valle de las Flores">
+          </div>
+          <div class="hp-field compact">
+            <label for="hp-slogan">Eslogan</label>
+            <textarea id="hp-slogan" name="eslogan" placeholder="Escapate y descansa">{{ old('eslogan', $homepage->eslogan) }}</textarea>
+          </div>
+          <div class="hp-field compact">
+            <label for="hp-banner-image">Banner principal</label>
+            <input id="hp-banner-image" class="js-media-input" data-media-role="banner" name="banner_image" value="{{ old('banner_image', $homepage->banner_image) }}" placeholder="uploads/banner.jpg">
+          </div>
+          <div class="hp-field compact">
+            <label for="hp-image-folder">Carpeta de imágenes</label>
+            <input id="hp-image-folder" name="image_folder" value="{{ old('image_folder', $homepage->image_folder) }}" placeholder="uploads/homepage">
+          </div>
+          <div class="hp-field compact">
+            <label for="hp-container-width">Ancho del layout</label>
+            <select id="hp-container-width" data-setting="container">
+              <option value="wide" {{ ($settings['container'] ?? 'wide') === 'wide' ? 'selected' : '' }}>Amplio</option>
+              <option value="narrow" {{ ($settings['container'] ?? 'wide') === 'narrow' ? 'selected' : '' }}>Compacto</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="hp-actions-row">
+          <div class="hp-chip-row">
+            <label class="hp-tool-toggle"><input type="checkbox" id="hp-show-reservations" {{ !empty($settings['show_reservations']) ? 'checked' : '' }}> Mostrar reservaciones</label>
+            <label class="hp-tool-toggle"><input type="checkbox" id="hp-show-properties" {{ !empty($settings['show_properties']) ? 'checked' : '' }}> Mostrar propiedades</label>
+          </div>
+        </div>
+
+        @if(!empty($quickMedia))
+          <div class="hp-field">
+            <span>Media rápida</span>
+            <div class="hp-pane-subtitle">Haz clic en una miniatura para insertarla en el último campo de imagen seleccionado.</div>
+            <div class="hp-media-strip" id="hp-quick-media">
+              @foreach($quickMedia as $media)
+                <button type="button" class="hp-media-thumb" data-media-path="{{ $media }}" title="{{ $media }}">
+                  <img src="{{ $resolveMedia($media) }}" alt="{{ $media }}">
+                  <span>{{ basename($media) }}</span>
+                </button>
+              @endforeach
+            </div>
+          </div>
+        @endif
+
+        <div class="hp-pane-head">
+          <div>
+            <h3>Bloques del layout</h3>
+            <div class="hp-pane-subtitle">Agrega secciones visuales, mueve su orden y ajusta su tamaño o estilo.</div>
+          </div>
+          <div class="hp-chip-row">
+            <button type="button" class="hp-add-block" data-add-block="hero">+ Hero</button>
+            <button type="button" class="hp-add-block" data-add-block="banner">+ Banner</button>
+            <button type="button" class="hp-add-block" data-add-block="title">+ Título</button>
+            <button type="button" class="hp-add-block" data-add-block="text">+ Texto</button>
+            <button type="button" class="hp-add-block" data-add-block="image">+ Imagen</button>
+            <button type="button" class="hp-add-block" data-add-block="links">+ Links</button>
+            <button type="button" class="hp-add-block" data-add-block="faq">+ FAQ</button>
+          </div>
+        </div>
+
+        <div id="hp-blocks-editor" class="hp-block-editor-list"></div>
+
+        <div class="hp-submit-row">
+          <button type="button" class="hp-tool-btn danger" id="hp-reset-button">Reiniciar homepage</button>
+          <button type="submit" class="btn btn-primary">Guardar homepage</button>
+        </div>
+      </form>
+
+      <section class="hp-preview-pane">
+        <div class="hp-pane-head" style="margin-bottom:12px;">
+          <div>
+            <h3>Vista previa en vivo</h3>
+            <div class="hp-pane-subtitle">Refleja tus cambios antes de guardar.</div>
+          </div>
+        </div>
+        <div class="hp-preview-frame">
+          <div id="hp-live-preview">
+            @include('homepage._render', [
+              'blocks' => $blocks,
+              'settings' => $settings,
+              'currentUser' => $currentUser,
+              'userReservs' => $userReservs,
+              'allProps' => $allProps,
+              'resolveMedia' => $resolveMedia,
+            ])
+          </div>
+        </div>
+      </section>
     </div>
   @else
-    <h1>Inicio</h1>
-  @endif
-
-  {{-- PUBLIC PREVIEW (siempre renderizado) --}}
-  <div class="preview-view preview-only" id="hp-preview">
-    @php $initial = $folderFiles ?? []; @endphp
-
-    <div id="hp-preview-carousel-wrap" class="preview-only" style="margin-bottom:12px;">
-      @php $initial = $folderFiles ?? []; @endphp
-
-      @if(!empty($initial) && count($initial) >= 1)
-        <div id="hp-carousel" class="hp-carousel" aria-roledescription="carousel" role="region" tabindex="0">
-          <div class="track" id="hp-carousel-track" aria-live="polite">
-            @foreach($initial as $url)
-              <div class="slide"><img src="{{ $url }}" alt="Banner"></div>
-            @endforeach
-          </div>
-
-          <!-- arrows with fixed IDs the JS expects -->
-          <button id="hp-carousel-prev" class="hp-carousel-btn hp-carousel-btn-left" aria-label="Anterior">◀</button>
-          <button id="hp-carousel-next" class="hp-carousel-btn hp-carousel-btn-right" aria-label="Siguiente">▶</button>
-
-          <div class="dots" id="hp-carousel-dots" role="tablist" aria-hidden="{{ count($initial) <= 1 ? 'true' : 'false' }}">
-            @foreach($initial as $i => $u)
-              <button class="dot {{ $i === 0 ? 'active' : '' }}" data-dot-index="{{ $i }}" aria-label="Ir a slide {{ $i + 1 }}" role="tab" aria-selected="{{ $i === 0 ? 'true' : 'false' }}"></button>
-            @endforeach
-          </div>
-        </div>
-
-        <script>window.hpInitialCarousel = @json($initial);</script>
-      @else
-        {{-- no images: nothing to show --}}
-      @endif
-    </div>
-
-    <section class="section">
-      <h3 class="section-title">Tus reservaciones</h3>
-
-      @if($currentUser && $userReservs->isNotEmpty())
-        <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(320px,1fr));">
-          @foreach($userReservs as $rv)
-            <div class="card" role="article">
-              <div style="display:flex;gap:10px;align-items:center">
-                <div style="flex:0 0 84px;height:64px;border-radius:8px;overflow:hidden;background:#f3f4f6;border:1px solid #eef2f7">
-                  @if(optional($rv->propiedad)->ruta_img)
-                    <img src="{{ asset($rv->propiedad->ruta_img) }}" alt="" style="width:100%;height:100%;object-fit:cover">
-                  @endif
-                </div>
-                <div style="flex:1">
-                  <div class="label">{{ $rv->propiedad->nombre ?? ('Propiedad #'.$rv->propiedad_id) }}</div>
-                  <div class="small-muted">{{ \Carbon\Carbon::parse($rv->check_in)->format('d M Y') }} — {{ \Carbon\Carbon::parse($rv->check_out)->format('d M Y') }}</div>
-                </div>
-              </div>
-
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-                <div class="small-muted">Estado: <strong style="text-transform:capitalize">{{ $rv->estado }}</strong></div>
-                <div>
-                  <a href="{{ route('reservaciones.show', $rv->id) }}" class="btn btn-ghost" style="padding:6px 8px">Ver</a>
-                </div>
-              </div>
-            </div>
-          @endforeach
-        </div>
-      @else
-        <div class="card small-muted">@if($currentUser) No tienes reservaciones registradas. @else Inicia sesión para ver tus reservaciones. @endif</div>
-      @endif
-    </section>
-
-    <section class="section">
-      <h3 class="section-title">Cabañas disponibles</h3>
-      <div class="grid">
-        @foreach($allProps as $p)
-          <div class="card">
-            <div style="display:flex;gap:10px;align-items:center">
-              <div style="flex:0 0 84px;height:64px;border-radius:8px;overflow:hidden;background:#f3f4f6;border:1px solid #eef2f7">
-                @if($p->ruta_img)
-                  <img src="{{ asset($p->ruta_img) }}" alt="{{ $p->nombre }}" style="width:100%;height:100%;object-fit:cover">
-                @endif
-              </div>
-              <div style="flex:1">
-                <div class="label">{{ $p->nombre }}</div>
-                <div class="small-muted">{{ $p->ubicacion }}</div>
-              </div>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-              <div class="small-muted">${{ number_format($p->precio_noche ?? 0,2,',','.') }} / noche</div>
-              <div>
-                <a class="btn btn-ghost" href="{{ route('propiedades.show', $p->id) }}">Ver</a>
-                <a class="btn btn-primary" href="{{ route('reservaciones.create_for_propiedad', $p->id) }}">Reservar</a>
-              </div>
-            </div>
-          </div>
-        @endforeach
-      </div>
-    </section>
-  </div>
-
-  {{-- ADMIN UI: per-field cards (cada input en su propia carta) --}}
-  @if($isAdmin)
-    <div class="admin-view admin-only" id="hp-admin">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <div style="font-weight:800;font-size:1.05rem">Administrar contenido — tarjetas por campo</div>
-        <div class="small-muted">Cada tarjeta guarda solo el campo correspondiente</div>
-      </div>
-
-      <div class="grid">
-        @foreach($homepages as $h)
-          {{-- banner_image --}}
-          <div class="field-card">
-            <div class="label">Banner (ruta)</div>
-            <div class="small">Ruta al archivo mostrado en el banner principal</div>
-            <form class="hp-field-form" data-id="{{ $h->id }}" method="POST" action="{{ route('homepage.update', $h->id) }}">
-              @csrf
-              @method('PUT')
-              <input type="hidden" name="field" value="banner_image">
-              <input class="input" name="banner_image" value="{{ $h->banner_image }}" placeholder="uploads/banner.jpg">
-              <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
-                <button type="submit" class="btn btn-primary">Guardar</button>
-                <button type="button" class="btn btn-ghost" data-open-picker data-field="banner_image">Seleccionar imagen...</button>
-              </div>
-            </form>
-            <div class="small-muted">Actualizado: {{ $h->updated_at }}</div>
-          </div>
-
-          {{-- image_folder --}}
-          <div class="field-card">
-            <div class="label">Carpeta de imágenes</div>
-            <div class="small">Carpeta usada para recursos (ej: uploads/homepage)</div>
-            <form class="hp-field-form" data-id="{{ $h->id }}" method="POST" action="{{ route('homepage.update', $h->id) }}">
-              @csrf
-              @method('PUT')
-              <input type="hidden" name="field" value="image_folder">
-              <input class="input" name="image_folder" value="{{ $h->image_folder }}" placeholder="uploads/homepage">
-              <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
-                <button type="submit" class="btn btn-primary">Guardar</button>
-                <button type="button" class="btn btn-ghost" data-open-picker data-field="image_folder">Seleccionar carpeta...</button>
-              </div>
-            </form>
-            <div class="small-muted">Actualizado: {{ $h->updated_at }}</div>
-          </div>
-
-          {{-- ubicacion --}}
-          <div class="field-card">
-            <div class="label">Ubicación</div>
-            <form class="hp-field-form" data-id="{{ $h->id }}" method="POST" action="{{ route('homepage.update', $h->id) }}">
-              @csrf
-              @method('PUT')
-              <input type="hidden" name="field" value="ubicacion">
-              <input class="input" name="ubicacion" value="{{ $h->ubicacion }}">
-              <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
-                <button type="submit" class="btn btn-primary">Guardar</button>
-              </div>
-            </form>
-          </div>
-
-          {{-- eslogan --}}
-          <div class="field-card">
-            <div class="label">Eslogan</div>
-            <form class="hp-field-form" data-id="{{ $h->id }}" method="POST" action="{{ route('homepage.update', $h->id) }}">
-              @csrf
-              @method('PUT')
-              <input type="hidden" name="field" value="eslogan">
-              <input class="input" name="eslogan" value="{{ $h->eslogan }}">
-              <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
-                <button type="submit" class="btn btn-primary">Guardar</button>
-              </div>
-            </form>
-          </div>
-
-          {{-- nombre_empresa --}}
-          <div class="field-card">
-            <div class="label">Nombre empresa</div>
-            <form class="hp-field-form" data-id="{{ $h->id }}" method="POST" action="{{ route('homepage.update', $h->id) }}">
-              @csrf
-              @method('PUT')
-              <input type="hidden" name="field" value="nombre_empresa">
-              <input class="input" name="nombre_empresa" value="{{ $h->nombre_empresa }}">
-              <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
-                <button type="submit" class="btn btn-primary">Guardar</button>
-
-                <form method="POST" action="{{ route('homepage.destroy', $h->id) }}" style="display:inline;" onsubmit="return confirm('Eliminar entrada #{{ $h->id }}?')">
-                  @csrf
-                  @method('DELETE')
-                  <button class="btn" style="background:linear-gradient(90deg,#ef4444,#f97316);color:#fff;margin-left:6px;">Borrar</button>
-                </form>
-              </div>
-            </form>
-            <div class="small-muted">Creado: {{ $h->created_at }} · Actualizado: {{ $h->updated_at }}</div>
-          </div>
-
-        @endforeach
-
-        {{-- create card --}}
-        <div class="field-card" id="hp-create-card" style="grid-column: 1 / -1;">
-          <div class="label">Crear nueva entrada</div>
-          <form id="hp-create-form" method="POST" action="{{ route('homepage.store') }}">
-            @csrf
-            <label class="small">Banner (ruta)</label>
-            <input class="input" name="banner_image" placeholder="uploads/banner.jpg">
-            <label class="small" style="margin-top:8px">Carpeta de imágenes</label>
-            <input class="input" name="image_folder" placeholder="uploads/homepage">
-            <label class="small" style="margin-top:8px">Ubicación</label>
-            <input class="input" name="ubicacion" placeholder="Valle de ...">
-            <label class="small" style="margin-top:8px">Eslogan</label>
-            <input class="input" name="eslogan" placeholder="Escápate y descansa">
-            <label class="small" style="margin-top:8px">Nombre empresa</label>
-            <input class="input" name="nombre_empresa" placeholder="HomeRes Demo">
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
-              <button type="submit" class="btn btn-primary">Crear</button>
-            </div>
-          </form>
-        </div>
-
-      </div>
+    <div class="hp-public-standalone" style="padding:16px;">
+      @include('homepage._render', [
+        'blocks' => $blocks,
+        'settings' => $settings,
+        'currentUser' => $currentUser,
+        'userReservs' => $userReservs,
+        'allProps' => $allProps,
+        'resolveMedia' => $resolveMedia,
+      ])
     </div>
   @endif
-
-  <!-- image picker modal -->
-  <div id="hp-image-picker" aria-hidden="true" role="dialog" aria-modal="true">
-    <div class="picker-back" data-close></div>
-    <div class="picker-panel" role="document">
-      <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div style="font-weight:800">Seleccionar carpeta</div>
-          <button data-close class="btn btn-ghost" style="padding:6px 8px;">Cerrar</button>
-        </div>
-
-        <div style="margin-bottom:8px;">
-          <input id="hp-picker-filter" placeholder="Filtrar carpetas..." style="width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ee;margin-bottom:8px;">
-          <div class="picker-folders" id="hp-picker-folders" aria-live="polite"></div>
-        </div>
-
-        <div style="display:flex;gap:8px;">
-          <button id="hp-picker-select-folder" class="btn btn-primary">Usar carpeta seleccionada</button>
-          <button id="hp-picker-refresh" class="btn btn-ghost">Actualizar</button>
-        </div>
-      </div>
-
-      <div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div style="font-weight:800" id="hp-picker-title">Vista previa</div>
-          <div class="small-muted" id="hp-picker-info"></div>
-        </div>
-
-        <div class="picker-files" id="hp-picker-files" aria-live="polite"></div>
-
-        <div class="picker-actions" style="margin-top:8px;">
-          <button id="hp-picker-use-as-banner" class="btn btn-primary" disabled>Usar imagen seleccionada como banner</button>
-          <button data-close class="btn btn-ghost">Cerrar</button>
-        </div>
-      </div>
-    </div>
-  </div>
+</div>
 @endsection
 
 @push('scripts')
+@if($isAdmin)
 <script>
-document.addEventListener('DOMContentLoaded', function(){
+document.addEventListener('DOMContentLoaded', function () {
+  const shell = document.getElementById('hp-shell');
+  const previewToggle = document.getElementById('hp-preview-toggle');
+  const blocksEditor = document.getElementById('hp-blocks-editor');
+  const previewRoot = document.getElementById('hp-live-preview');
+  const metaInput = document.getElementById('hp-meta-json');
+  const form = document.getElementById('hp-editor-form');
+  const resetButton = document.getElementById('hp-reset-button');
+  const baseUrl = @json($baseUrl);
+  const dynamicData = @json($dynamicPayload);
+  const initialState = @json($previewPayload);
+  let activeMediaInput = document.getElementById('hp-banner-image');
 
-  // --- preview toggle (existing) ---
-  const wrap = document.getElementById('hp-wrap');
-  const toggle = document.getElementById('hp-view-toggle');
-  const preview = document.getElementById('hp-preview');
-  if (wrap) {
-    @if(!$isAdmin)
-      wrap.classList.add('preview-mode');
-      if (preview) preview.style.display = 'block';
-    @else
-      if (toggle) {
-        const stored = localStorage.getItem('hp_view_as_user') === '1';
-        toggle.checked = stored;
-        wrap.classList.toggle('preview-mode', stored);
-        if (preview) preview.style.display = stored ? 'block' : 'none';
-        toggle.addEventListener('change', function(){
-          const isPreview = toggle.checked;
-          localStorage.setItem('hp_view_as_user', isPreview ? '1' : '0');
-          wrap.classList.toggle('preview-mode', isPreview);
-          if (preview) preview.style.display = isPreview ? 'block' : 'none';
-          if (isPreview && preview) preview.scrollIntoView({behavior:'smooth'});
-        });
-      }
-    @endif
+  const state = {
+    settings: Object.assign({
+      image_folder: document.getElementById('hp-image-folder')?.value || '',
+      show_reservations: true,
+      show_properties: true,
+      container: 'wide',
+      hero_height: 'lg',
+    }, initialState.settings || {}),
+    blocks: Array.isArray(initialState.blocks) ? initialState.blocks : [],
+  };
+
+  const blockTypes = {
+    hero: 'Hero',
+    banner: 'Banner',
+    title: 'Título',
+    text: 'Texto',
+    image: 'Imagen',
+    links: 'Links',
+    faq: 'FAQ',
+  };
+
+  function uid(prefix) {
+    return prefix + '-' + Math.random().toString(36).slice(2, 10);
   }
 
-  // --- Carousel initialization & behavior ---
-  (function initCarousel(){
-    const initial = window.hpInitialCarousel || [];
-    const carousel = document.getElementById('hp-carousel');
-    if (!carousel) return;
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
 
-    const track = document.getElementById('hp-carousel-track');
-    const prev = document.getElementById('hp-carousel-prev');
-    const next = document.getElementById('hp-carousel-next');
-    const dotsContainer = document.getElementById('hp-carousel-dots');
-    let slides = Array.from(track.children);
-    let idx = 0;
-    let width = carousel.clientWidth || carousel.offsetWidth;
-    let autoTimer = null;
+  function nl2brSafe(value) {
+    return escapeHtml(value).replace(/\n/g, '<br>');
+  }
 
-    // adjust nav buttons visually outside image and accessible
-    const styleNav = document.createElement('style');
-    styleNav.innerHTML = `
-      .hp-carousel-btn{ position:absolute; top:50%; transform:translateY(-50%); z-index:6; border:0; padding:10px 12px; border-radius:8px; background:rgba(0,0,0,0.36); color:#fff; cursor:pointer; }
-      .hp-carousel-btn-left{ left:12px; }
-      .hp-carousel-btn-right{ right:12px; }
-      .hp-carousel .dots{ z-index:6; bottom:14px; position:absolute; left:50%; transform:translateX(-50%); display:flex; gap:8px; }
-      .hp-carousel .dot{ width:10px; height:10px; border-radius:999px; border:1px solid rgba(255,255,255,0.5); background:rgba(255,255,255,0.45); cursor:pointer; }
-      .hp-carousel .dot.active{ background:#fff; box-shadow:0 8px 20px rgba(2,6,23,0.06); }
-      .hp-carousel .track{ will-change:transform; }
-    `;
-    document.head.appendChild(styleNav);
+  function normalizeMediaPath(path) {
+    return String(path || '').trim().replace(/\\/g, '/').replace(/^\/+/, '');
+  }
 
-    function refresh() {
-      slides = Array.from(track.children);
-      width = carousel.clientWidth || carousel.offsetWidth;
-      updatePosition(true);
-      // show/hide controls if single slide
-      if (slides.length <= 1) {
-        prev.style.display = 'none';
-        next.style.display = 'none';
-        if (dotsContainer) dotsContainer.style.display = 'none';
-      } else {
-        prev.style.display = '';
-        next.style.display = '';
-        if (dotsContainer) dotsContainer.style.display = '';
-      }
+  function mediaPathCandidates(path) {
+    const raw = String(path || '').trim();
+    if (!raw) return [];
+    if (/^(https?:)?\/\//.test(raw) || raw.startsWith('data:')) return [raw];
+
+    const normalized = normalizeMediaPath(raw);
+    const folder = normalizeMediaPath(state.settings.image_folder || document.getElementById('hp-image-folder')?.value || '');
+    const candidates = [normalized];
+
+    if (folder && !normalized.startsWith(folder + '/')) {
+      candidates.push(folder + '/' + normalized);
+    }
+    if (!normalized.startsWith('uploads/')) {
+      candidates.push('uploads/' + normalized);
+    }
+    if (/^\d+\//.test(normalized)) {
+      const parts = normalized.split('/');
+      candidates.push('uploads_propiedades_' + parts[0] + '_/' + parts.slice(1).join('/'));
+    }
+    if (!normalized.startsWith('logos/')) {
+      candidates.push('logos/' + normalized.split('/').pop());
+    }
+    if (normalized.includes('banner-default')) {
+      candidates.push('uploads/banner.jpg');
     }
 
-    function updatePosition(noAnim){
-      if (noAnim) track.style.transition = 'none';
-      else track.style.transition = 'transform .6s cubic-bezier(.22,.9,.3,1)';
-      track.style.transform = 'translateX(' + (-idx * width) + 'px)';
-      // update dots active
-      if (dotsContainer) {
-        Array.from(dotsContainer.children).forEach((d,i)=>{
-          d.classList.toggle('active', i === idx);
-          d.setAttribute('aria-selected', i === idx ? 'true' : 'false');
-        });
-      }
-      // force reflow to re-enable transition
-      if (noAnim) { void track.offsetWidth; track.style.transition = ''; }
-    }
+    return Array.from(new Set(candidates.filter(Boolean)));
+  }
 
-    function nextSlide(){
-      if (slides.length === 0) return;
-      idx = (idx + 1) % slides.length;
-      updatePosition();
-    }
-    function prevSlide(){
-      if (slides.length === 0) return;
-      idx = (idx - 1 + slides.length) % slides.length;
-      updatePosition();
-    }
+  function toMediaUrl(path) {
+    const candidates = mediaPathCandidates(path);
+    if (!candidates.length) return '';
+    if (/^(https?:)?\/\//.test(candidates[0]) || candidates[0].startsWith('data:')) return candidates[0];
+    return baseUrl.replace(/\/$/, '') + '/' + candidates[0].replace(/^\/+/, '');
+  }
 
-    // attach buttons
-    prev?.addEventListener('click', function(e){ e.preventDefault(); stopAuto(); prevSlide(); startAuto(); });
-    next?.addEventListener('click', function(e){ e.preventDefault(); stopAuto(); nextSlide(); startAuto(); });
+  function syncDefaultHeroFromBase(shouldRenderEditor = false) {
+    const hero = state.blocks.find((block) => block.type === 'hero' && block.id === 'hero-default');
+    if (!hero) return;
+    hero.title = document.getElementById('hp-company-name')?.value || '';
+    hero.subtitle = document.getElementById('hp-slogan')?.value || '';
+    hero.eyebrow = document.getElementById('hp-location')?.value || '';
+    hero.image = document.getElementById('hp-banner-image')?.value || '';
+    if (shouldRenderEditor) {
+      renderBlocksEditor();
+    }
+  }
 
-    // dots
-    if (dotsContainer) {
-      dotsContainer.addEventListener('click', function(e){
-        const d = e.target.closest('.dot');
-        if (!d) return;
-        const to = Number(d.dataset.dotIndex || 0);
-        if (isNaN(to)) return;
-        stopAuto();
-        idx = Math.max(0, Math.min(to, slides.length-1));
-        updatePosition();
-        startAuto();
+  function animateEditorReorder(mutator) {
+    const before = new Map();
+    blocksEditor.querySelectorAll('.hp-block-editor').forEach((card) => {
+      before.set(card.dataset.blockId || '', card.getBoundingClientRect());
+    });
+
+    mutator();
+    renderBlocksEditor();
+
+    blocksEditor.querySelectorAll('.hp-block-editor').forEach((card) => {
+      const key = card.dataset.blockId || '';
+      const prev = before.get(key);
+      if (!prev) return;
+      const next = card.getBoundingClientRect();
+      const dx = prev.left - next.left;
+      const dy = prev.top - next.top;
+      if (!dx && !dy) return;
+
+      card.classList.add('is-moving');
+      card.style.transition = 'none';
+      card.style.transform = `translate(${dx}px, ${dy}px)`;
+      requestAnimationFrame(() => {
+        card.style.transition = 'transform .28s cubic-bezier(.2,.8,.2,1)';
+        card.style.transform = 'translate(0,0)';
+      });
+      window.setTimeout(() => {
+        card.classList.remove('is-moving');
+        card.style.transition = '';
+        card.style.transform = '';
+      }, 320);
+    });
+  }
+
+  function defaultBlock(type) {
+    const base = { id: uid(type), type, enabled: true, title: '', subtitle: '', body: '', image: '', link: '', label: '', height: 'md', width: 'md', align: 'left', overlay: 45, eyebrow: '', primary_label: '', primary_url: '', secondary_label: '', secondary_url: '', size: 'md', style: 'card', items: [] };
+    if (type === 'hero') {
+      return Object.assign(base, {
+        title: document.getElementById('hp-company-name')?.value || 'Nuevo hero',
+        subtitle: document.getElementById('hp-slogan')?.value || 'Describe aquí la propuesta principal.',
+        image: document.getElementById('hp-banner-image')?.value || '',
+        height: 'lg',
+        body: 'Un bloque principal para el homepage con botones, imagen y texto destacado.',
+        primary_label: 'Explorar propiedades',
+        primary_url: '/propiedades',
+        secondary_label: 'Ver reservaciones',
+        secondary_url: '/reservaciones',
+        eyebrow: document.getElementById('hp-location')?.value || '',
       });
     }
+    if (type === 'banner') {
+      return Object.assign(base, { title: 'Banner visual', subtitle: 'Un recurso visual estático con link opcional.', image: document.getElementById('hp-banner-image')?.value || '', height: 'md', link: '/propiedades' });
+    }
+    if (type === 'title') {
+      return Object.assign(base, { title: 'Título de sección', subtitle: 'Subtítulo breve con un tono claro.', size: 'xl', align: 'center' });
+    }
+    if (type === 'text') {
+      return Object.assign(base, { title: 'Bloque de texto', subtitle: 'Contexto corto', body: 'Escribe aquí contenido editorial, instrucciones o un pitch del homepage.', style: 'card' });
+    }
+    if (type === 'image') {
+      return Object.assign(base, { title: 'Imagen destacada', subtitle: 'Un caption opcional', image: document.getElementById('hp-banner-image')?.value || '', width: 'lg', height: 'md' });
+    }
+    if (type === 'links') {
+      return Object.assign(base, { title: 'Accesos rápidos', subtitle: 'Botones o links importantes', items: [{ label: 'Ir a propiedades', url: '/propiedades', style: 'primary' }, { label: 'Ver reservaciones', url: '/reservaciones', style: 'ghost' }] });
+    }
+    if (type === 'faq') {
+      return Object.assign(base, { title: 'Preguntas frecuentes', subtitle: 'Responde dudas comunes', items: [{ question: '¿Cómo reservo?', answer: 'Entra a una propiedad y usa el flujo de reservación.' }] });
+    }
+    return base;
+  }
 
-    // auto rotate
-    function startAuto(){ stopAuto(); if (slides.length > 1) autoTimer = setInterval(nextSlide, 4500); }
-    function stopAuto(){ if (autoTimer) { clearInterval(autoTimer); autoTimer = null; } }
+  function syncLegacySettings() {
+    state.settings.image_folder = document.getElementById('hp-image-folder')?.value || '';
+    state.settings.show_reservations = Boolean(document.getElementById('hp-show-reservations')?.checked);
+    state.settings.show_properties = Boolean(document.getElementById('hp-show-properties')?.checked);
+    state.settings.container = document.getElementById('hp-container-width')?.value || 'wide';
+  }
 
-    // make responsive
-    window.addEventListener('resize', function(){ refresh(); });
+  function renderBlocksEditor() {
+    blocksEditor.innerHTML = state.blocks.map((block, index) => renderBlockEditor(block, index)).join('');
+  }
 
-    // touch / swipe support
-    let pointer = { startX:0, dx:0, dragging:false, startTime:0 };
+  function renderBlockEditor(block, index) {
+    const commonTop = `
+      <div class="hp-block-top">
+        <div class="hp-block-title">
+          <strong>${escapeHtml(blockTypes[block.type] || block.type)}</strong>
+          <span class="hp-pane-subtitle">ID: ${escapeHtml(block.id || '')}</span>
+        </div>
+        <div class="hp-block-tools">
+          <label class="hp-tool-toggle"><input type="checkbox" data-action="toggle-enabled" data-index="${index}" ${block.enabled ? 'checked' : ''}> Activo</label>
+          <button type="button" class="hp-tool-btn" data-action="move-up" data-index="${index}">Subir</button>
+          <button type="button" class="hp-tool-btn" data-action="move-down" data-index="${index}">Bajar</button>
+          <button type="button" class="hp-tool-btn" data-action="duplicate" data-index="${index}">Duplicar</button>
+          <button type="button" class="hp-tool-btn danger" data-action="delete" data-index="${index}">Eliminar</button>
+        </div>
+      </div>`;
 
-    carousel.addEventListener('pointerdown', function(e){
-      // if clicking controls (buttons, dots) do not start dragging — allow click
-      if (e.target.closest('.hp-carousel-btn') || e.target.closest('.dot') || e.target.closest('#hp-carousel-prev') || e.target.closest('#hp-carousel-next')) {
-        return;
+    const titleFields = `
+      <div class="hp-form-grid">
+        <div class="hp-field"><label>Título</label><input data-index="${index}" data-field="title" value="${escapeHtml(block.title || '')}"></div>
+        <div class="hp-field"><label>Subtítulo</label><input data-index="${index}" data-field="subtitle" value="${escapeHtml(block.subtitle || '')}"></div>
+      </div>`;
+
+    if (block.type === 'hero') {
+      return `
+        <div class="hp-block-editor" data-block-index="${index}" data-block-id="${escapeHtml(block.id || '')}">
+          ${commonTop}
+          <div class="hp-form-grid">
+            <div class="hp-field"><label>Eyebrow</label><input data-index="${index}" data-field="eyebrow" value="${escapeHtml(block.eyebrow || '')}"></div>
+            <div class="hp-field"><label>Alineación</label><select data-index="${index}" data-field="align"><option value="left" ${block.align === 'left' ? 'selected' : ''}>Izquierda</option><option value="center" ${block.align === 'center' ? 'selected' : ''}>Centro</option><option value="right" ${block.align === 'right' ? 'selected' : ''}>Derecha</option></select></div>
+          </div>
+          ${titleFields}
+          <div class="hp-field compact"><label>Texto largo</label><textarea data-index="${index}" data-field="body">${escapeHtml(block.body || '')}</textarea></div>
+          <div class="hp-form-grid">
+            <div class="hp-field"><label>Imagen</label><input class="js-media-input" data-media-role="block-image" data-index="${index}" data-field="image" value="${escapeHtml(block.image || '')}"></div>
+            <div class="hp-field"><label>Altura</label><select data-index="${index}" data-field="height"><option value="sm" ${block.height === 'sm' ? 'selected' : ''}>Pequeña</option><option value="md" ${block.height === 'md' ? 'selected' : ''}>Media</option><option value="lg" ${block.height === 'lg' ? 'selected' : ''}>Grande</option></select></div>
+          </div>
+          <div class="hp-field"><label>Overlay (${escapeHtml(block.overlay || 45)}%)</label><input type="range" min="0" max="90" data-index="${index}" data-field="overlay" value="${escapeHtml(block.overlay || 45)}"></div>
+          <div class="hp-form-grid">
+            <div class="hp-field"><label>Botón primario</label><input data-index="${index}" data-field="primary_label" value="${escapeHtml(block.primary_label || '')}"></div>
+            <div class="hp-field"><label>URL primaria</label><input data-index="${index}" data-field="primary_url" value="${escapeHtml(block.primary_url || '')}"></div>
+            <div class="hp-field"><label>Botón secundario</label><input data-index="${index}" data-field="secondary_label" value="${escapeHtml(block.secondary_label || '')}"></div>
+            <div class="hp-field"><label>URL secundaria</label><input data-index="${index}" data-field="secondary_url" value="${escapeHtml(block.secondary_url || '')}"></div>
+          </div>
+        </div>`;
+    }
+
+    if (block.type === 'banner') {
+      return `
+        <div class="hp-block-editor" data-block-index="${index}" data-block-id="${escapeHtml(block.id || '')}">
+          ${commonTop}
+          ${titleFields}
+          <div class="hp-form-grid">
+            <div class="hp-field"><label>Imagen</label><input class="js-media-input" data-media-role="block-image" data-index="${index}" data-field="image" value="${escapeHtml(block.image || '')}"></div>
+            <div class="hp-field"><label>Link</label><input data-index="${index}" data-field="link" value="${escapeHtml(block.link || '')}"></div>
+            <div class="hp-field"><label>Altura</label><select data-index="${index}" data-field="height"><option value="sm" ${block.height === 'sm' ? 'selected' : ''}>Pequeña</option><option value="md" ${block.height === 'md' ? 'selected' : ''}>Media</option><option value="lg" ${block.height === 'lg' ? 'selected' : ''}>Grande</option></select></div>
+          </div>
+        </div>`;
+    }
+
+    if (block.type === 'title') {
+      return `
+        <div class="hp-block-editor" data-block-index="${index}" data-block-id="${escapeHtml(block.id || '')}">
+          ${commonTop}
+          ${titleFields}
+          <div class="hp-form-grid">
+            <div class="hp-field"><label>Tamaño</label><select data-index="${index}" data-field="size"><option value="sm" ${block.size === 'sm' ? 'selected' : ''}>S</option><option value="md" ${block.size === 'md' ? 'selected' : ''}>M</option><option value="lg" ${block.size === 'lg' ? 'selected' : ''}>L</option><option value="xl" ${block.size === 'xl' ? 'selected' : ''}>XL</option></select></div>
+            <div class="hp-field"><label>Alineación</label><select data-index="${index}" data-field="align"><option value="left" ${block.align === 'left' ? 'selected' : ''}>Izquierda</option><option value="center" ${block.align === 'center' ? 'selected' : ''}>Centro</option><option value="right" ${block.align === 'right' ? 'selected' : ''}>Derecha</option></select></div>
+          </div>
+        </div>`;
+    }
+
+    if (block.type === 'text') {
+      return `
+        <div class="hp-block-editor" data-block-index="${index}" data-block-id="${escapeHtml(block.id || '')}">
+          ${commonTop}
+          ${titleFields}
+          <div class="hp-field compact"><label>Contenido</label><textarea data-index="${index}" data-field="body">${escapeHtml(block.body || '')}</textarea></div>
+          <div class="hp-form-grid">
+            <div class="hp-field"><label>Estilo</label><select data-index="${index}" data-field="style"><option value="card" ${block.style === 'card' ? 'selected' : ''}>Card</option><option value="soft" ${block.style === 'soft' ? 'selected' : ''}>Soft</option><option value="plain" ${block.style === 'plain' ? 'selected' : ''}>Plain</option></select></div>
+            <div class="hp-field"><label>Alineación</label><select data-index="${index}" data-field="align"><option value="left" ${block.align === 'left' ? 'selected' : ''}>Izquierda</option><option value="center" ${block.align === 'center' ? 'selected' : ''}>Centro</option><option value="right" ${block.align === 'right' ? 'selected' : ''}>Derecha</option></select></div>
+          </div>
+        </div>`;
+    }
+
+    if (block.type === 'image') {
+      return `
+        <div class="hp-block-editor" data-block-index="${index}" data-block-id="${escapeHtml(block.id || '')}">
+          ${commonTop}
+          ${titleFields}
+          <div class="hp-form-grid">
+            <div class="hp-field"><label>Imagen</label><input class="js-media-input" data-media-role="block-image" data-index="${index}" data-field="image" value="${escapeHtml(block.image || '')}"></div>
+            <div class="hp-field"><label>Link opcional</label><input data-index="${index}" data-field="link" value="${escapeHtml(block.link || '')}"></div>
+            <div class="hp-field"><label>Ancho</label><select data-index="${index}" data-field="width"><option value="sm" ${block.width === 'sm' ? 'selected' : ''}>S</option><option value="md" ${block.width === 'md' ? 'selected' : ''}>M</option><option value="lg" ${block.width === 'lg' ? 'selected' : ''}>L</option><option value="full" ${block.width === 'full' ? 'selected' : ''}>Full</option></select></div>
+            <div class="hp-field"><label>Altura</label><select data-index="${index}" data-field="height"><option value="sm" ${block.height === 'sm' ? 'selected' : ''}>S</option><option value="md" ${block.height === 'md' ? 'selected' : ''}>M</option><option value="lg" ${block.height === 'lg' ? 'selected' : ''}>L</option></select></div>
+          </div>
+        </div>`;
+    }
+
+    if (block.type === 'links') {
+      const items = (block.items || []).map((item, itemIndex) => `
+        <div class="hp-inline-item">
+          <div class="hp-field"><label>Label</label><input data-index="${index}" data-collection="items" data-item-index="${itemIndex}" data-field="label" value="${escapeHtml(item.label || '')}"></div>
+          <div class="hp-field"><label>URL</label><input data-index="${index}" data-collection="items" data-item-index="${itemIndex}" data-field="url" value="${escapeHtml(item.url || '')}"></div>
+          <div class="hp-field"><label>Estilo</label><select data-index="${index}" data-collection="items" data-item-index="${itemIndex}" data-field="style"><option value="primary" ${(item.style || 'primary') === 'primary' ? 'selected' : ''}>Primario</option><option value="ghost" ${(item.style || '') === 'ghost' ? 'selected' : ''}>Ghost</option></select></div>
+          <button type="button" class="hp-tool-btn danger" data-action="remove-item" data-index="${index}" data-item-index="${itemIndex}">Quitar</button>
+        </div>`).join('');
+      return `
+        <div class="hp-block-editor" data-block-index="${index}" data-block-id="${escapeHtml(block.id || '')}">
+          ${commonTop}
+          ${titleFields}
+          <div class="hp-inline-list">${items}</div>
+          <button type="button" class="hp-tool-btn" data-action="add-item" data-index="${index}">Agregar link</button>
+        </div>`;
+    }
+
+    if (block.type === 'faq') {
+      const items = (block.items || []).map((item, itemIndex) => `
+        <div class="hp-inline-item faq">
+          <div class="hp-field"><label>Pregunta</label><input data-index="${index}" data-collection="items" data-item-index="${itemIndex}" data-field="question" value="${escapeHtml(item.question || '')}"></div>
+          <button type="button" class="hp-tool-btn danger" data-action="remove-item" data-index="${index}" data-item-index="${itemIndex}">Quitar</button>
+          <div class="hp-field compact"><label>Respuesta</label><textarea data-index="${index}" data-collection="items" data-item-index="${itemIndex}" data-field="answer">${escapeHtml(item.answer || '')}</textarea></div>
+        </div>`).join('');
+      return `
+        <div class="hp-block-editor" data-block-index="${index}" data-block-id="${escapeHtml(block.id || '')}">
+          ${commonTop}
+          ${titleFields}
+          <div class="hp-inline-list">${items}</div>
+          <button type="button" class="hp-tool-btn" data-action="add-item" data-index="${index}">Agregar pregunta</button>
+        </div>`;
+    }
+
+    return `<div class="hp-block-editor">${commonTop}</div>`;
+  }
+
+  function renderDynamicSectionReservations() {
+    if (!state.settings.show_reservations) return '';
+    if (!dynamicData.loggedIn) {
+      return '<section class="hp-block hp-dynamic-block"><div class="hp-section-head"><h3>Tus reservaciones</h3><span>Resumen rapido de tu actividad</span></div><div class="hp-empty">Inicia sesion para ver tus reservaciones.</div></section>';
+    }
+    if (!dynamicData.reservations.length) {
+      return '<section class="hp-block hp-dynamic-block"><div class="hp-section-head"><h3>Tus reservaciones</h3><span>Resumen rapido de tu actividad</span></div><div class="hp-empty">No tienes reservaciones registradas todavia.</div></section>';
+    }
+    return `
+      <section class="hp-block hp-dynamic-block">
+        <div class="hp-section-head"><h3>Tus reservaciones</h3><span>Resumen rapido de tu actividad</span></div>
+        <div class="hp-card-grid">
+          ${dynamicData.reservations.map((item) => `
+            <article class="hp-card-mini">
+              <div class="hp-card-media">${item.image ? `<img src="${toMediaUrl(item.image)}" alt="${escapeHtml(item.name)}">` : ''}</div>
+              <div class="hp-card-copy">
+                <strong>${escapeHtml(item.name)}</strong>
+                <span>${escapeHtml(item.check_in)} - ${escapeHtml(item.check_out)}</span>
+                <span>Estado: ${escapeHtml(item.status)}</span>
+              </div>
+              <a class="btn btn-ghost" href="${escapeHtml(item.url)}">Ver</a>
+            </article>`).join('')}
+        </div>
+      </section>`;
+  }
+
+  function renderDynamicSectionProperties() {
+    if (!state.settings.show_properties) return '';
+    return `
+      <section class="hp-block hp-dynamic-block">
+        <div class="hp-section-head"><h3>Propiedades disponibles</h3><span>Accesos directos a las propiedades activas</span></div>
+        <div class="hp-card-grid">
+          ${dynamicData.properties.map((item) => `
+            <article class="hp-card-mini">
+              <div class="hp-card-media">${item.image ? `<img src="${toMediaUrl(item.image)}" alt="${escapeHtml(item.name)}">` : ''}</div>
+              <div class="hp-card-copy">
+                <strong>${escapeHtml(item.name)}</strong>
+                <span>${escapeHtml(item.location || '')}</span>
+                <span>$${Number(item.price || 0).toFixed(2)} / noche</span>
+              </div>
+              <div class="hp-inline-actions">
+                <a class="btn btn-ghost" href="${escapeHtml(item.showUrl)}">Ver</a>
+                <a class="btn btn-primary" href="${escapeHtml(item.reserveUrl)}">Reservar</a>
+              </div>
+            </article>`).join('')}
+        </div>
+      </section>`;
+  }
+
+  function renderBlock(block) {
+    if (!block.enabled) return '';
+    const align = ['left', 'center', 'right'].includes(block.align) ? block.align : 'left';
+    const height = ['sm', 'md', 'lg'].includes(block.height) ? block.height : 'md';
+    const width = ['sm', 'md', 'lg', 'full'].includes(block.width) ? block.width : 'md';
+    const size = ['sm', 'md', 'lg', 'xl'].includes(block.size) ? block.size : 'md';
+    const style = ['card', 'soft', 'plain'].includes(block.style) ? block.style : 'card';
+
+    if (block.type === 'hero') {
+      const heroBg = toMediaUrl(block.image);
+      return `
+        <section class="hp-block hp-block-hero hero-${height} align-${align}" style="--hero-overlay:${Math.max(0, Math.min(90, Number(block.overlay || 45))) / 100};${heroBg ? `background-image:url('${escapeHtml(heroBg)}')` : ''}">
+          <div class="hp-hero-overlay"></div>
+          <div class="hp-hero-inner">
+            ${block.eyebrow ? `<div class="hp-eyebrow">${escapeHtml(block.eyebrow)}</div>` : ''}
+            ${block.title ? `<h2>${escapeHtml(block.title)}</h2>` : ''}
+            ${block.subtitle ? `<p class="hp-subtitle">${escapeHtml(block.subtitle)}</p>` : ''}
+            ${block.body ? `<div class="hp-copy">${nl2brSafe(block.body)}</div>` : ''}
+            <div class="hp-actions">
+              ${block.primary_label ? `<a class="btn btn-primary" href="${escapeHtml(block.primary_url || '#')}">${escapeHtml(block.primary_label)}</a>` : ''}
+              ${block.secondary_label ? `<a class="btn btn-ghost" href="${escapeHtml(block.secondary_url || '#')}">${escapeHtml(block.secondary_label)}</a>` : ''}
+            </div>
+          </div>
+        </section>`;
+    }
+
+    if (block.type === 'banner') {
+      return `
+        <section class="hp-block hp-block-banner banner-${height}">
+          ${block.image ? `${block.link ? `<a href="${escapeHtml(block.link)}">` : ''}<img src="${escapeHtml(toMediaUrl(block.image))}" alt="${escapeHtml(block.title || 'Banner')}">${block.link ? '</a>' : ''}` : ''}
+          ${(block.title || block.subtitle) ? `<div class="hp-banner-copy">${block.title ? `<strong>${escapeHtml(block.title)}</strong>` : ''}${block.subtitle ? `<span>${escapeHtml(block.subtitle)}</span>` : ''}</div>` : ''}
+        </section>`;
+    }
+
+    if (block.type === 'title') {
+      return `<section class="hp-block hp-block-title align-${align} size-${size}">${block.title ? `<h3>${escapeHtml(block.title)}</h3>` : ''}${block.subtitle ? `<p>${escapeHtml(block.subtitle)}</p>` : ''}</section>`;
+    }
+
+    if (block.type === 'text') {
+      return `<section class="hp-block hp-block-text style-${style} align-${align}">${block.title ? `<h3>${escapeHtml(block.title)}</h3>` : ''}${block.subtitle ? `<p class="hp-subtitle">${escapeHtml(block.subtitle)}</p>` : ''}${block.body ? `<div class="hp-copy">${nl2brSafe(block.body)}</div>` : ''}</section>`;
+    }
+
+    if (block.type === 'image') {
+      return `<section class="hp-block hp-block-image width-${width} height-${height}">${block.image ? `${block.link ? `<a href="${escapeHtml(block.link)}">` : ''}<img src="${escapeHtml(toMediaUrl(block.image))}" alt="${escapeHtml(block.title || 'Imagen')}">${block.link ? '</a>' : ''}` : ''}${(block.title || block.subtitle) ? `<figcaption>${block.title ? `<strong>${escapeHtml(block.title)}</strong>` : ''}${block.subtitle ? `<span>${escapeHtml(block.subtitle)}</span>` : ''}</figcaption>` : ''}</section>`;
+    }
+
+    if (block.type === 'links') {
+      return `<section class="hp-block hp-block-links">${block.title ? `<h3>${escapeHtml(block.title)}</h3>` : ''}${block.subtitle ? `<p class="hp-subtitle">${escapeHtml(block.subtitle)}</p>` : ''}<div class="hp-link-grid">${(block.items || []).map((item) => `<a class="btn ${(item.style || 'primary') === 'ghost' ? 'btn-ghost' : 'btn-primary'}" href="${escapeHtml(item.url || '#')}">${escapeHtml(item.label || '')}</a>`).join('')}</div></section>`;
+    }
+
+    if (block.type === 'faq') {
+      return `<section class="hp-block hp-block-faq">${block.title ? `<h3>${escapeHtml(block.title)}</h3>` : ''}${block.subtitle ? `<p class="hp-subtitle">${escapeHtml(block.subtitle)}</p>` : ''}<div class="hp-faq-list">${(block.items || []).map((item) => `<details class="hp-faq-item"><summary>${escapeHtml(item.question || 'Pregunta')}</summary><div>${nl2brSafe(item.answer || '')}</div></details>`).join('')}</div></section>`;
+    }
+
+    return '';
+  }
+
+  function renderPreview() {
+    syncLegacySettings();
+    const html = `
+      <div class="hp-public-content ${state.settings.container === 'narrow' ? 'is-narrow' : ''}">
+        ${state.blocks.map(renderBlock).join('')}
+        ${renderDynamicSectionReservations()}
+        ${renderDynamicSectionProperties()}
+      </div>`;
+    previewRoot.innerHTML = html;
+    metaInput.value = JSON.stringify({ settings: state.settings, blocks: state.blocks });
+  }
+
+  function setFieldValue(index, field, value) {
+    if (!state.blocks[index]) return;
+    state.blocks[index][field] = value;
+    renderPreview();
+  }
+
+  blocksEditor.addEventListener('input', function (event) {
+    const target = event.target;
+    if (target.matches('.js-media-input')) {
+      activeMediaInput = target;
+    }
+    const index = Number(target.dataset.index);
+    if (Number.isNaN(index)) return;
+
+    if (target.dataset.collection === 'items') {
+      const itemIndex = Number(target.dataset.itemIndex);
+      if (Number.isNaN(itemIndex) || !state.blocks[index] || !Array.isArray(state.blocks[index].items)) return;
+      state.blocks[index].items[itemIndex][target.dataset.field] = target.value;
+      renderPreview();
+      return;
+    }
+
+    if (target.type === 'range') {
+      setFieldValue(index, target.dataset.field, Number(target.value));
+      return;
+    }
+
+    setFieldValue(index, target.dataset.field, target.value);
+  });
+
+  blocksEditor.addEventListener('change', function (event) {
+    const target = event.target;
+    const index = Number(target.dataset.index);
+    if (target.matches('.js-media-input')) {
+      activeMediaInput = target;
+    }
+    if (target.dataset.collection === 'items') {
+      const itemIndex = Number(target.dataset.itemIndex);
+      if (!Number.isNaN(index) && !Number.isNaN(itemIndex) && state.blocks[index] && Array.isArray(state.blocks[index].items)) {
+        state.blocks[index].items[itemIndex][target.dataset.field] = target.value;
+        renderPreview();
       }
-      pointer.dragging = true;
-      pointer.startX = e.clientX;
-      pointer.startTime = Date.now();
-      track.style.transition = 'none';
-      try { carousel.setPointerCapture && carousel.setPointerCapture(e.pointerId); } catch(e){}
-      stopAuto();
-    });
+      return;
+    }
+    if (target.dataset.field && !Number.isNaN(index)) {
+      setFieldValue(index, target.dataset.field, target.type === 'checkbox' ? target.checked : target.value);
+    }
+  });
 
-    carousel.addEventListener('pointermove', function(e){
-      if (!pointer.dragging) return;
-      pointer.dx = e.clientX - pointer.startX;
-      track.style.transform = `translateX(${ -idx * width + pointer.dx }px)`;
-    });
-    carousel.addEventListener('pointerup', function(e){
-      if (!pointer.dragging) return;
-      pointer.dragging = false;
-      const dt = Date.now() - pointer.startTime;
-      const vx = pointer.dx / Math.max(1, dt);
-      // threshold
-      if (pointer.dx > width * 0.2 || vx > 0.5) { prevSlide(); }
-      else if (pointer.dx < -width * 0.2 || vx < -0.5) { nextSlide(); }
-      else updatePosition();
-      startAuto();
-      pointer.dx = 0;
-    });
-    carousel.addEventListener('pointercancel', function(){ pointer.dragging = false; updatePosition(); startAuto(); });
+  blocksEditor.addEventListener('focusin', function (event) {
+    if (event.target.matches('.js-media-input')) {
+      activeMediaInput = event.target;
+    }
+  });
 
-    // keyboard navigation
-    carousel.tabIndex = 0;
-    carousel.addEventListener('keydown', function(e){
-      if (e.key === 'ArrowLeft') { stopAuto(); prevSlide(); startAuto(); }
-      if (e.key === 'ArrowRight') { stopAuto(); nextSlide(); startAuto(); }
-    });
+  blocksEditor.addEventListener('click', function (event) {
+    const button = event.target.closest('[data-action]');
+    if (!button) return;
+    const action = button.dataset.action;
+    const index = Number(button.dataset.index);
 
-    // init
-    refresh();
-    startAuto();
+    if (action === 'toggle-enabled') {
+      state.blocks[index].enabled = button.checked;
+      renderPreview();
+      return;
+    }
 
-    // expose helper to rebuild carousel from dynamic list (used when admin changes folder)
-    window.hpRebuildCarousel = function(urls){
-      if (!Array.isArray(urls)) return;
-      track.innerHTML = '';
-      urls.forEach(u=>{
-        const s = document.createElement('div');
-        s.className = 'slide';
-        s.innerHTML = '<img src="'+u+'" alt="Banner">';
-        track.appendChild(s);
+    if (action === 'move-up' && index > 0) {
+      animateEditorReorder(function () {
+        [state.blocks[index - 1], state.blocks[index]] = [state.blocks[index], state.blocks[index - 1]];
       });
-      // rebuild dots
-      if (dotsContainer) {
-        dotsContainer.innerHTML = '';
-        urls.forEach((u,i)=>{
-          const b = document.createElement('button');
-          b.className = 'dot' + (i===0 ? ' active' : '');
-          b.dataset.dotIndex = i;
-          b.setAttribute('aria-label', 'Ir a slide ' + (i+1));
-          b.setAttribute('role','tab');
-          b.setAttribute('aria-selected', i===0 ? 'true' : 'false');
-          dotsContainer.appendChild(b);
-        });
+      renderPreview();
+      return;
+    }
+
+    if (action === 'move-down' && index < state.blocks.length - 1) {
+      animateEditorReorder(function () {
+        [state.blocks[index + 1], state.blocks[index]] = [state.blocks[index], state.blocks[index + 1]];
+      });
+      renderPreview();
+      return;
+    }
+
+    if (action === 'duplicate') {
+      const clone = JSON.parse(JSON.stringify(state.blocks[index]));
+      clone.id = uid(clone.type || 'block');
+      state.blocks.splice(index + 1, 0, clone);
+      renderBlocksEditor();
+      renderPreview();
+      return;
+    }
+
+    if (action === 'delete') {
+      state.blocks.splice(index, 1);
+      renderBlocksEditor();
+      renderPreview();
+      return;
+    }
+
+    if (action === 'add-item') {
+      if (state.blocks[index].type === 'links') {
+        state.blocks[index].items.push({ label: 'Nuevo link', url: '/propiedades', style: 'primary' });
+      } else if (state.blocks[index].type === 'faq') {
+        state.blocks[index].items.push({ question: 'Nueva pregunta', answer: 'Nueva respuesta' });
       }
-      idx = 0;
-      refresh();
-    };
+      renderBlocksEditor();
+      renderPreview();
+      return;
+    }
 
-  })();
+    if (action === 'remove-item') {
+      const itemIndex = Number(button.dataset.itemIndex);
+      if (!Number.isNaN(itemIndex) && Array.isArray(state.blocks[index].items)) {
+        state.blocks[index].items.splice(itemIndex, 1);
+        renderBlocksEditor();
+        renderPreview();
+      }
+    }
+  });
 
+  document.querySelectorAll('[data-add-block]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      state.blocks.push(defaultBlock(button.dataset.addBlock));
+      renderBlocksEditor();
+      renderPreview();
+    });
+  });
+
+  document.getElementById('hp-company-name')?.addEventListener('input', function () {
+    syncDefaultHeroFromBase(true);
+    renderPreview();
+  });
+  document.getElementById('hp-location')?.addEventListener('input', function () {
+    syncDefaultHeroFromBase(true);
+    renderPreview();
+  });
+  document.getElementById('hp-slogan')?.addEventListener('input', function () {
+    syncDefaultHeroFromBase(true);
+    renderPreview();
+  });
+  document.getElementById('hp-banner-image')?.addEventListener('input', function (event) {
+    activeMediaInput = event.target;
+    syncDefaultHeroFromBase(true);
+    renderPreview();
+  });
+  document.getElementById('hp-image-folder')?.addEventListener('input', renderPreview);
+  document.getElementById('hp-show-reservations')?.addEventListener('change', renderPreview);
+  document.getElementById('hp-show-properties')?.addEventListener('change', renderPreview);
+  document.getElementById('hp-container-width')?.addEventListener('change', renderPreview);
+
+  document.getElementById('hp-quick-media')?.addEventListener('click', function (event) {
+    const thumb = event.target.closest('[data-media-path]');
+    if (!thumb) return;
+    if (!activeMediaInput) {
+      activeMediaInput = document.getElementById('hp-banner-image');
+    }
+    activeMediaInput.value = thumb.dataset.mediaPath;
+    activeMediaInput.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+
+  if (previewToggle) {
+    const stored = localStorage.getItem('homepage_preview_mode') === '1';
+    previewToggle.checked = stored;
+    shell.classList.toggle('preview-mode', stored);
+    previewToggle.addEventListener('change', function () {
+      shell.classList.toggle('preview-mode', previewToggle.checked);
+      localStorage.setItem('homepage_preview_mode', previewToggle.checked ? '1' : '0');
+    });
+  }
+
+  form.addEventListener('submit', function () {
+    syncLegacySettings();
+    metaInput.value = JSON.stringify({ settings: state.settings, blocks: state.blocks });
+  });
+
+  resetButton?.addEventListener('click', function () {
+    if (!window.confirm('Se reiniciará la homepage personalizada. ¿Continuar?')) {
+      return;
+    }
+    const resetForm = document.createElement('form');
+    resetForm.method = 'POST';
+    resetForm.action = @json(route('homepage.destroy', 1));
+
+    const token = document.createElement('input');
+    token.type = 'hidden';
+    token.name = '_token';
+    token.value = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    const method = document.createElement('input');
+    method.type = 'hidden';
+    method.name = '_method';
+    method.value = 'DELETE';
+
+    resetForm.appendChild(token);
+    resetForm.appendChild(method);
+    document.body.appendChild(resetForm);
+    resetForm.submit();
+  });
+
+  renderBlocksEditor();
+  syncDefaultHeroFromBase(false);
+  renderPreview();
 });
 </script>
+@endif
 @endpush
-
-@section('scripts')
-@show

@@ -18,5 +18,10 @@ class Homepage extends Model
         'ubicacion',
         'eslogan',
         'nombre_empresa',
+        'meta',
+    ];
+
+    protected $casts = [
+        'meta' => 'array',
     ];
 }

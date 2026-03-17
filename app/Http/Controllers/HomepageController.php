@@ -9,79 +9,324 @@ class HomepageController extends Controller
 {
     public function index(Request $request)
     {
-        $homepages = Homepage::orderByDesc('id')->get();
-        $folderFiles = [];
-        $first = $homepages->first();
-        if ($first && !empty($first->image_folder)) {
-            $folder = trim($first->image_folder, "/\\");
-            $target = public_path($folder);
-            if (is_dir($target)) {
-                $allowed = ['jpg','jpeg','png','webp','gif','svg'];
-                $all = @scandir($target) ?: [];
-                foreach ($all as $f) {
-                    if ($f === '.' || $f === '..') continue;
-                    $path = $target . DIRECTORY_SEPARATOR . $f;
-                    if (! is_file($path)) continue;
-                    $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
-                    if (! in_array($ext, $allowed)) continue;
-                    $folderFiles[] = asset($folder . '/' . $f);
-                }
-            }
+        $homepage = $this->singleton();
+        $homepageMeta = $this->normalizeMeta($homepage->meta, $homepage);
+        $folderFiles = $this->resolveFolderFiles($homepageMeta['settings']['image_folder'] ?? $homepage->image_folder);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'homepage' => $homepage,
+                'meta' => $homepageMeta,
+                'folderFiles' => $folderFiles,
+            ]);
         }
 
-        if ($request->wantsJson()) return response()->json($homepages);
-        return view('homepage.index', compact('homepages', 'folderFiles'));
+        return view('homepage.index', compact('homepage', 'homepageMeta', 'folderFiles'));
     }
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'banner_image' => 'nullable|string|max:255',
-            'image_folder' => 'nullable|string|max:255',
-            'ubicacion' => 'nullable|string|max:255',
-            'eslogan' => 'nullable|string|max:255',
-            'nombre_empresa' => 'nullable|string|max:255',
-        ]);
+        $this->authorizeAdmin();
 
-        $hp = Homepage::create($data);
-
-        if ($request->wantsJson()) return response()->json($hp, 201);
-        return redirect()->back()->with('success','Homepage creada');
+        return $this->persistSingleton($request);
     }
 
     public function show(Request $request, $id)
     {
-        $hp = Homepage::find($id);
-        if (!$hp) return $request->wantsJson() ? response()->json(['message'=>'No encontrado'],404) : abort(404);
-        if ($request->wantsJson()) return response()->json($hp);
-        return view('homepage.show', ['homepage' => $hp]);
+        $homepage = $this->singleton();
+        $homepageMeta = $this->normalizeMeta($homepage->meta, $homepage);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'homepage' => $homepage,
+                'meta' => $homepageMeta,
+            ]);
+        }
+
+        return redirect()->route('homepage.index');
     }
 
     public function update(Request $request, $id)
     {
-        $hp = Homepage::find($id);
-        if (!$hp) return $request->wantsJson() ? response()->json(['message'=>'No encontrado'],404) : abort(404);
+        $this->authorizeAdmin();
 
+        return $this->persistSingleton($request);
+    }
+
+    public function destroy(Request $request, $id)
+    {
+        $this->authorizeAdmin();
+
+        $homepage = $this->singleton();
+        $defaults = $this->defaultPayload();
+        $homepage->fill($defaults);
+        $homepage->save();
+
+        if ($request->wantsJson()) {
+            return response()->json(['message' => 'Homepage reiniciada', 'homepage' => $homepage]);
+        }
+
+        return redirect()->route('homepage.index')->with('success', 'Homepage reiniciada');
+    }
+
+    protected function persistSingleton(Request $request)
+    {
         $data = $request->validate([
             'banner_image' => 'nullable|string|max:255',
             'image_folder' => 'nullable|string|max:255',
             'ubicacion' => 'nullable|string|max:255',
             'eslogan' => 'nullable|string|max:255',
             'nombre_empresa' => 'nullable|string|max:255',
+            'meta_json' => 'nullable|string',
         ]);
 
-        $hp->update($data);
+        $homepage = $this->singleton();
+        $meta = $homepage->meta;
+        if (! empty($data['meta_json'])) {
+            $decoded = json_decode($data['meta_json'], true);
+            if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
+                return back()->withErrors(['meta_json' => 'La configuración del homepage no es válida.'])->withInput();
+            }
+            $meta = $decoded;
+        }
 
-        if ($request->wantsJson()) return response()->json($hp);
-        return redirect()->back()->with('success','Homepage actualizada');
+        $payload = [
+            'banner_image' => $data['banner_image'] ?? $homepage->banner_image,
+            'image_folder' => $data['image_folder'] ?? $homepage->image_folder,
+            'ubicacion' => $data['ubicacion'] ?? $homepage->ubicacion,
+            'eslogan' => $data['eslogan'] ?? $homepage->eslogan,
+            'nombre_empresa' => $data['nombre_empresa'] ?? $homepage->nombre_empresa,
+            'meta' => $this->normalizeMeta($meta, $homepage, $data),
+        ];
+
+        Homepage::updateOrCreate(['id' => 1], $payload);
+
+        if ($request->wantsJson()) {
+            return response()->json(['message' => 'Homepage actualizada']);
+        }
+
+        return redirect()->route('homepage.index')->with('success', 'Homepage actualizada');
     }
 
-    public function destroy(Request $request, $id)
+    protected function authorizeAdmin(): void
     {
-        $hp = Homepage::find($id);
-        if (!$hp) return $request->wantsJson() ? response()->json(['message'=>'No encontrado'],404) : abort(404);
-        $hp->delete();
-        if ($request->wantsJson()) return response()->json(['message'=>'Eliminado']);
-        return redirect()->back()->with('success','Homepage eliminada');
+        if (! (auth()->user() && (auth()->user()->rol ?? '') === 'admin')) {
+            abort(403);
+        }
+    }
+
+    protected function singleton(): Homepage
+    {
+        $homepage = Homepage::find(1);
+        if ($homepage) {
+            return $homepage;
+        }
+
+        $homepage = new Homepage();
+        $homepage->id = 1;
+        $homepage->fill($this->defaultPayload());
+        $homepage->save();
+
+        return $homepage;
+    }
+
+    protected function defaultPayload(): array
+    {
+        $payload = [
+            'banner_image' => 'uploads/banner.jpg',
+            'image_folder' => 'uploads/homepage',
+            'ubicacion' => 'Valle de las Flores',
+            'eslogan' => 'Escápate y descansa',
+            'nombre_empresa' => 'HomeRes Demo',
+        ];
+
+        $payload['meta'] = $this->defaultMeta($payload);
+
+        return $payload;
+    }
+
+    protected function defaultMeta(array $source = []): array
+    {
+        $banner = $source['banner_image'] ?? 'uploads/banner.jpg';
+        $folder = $source['image_folder'] ?? 'uploads/homepage';
+        $name = $source['nombre_empresa'] ?? 'HomeRes Demo';
+        $slogan = $source['eslogan'] ?? 'Escápate y descansa';
+        $location = $source['ubicacion'] ?? 'Valle de las Flores';
+
+        return [
+            'settings' => [
+                'image_folder' => $folder,
+                'show_reservations' => true,
+                'show_properties' => true,
+                'container' => 'wide',
+                'hero_height' => 'lg',
+            ],
+            'blocks' => [
+                [
+                    'id' => 'hero-default',
+                    'type' => 'hero',
+                    'enabled' => true,
+                    'title' => $name,
+                    'subtitle' => $slogan,
+                    'body' => 'Diseña una portada completa con bloques editables, banners, preguntas frecuentes y llamadas a la acción.',
+                    'image' => $banner,
+                    'height' => 'lg',
+                    'overlay' => 45,
+                    'align' => 'left',
+                    'primary_label' => 'Explorar propiedades',
+                    'primary_url' => '/propiedades',
+                    'secondary_label' => 'Ver reservaciones',
+                    'secondary_url' => '/reservaciones',
+                    'eyebrow' => $location,
+                ],
+                [
+                    'id' => 'title-default',
+                    'type' => 'title',
+                    'enabled' => true,
+                    'title' => 'Hospedajes listos para reservar',
+                    'subtitle' => 'Combina bloques visuales y secciones dinámicas sin salir del editor.',
+                    'size' => 'xl',
+                    'align' => 'center',
+                ],
+                [
+                    'id' => 'faq-default',
+                    'type' => 'faq',
+                    'enabled' => true,
+                    'title' => 'Preguntas frecuentes',
+                    'subtitle' => 'Una sección FAQ editable también forma parte del layout.',
+                    'items' => [
+                        ['question' => '¿Puedo reservar en línea?', 'answer' => 'Sí, cada propiedad enlaza directo al flujo de reservación.'],
+                        ['question' => '¿Puedo cambiar banners?', 'answer' => 'Sí, puedes cambiar la imagen principal y agregar más bloques visuales.'],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    protected function normalizeMeta($meta, Homepage $homepage, array $incoming = []): array
+    {
+        $legacy = [
+            'banner_image' => $incoming['banner_image'] ?? $homepage->banner_image,
+            'image_folder' => $incoming['image_folder'] ?? $homepage->image_folder,
+            'ubicacion' => $incoming['ubicacion'] ?? $homepage->ubicacion,
+            'eslogan' => $incoming['eslogan'] ?? $homepage->eslogan,
+            'nombre_empresa' => $incoming['nombre_empresa'] ?? $homepage->nombre_empresa,
+        ];
+
+        $base = $this->defaultMeta($legacy);
+        if (! is_array($meta)) {
+            $meta = [];
+        }
+
+        $settings = is_array($meta['settings'] ?? null) ? $meta['settings'] : [];
+        $settings = array_merge($base['settings'], $settings);
+        $settings['image_folder'] = $settings['image_folder'] ?? $legacy['image_folder'];
+        $settings['show_reservations'] = (bool) ($settings['show_reservations'] ?? true);
+        $settings['show_properties'] = (bool) ($settings['show_properties'] ?? true);
+
+        $blocks = [];
+        foreach (($meta['blocks'] ?? []) as $index => $block) {
+            if (! is_array($block)) {
+                continue;
+            }
+
+            $type = in_array(($block['type'] ?? ''), ['hero', 'banner', 'title', 'text', 'image', 'links', 'faq'], true)
+                ? $block['type']
+                : 'text';
+
+            $id = trim((string) ($block['id'] ?? ($type . '-' . $index)));
+            if ($id === '') {
+                $id = $type . '-' . $index;
+            }
+
+            $normalized = [
+                'id' => $id,
+                'type' => $type,
+                'enabled' => array_key_exists('enabled', $block) ? (bool) $block['enabled'] : true,
+                'title' => (string) ($block['title'] ?? ''),
+                'subtitle' => (string) ($block['subtitle'] ?? ''),
+                'body' => (string) ($block['body'] ?? ''),
+                'image' => (string) ($block['image'] ?? ''),
+                'link' => (string) ($block['link'] ?? ''),
+                'label' => (string) ($block['label'] ?? ''),
+                'height' => (string) ($block['height'] ?? 'md'),
+                'width' => (string) ($block['width'] ?? 'md'),
+                'align' => (string) ($block['align'] ?? 'left'),
+                'overlay' => (int) ($block['overlay'] ?? 35),
+                'eyebrow' => (string) ($block['eyebrow'] ?? ''),
+                'primary_label' => (string) ($block['primary_label'] ?? ''),
+                'primary_url' => (string) ($block['primary_url'] ?? ''),
+                'secondary_label' => (string) ($block['secondary_label'] ?? ''),
+                'secondary_url' => (string) ($block['secondary_url'] ?? ''),
+                'size' => (string) ($block['size'] ?? 'md'),
+                'style' => (string) ($block['style'] ?? 'card'),
+                'items' => [],
+            ];
+
+            if (in_array($type, ['links', 'faq'], true) && is_array($block['items'] ?? null)) {
+                foreach ($block['items'] as $item) {
+                    if (! is_array($item)) {
+                        continue;
+                    }
+                    if ($type === 'links') {
+                        $normalized['items'][] = [
+                            'label' => (string) ($item['label'] ?? ''),
+                            'url' => (string) ($item['url'] ?? ''),
+                            'style' => (string) ($item['style'] ?? 'primary'),
+                        ];
+                    } else {
+                        $normalized['items'][] = [
+                            'question' => (string) ($item['question'] ?? ''),
+                            'answer' => (string) ($item['answer'] ?? ''),
+                        ];
+                    }
+                }
+            }
+
+            $blocks[] = $normalized;
+        }
+
+        if (empty($blocks)) {
+            $blocks = $base['blocks'];
+        }
+
+        return [
+            'settings' => $settings,
+            'blocks' => array_values($blocks),
+        ];
+    }
+
+    protected function resolveFolderFiles(?string $folder): array
+    {
+        $files = [];
+        if (! $folder) {
+            return $files;
+        }
+
+        $folder = trim(str_replace('\\', '/', $folder), '/ ');
+        $target = public_path($folder);
+        if (! is_dir($target)) {
+            return $files;
+        }
+
+        $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'];
+        $all = @scandir($target) ?: [];
+        sort($all);
+        foreach ($all as $file) {
+            if ($file === '.' || $file === '..') {
+                continue;
+            }
+            $path = $target . DIRECTORY_SEPARATOR . $file;
+            if (! is_file($path)) {
+                continue;
+            }
+            $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+            if (! in_array($ext, $allowed, true)) {
+                continue;
+            }
+            $files[] = asset($folder . '/' . $file);
+        }
+
+        return $files;
     }
 }
