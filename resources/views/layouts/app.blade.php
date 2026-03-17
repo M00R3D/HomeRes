@@ -6,6 +6,8 @@
   <title>{{ config('app.name', 'HomeRes') }}</title>
   <meta name="csrf-token" content="{{ csrf_token() }}" >
   <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
+  <link rel="icon" type="image/png" href="{{ asset('logos/logoHomeRes.png') }}">
+  <link rel="apple-touch-icon" href="{{ asset('logos/logoHomeRes.png') }}">
   <style>
     .content{
       padding: 24px;
