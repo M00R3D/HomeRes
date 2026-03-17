@@ -25,6 +25,16 @@
     } catch (\Throwable $e) {
       $appliedTheme = null; // fail-safe
     }
+    // helper to compute readable text color for CSS variables
+    function __pick_text_color_for_var($hex) {
+      if (! $hex) return '#111827';
+      $h = ltrim($hex, '#');
+      if (strlen($h) === 3) { $h = $h[0].$h[0].$h[1].$h[1].$h[2].$h[2]; }
+      if (strlen($h) !== 6) return '#111827';
+      $r = hexdec(substr($h,0,2)); $g = hexdec(substr($h,2,2)); $b = hexdec(substr($h,4,2));
+      $lum = (0.2126*$r + 0.7152*$g + 0.0722*$b) / 255;
+      return ($lum < 0.5) ? '#ffffff' : '#111827';
+    }
   @endphp
   <style>
     :root {
@@ -40,6 +50,48 @@
       --gradient-angle: {{ $appliedTheme['gradient_angle'] ?? 90 }}deg;
       --animated-gradient: {{ ($appliedTheme['animated_gradient'] ?? false) ? 1 : 0 }};
       --animation-speed: {{ $appliedTheme['animation_speed'] ?? 6 }}s;
+      --bg-gradient-start: {{ $appliedTheme['bg_gradient_start'] ?? '' }};
+      --bg-gradient-end: {{ $appliedTheme['bg_gradient_end'] ?? '' }};
+      --bg-gradient-angle: {{ $appliedTheme['bg_gradient_angle'] ?? 90 }}deg;
+      --bg-animated: {{ ($appliedTheme['bg_animated'] ?? false) ? 1 : 0 }};
+      --sidebar-gradient-start: {{ $appliedTheme['sidebar_gradient_start'] ?? '' }};
+      --sidebar-gradient-end: {{ $appliedTheme['sidebar_gradient_end'] ?? '' }};
+      --sidebar-gradient-angle: {{ $appliedTheme['sidebar_gradient_angle'] ?? 90 }}deg;
+      --sidebar-animated: {{ ($appliedTheme['sidebar_animated'] ?? false) ? 1 : 0 }};
+      --hover-animation: {{ $appliedTheme['hover_animation'] ?? 'none' }};
+      --hover-animation-duration: {{ $appliedTheme['hover_animation_duration'] ?? 0.18 }}s;
+      --float-animation: {{ $appliedTheme['float_animation'] ?? 'none' }};
+      --float-animation-duration: {{ $appliedTheme['float_animation_duration'] ?? 6 }}s;
+      --topbar-bg: {{ $appliedTheme['meta']['topbar']['bg'] ?? ($__appStyle->topbar_bg ?? '#ffffff') }};
+      --topbar-text: {{ $appliedTheme['meta']['topbar']['text'] ?? ($__appStyle->topbar_text ?? '#0f172a') }};
+      --topbar-accent: {{ $appliedTheme['meta']['topbar']['accent'] ?? ($appliedTheme['btn_alt'] ?? ($__appStyle->btn_alt ?? '#ef4444')) }};
+      --notif-badge-bg: {{ $appliedTheme['meta']['notif']['bg'] ?? ($appliedTheme['meta']['payment']['fallido']['bg'] ?? ($appliedTheme['btn_alt'] ?? '#ef4444')) }};
+      --notif-badge-text: {{ $appliedTheme['meta']['notif']['text'] ?? '#ffffff' }};
+      --topbar-gradient-start: {{ $appliedTheme['meta']['topbar']['gradient_start'] ?? '' }};
+      --topbar-gradient-end: {{ $appliedTheme['meta']['topbar']['gradient_end'] ?? '' }};
+      --topbar-animated: {{ ($appliedTheme['meta']['topbar']['animated'] ?? false) ? 1 : 0 }};
+      --btn-primary-text: {{ __pick_text_color_for_var($appliedTheme['btn_primary'] ?? $__appStyle->btn_primary ?? '#6366f1') }};
+      /* payment badge colors per state (defaults provided) */
+      --payment-badge-bg-pagado: {{ $appliedTheme['meta']['payment']['pagado']['bg'] ?? ($__appStyle->meta['payment']['pagado']['bg'] ?? '#10b981') }};
+      --payment-badge-text-pagado: {{ $appliedTheme['meta']['payment']['pagado']['text'] ?? ($__appStyle->meta['payment']['pagado']['text'] ?? '#ffffff') }};
+      --payment-badge-bg-pendiente: {{ $appliedTheme['meta']['payment']['pendiente']['bg'] ?? ($__appStyle->meta['payment']['pendiente']['bg'] ?? '#f59e0b') }};
+      --payment-badge-text-pendiente: {{ $appliedTheme['meta']['payment']['pendiente']['text'] ?? ($__appStyle->meta['payment']['pendiente']['text'] ?? '#ffffff') }};
+      --payment-badge-bg-fallido: {{ $appliedTheme['meta']['payment']['fallido']['bg'] ?? ($__appStyle->meta['payment']['fallido']['bg'] ?? '#ef4444') }};
+      --payment-badge-text-fallido: {{ $appliedTheme['meta']['payment']['fallido']['text'] ?? ($__appStyle->meta['payment']['fallido']['text'] ?? '#ffffff') }};
+      --payment-badge-bg-parcial: {{ $appliedTheme['meta']['payment']['parcial']['bg'] ?? ($__appStyle->meta['payment']['parcial']['bg'] ?? '#6366f1') }};
+      --payment-badge-text-parcial: {{ $appliedTheme['meta']['payment']['parcial']['text'] ?? ($__appStyle->meta['payment']['parcial']['text'] ?? '#ffffff') }};
+      /* price colors by reservation estado */
+      --price-color-confirmada: {{ $appliedTheme['meta']['price']['confirmada'] ?? ($__appStyle->meta['price']['confirmada'] ?? '#065f46') }};
+      --price-color-pendiente: {{ $appliedTheme['meta']['price']['pendiente'] ?? ($__appStyle->meta['price']['pendiente'] ?? '#92400e') }};
+      --price-color-cancelada: {{ $appliedTheme['meta']['price']['cancelada'] ?? ($__appStyle->meta['price']['cancelada'] ?? '#7f1d1d') }};
+      --price-color-default: {{ $appliedTheme['meta']['price']['default'] ?? ($__appStyle->meta['price']['default'] ?? '#374151') }};
+      /* global text color (Dark theme forces white) */
+      --text-color: {{ ($appliedTheme['name'] ?? '') === 'Dark' ? '#ffffff' : (__pick_text_color_for_var($appliedTheme['bg'] ?? $__appStyle->bg ?? '#f8fafc')) }};
+      /* ensure topbar accent and notif badge readable in dark preset */
+      @if(($appliedTheme['name'] ?? '') === 'Dark')
+        --topbar-accent: #ffffff;
+        --notif-badge-text: #ffffff;
+      @endif
     }
 
     @keyframes animatedGradient {
@@ -48,12 +100,67 @@
       100% { background-position: 0% 50%; }
     }
 
-    body{ background: var(--bg); font-size: var(--font-base-size); }
+    @keyframes floatY {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+      100% { transform: translateY(0); }
+    }
+
+    @keyframes pulseScale {
+      0% { transform: scale(1); box-shadow: none; }
+      50% { transform: scale(1.03); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes glow {
+      0% { box-shadow: 0 0 0 rgba(99,102,241,0); }
+      50% { box-shadow: 0 8px 24px rgba(99,102,241,0.12); }
+      100% { box-shadow: 0 0 0 rgba(99,102,241,0); }
+    }
+
+    body{ font-size: var(--font-base-size); color: var(--text-color); }
+    /* Body background: prefer gradient when configured */
+    @if(!empty($appliedTheme['bg_gradient_start']) && !empty($appliedTheme['bg_gradient_end']))
+      body{ background: linear-gradient({{ $appliedTheme['bg_gradient_angle'] ?? 90 }}deg, {{ $appliedTheme['bg_gradient_start'] }}, {{ $appliedTheme['bg_gradient_end'] }}); background-size:200% 200%; {{ ($appliedTheme['bg_animated'] ?? false) ? "animation: animatedGradient var(--animation-speed) ease infinite;" : '' }} }
+    @else
+      body{ background: var(--bg); }
+    @endif
     .btn{ background: linear-gradient(90deg,var(--btn-primary),var(--btn-alt)) !important; color: #fff; border:0; }
     .btn-alt{ background: linear-gradient(90deg,var(--btn-alt),var(--btn-primary)) !important; color: #fff; border:0; }
-    .sidebar{ background: var(--sidebar-bg); color: var(--sidebar-text); }
+    /* Unified theme rules: catch common custom button classes and plain buttons */
+    [class*="btn"], [class*="button"], a[class*="btn"], a[class*="button"], .action-btn, .link-button, .icon-btn {
+      background: linear-gradient(90deg,var(--btn-primary),var(--btn-alt)) !important;
+      color: var(--btn-primary-text) !important;
+      border: 0 !important;
+    }
+    /* make the logout button larger and prominent */
+    .logout-form .link-button {
+      padding: 8px 14px !important;
+      border-radius: 10px !important;
+      font-weight: 800 !important;
+      background: linear-gradient(90deg,var(--btn-alt),var(--btn-primary)) !important;
+      color: var(--btn-primary-text) !important;
+    }
+
+    /* Topbar accent (notifications, admin badge, bell icon) */
+    .top-action { color: var(--topbar-accent) !important; }
+    .notification-bell, .notification-bell svg { color: var(--topbar-accent) !important; }
+    #notif-badge { background: var(--notif-badge-bg) !important; color: var(--notif-badge-text) !important; padding:4px 8px;border-radius:999px;font-weight:700;display:inline-block; }
+    /* primary/alt helpers */
+    .action-btn.primary, .btn-primary { background: linear-gradient(90deg,var(--btn-primary),var(--btn-alt)) !important; color: var(--btn-primary-text) !important; }
+    .action-btn.alt, .btn-alt { background: linear-gradient(90deg,var(--btn-alt),var(--btn-primary)) !important; color: var(--btn-primary-text) !important; }
+    @if(!empty($appliedTheme['sidebar_gradient_start']) && !empty($appliedTheme['sidebar_gradient_end']))
+      .sidebar{ background: linear-gradient({{ $appliedTheme['sidebar_gradient_angle'] ?? 90 }}deg, {{ $appliedTheme['sidebar_gradient_start'] }}, {{ $appliedTheme['sidebar_gradient_end'] }}); color: var(--sidebar-text); background-size:200% 200%; {{ ($appliedTheme['sidebar_animated'] ?? false) ? "animation: animatedGradient var(--animation-speed) ease infinite;" : '' }} }
+    @else
+      .sidebar{ background: var(--sidebar-bg); color: var(--sidebar-text); }
+    @endif
     .sidebar .nav .nav-item{ color: var(--sidebar-text); }
-    .topbar{ background: rgba(255,255,255, calc(1 - var(--global-transparency))); }
+    /* Topbar: use configured topbar meta when present */
+    @if(!empty($appliedTheme['meta']['topbar']['gradient_start']) && !empty($appliedTheme['meta']['topbar']['gradient_end']))
+      .topbar { background: linear-gradient({{ $appliedTheme['meta']['topbar']['gradient_angle'] ?? 90 }}deg, {{ $appliedTheme['meta']['topbar']['gradient_start'] }}, {{ $appliedTheme['meta']['topbar']['gradient_end'] }}); background-size:200% 200%; {{ ($appliedTheme['meta']['topbar']['animated'] ?? false) ? "animation: animatedGradient var(--animation-speed) ease infinite;" : '' }}; color: var(--topbar-text); }
+    @else
+      .topbar{ background: var(--topbar-bg); color: var(--topbar-text); }
+    @endif
 
     /* global gradient utility */
     .global-gradient {
@@ -61,6 +168,91 @@
       background-size: 200% 200%;
       {{ ($appliedTheme['animated_gradient'] ?? false) ? "animation: animatedGradient var(--animation-speed) ease infinite;" : '' }}
     }
+
+    /* Per-button variant rules from theme.button_variants (JSON) */
+    @php
+      // Merge explicit button_variants with any meta-defined buttons
+      $__btnVars = $appliedTheme['button_variants'] ?? ($__appStyle->button_variants ?? []);
+      if (!empty($appliedTheme['meta']['buttons']) && is_array($appliedTheme['meta']['buttons'])) {
+        $__btnVars = array_merge($__btnVars, $appliedTheme['meta']['buttons']);
+      }
+
+      // helper to pick readable text color based on background hex
+      function _pickTextColor($hex) {
+        if (! $hex) return '#111827';
+        $h = ltrim($hex, '#');
+        if (strlen($h) === 3) { $h = $h[0].$h[0].$h[1].$h[1].$h[2].$h[2]; }
+        if (strlen($h) !== 6) return '#111827';
+        $r = hexdec(substr($h,0,2)); $g = hexdec(substr($h,2,2)); $b = hexdec(substr($h,4,2));
+        // relative luminance
+        $lum = (0.2126*$r + 0.7152*$g + 0.0722*$b) / 255;
+        return ($lum < 0.5) ? '#ffffff' : '#111827';
+      }
+    @endphp
+    @if(!empty($__btnVars) && is_array($__btnVars))
+      @foreach($__btnVars as $vname => $v)
+        @php
+          $bg = $v['bg'] ?? null;
+          $color = $v['color'] ?? null;
+          $gstart = $v['gradient_start'] ?? null;
+          $gend = $v['gradient_end'] ?? null;
+          if (empty($color)) {
+            // if gradient present use start for contrast check, else bg
+            $sample = $gstart ?? $bg ?? null;
+            $color = _pickTextColor($sample);
+          }
+        @endphp
+        .btn-{{ $vname }}{
+          @if(!empty($gstart) && !empty($gend))
+            background: linear-gradient(90deg, {{ $gstart }}, {{ $gend }}) !important;
+          @elseif(!empty($bg))
+            background: {{ $bg }} !important;
+          @endif
+          color: {{ $color }} !important;
+        }
+        /* map common two-class patterns like "action-btn danger" to this variant */
+        .action-btn.{{ $vname }}, .link-button.{{ $vname }}, .{{ $vname }}.action-btn {
+          @if(!empty($gstart) && !empty($gend))
+            background: linear-gradient(90deg, {{ $gstart }}, {{ $gend }}) !important;
+          @elseif(!empty($bg))
+            background: {{ $bg }} !important;
+          @endif
+          color: {{ $color }} !important;
+        }
+      @endforeach
+    @endif
+
+    /* Price and payment badge hooks (templates can add these classes) */
+    .price-amount { color: var(--price-color, #111827) !important; }
+    .payment-status-badge { color: var(--payment-badge-text, #ffffff) !important; background: var(--payment-badge-bg, #6b7280) !important; }
+
+    /* payment badge states mapping */
+    .payment-status-badge[data-state="pagado"]{ background: var(--payment-badge-bg-pagado) !important; color: var(--payment-badge-text-pagado) !important; }
+    .payment-status-badge[data-state="pendiente"]{ background: var(--payment-badge-bg-pendiente) !important; color: var(--payment-badge-text-pendiente) !important; }
+    .payment-status-badge[data-state="fallido"], .payment-status-badge[data-state="failed"]{ background: var(--payment-badge-bg-fallido) !important; color: var(--payment-badge-text-fallido) !important; }
+    .payment-status-badge[data-state="parcial"]{ background: var(--payment-badge-bg-parcial) !important; color: var(--payment-badge-text-parcial) !important; }
+
+    /* price amount colors by reservation estado */
+    .price-amount[data-estado="confirmada"]{ color: var(--price-color-confirmada) !important; }
+    .price-amount[data-estado="pendiente"]{ color: var(--price-color-pendiente) !important; }
+    .price-amount[data-estado="cancelada"]{ color: var(--price-color-cancelada) !important; }
+    .price-amount[data-estado] { color: var(--price-color-default) !important; }
+
+    /* Button interaction animations */
+    .btn { transition: transform var(--hover-animation-duration), box-shadow var(--hover-animation-duration), filter var(--hover-animation-duration); }
+    .btn:hover, .btn:focus {
+      @if(!empty($appliedTheme['hover_animation']) && $appliedTheme['hover_animation'] == 'lift')
+        transform: translateY(-4px);
+      @elseif(!empty($appliedTheme['hover_animation']) && $appliedTheme['hover_animation'] == 'scale')
+        transform: scale(1.03);
+      @elseif(!empty($appliedTheme['hover_animation']) && $appliedTheme['hover_animation'] == 'glow')
+        animation: glow var(--hover-animation-duration) ease-in-out;
+      @endif
+    }
+
+    /* Float / autoplay animations applied via variant classes */
+    .autoplay-float { animation: floatY var(--float-animation-duration) ease-in-out infinite; }
+    .autoplay-pulse { animation: pulseScale var(--float-animation-duration) ease-in-out infinite; }
   </style>
   <style>
     .content{
@@ -109,7 +301,7 @@
       @endif
       <form method="POST" action="{{ route('logout') }}" class="nav-item logout-form" style="display:flex;">
         @csrf
-        <button class="link-button" type="submit">Cerrar sesión</button>
+        <button class="link-button danger" type="submit">Cerrar sesión</button>
       </form>
     </nav>
   </aside>
@@ -187,6 +379,47 @@
     })();
   </script>
   
+  <script>
+    (function(){
+      // Take server-side detected button variant keys and at runtime
+      // add `btn-<slug>` classes to elements whose visible text matches.
+      try {
+        var btnVars = @json(array_keys($__btnVars ?? []));
+      } catch(e){ var btnVars = []; }
+
+      function slugify(s){
+        return String(s || '').toLowerCase().trim()
+          .replace(/\s+/g,'-')
+          .replace(/[^a-z0-9\-]/g,'')
+          .replace(/\-+/g,'-');
+      }
+
+      function elementText(el){
+        if(!el) return '';
+        if(el.tagName === 'INPUT') return (el.value || '').trim();
+        return (el.textContent || '').trim();
+      }
+
+      document.addEventListener('DOMContentLoaded', function(){
+        if(!btnVars || !btnVars.length) return;
+        var known = new Set(btnVars.map(function(b){ return String(b); }));
+        var sel = 'button, a, input[type=submit], input[type=button]';
+        var els = Array.prototype.slice.call(document.querySelectorAll(sel));
+        els.forEach(function(el){
+          // if already has a custom btn- class, skip
+          var hasVariant = Array.prototype.slice.call(el.classList || []).some(function(c){ return c.indexOf('btn-')===0; });
+          if(hasVariant) return;
+          var txt = elementText(el);
+          if(!txt) return;
+          var key = slugify(txt);
+          if(known.has(key)) {
+            el.classList.add('btn-' + key);
+          }
+        });
+      });
+    })();
+  </script>
+
   @section('scripts')
   @show
    @stack('scripts')

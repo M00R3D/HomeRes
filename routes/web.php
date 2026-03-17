@@ -22,6 +22,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function(){
     Route::get('/admin/themes', [ThemeController::class, 'index'])->name('admin.themes');
     Route::post('/admin/themes/save', [ThemeController::class, 'save'])->name('admin.themes.save');
+    Route::post('/admin/themes/apply', [ThemeController::class, 'applyPreset'])->name('admin.themes.apply');
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 Route::get('/admin/logs', [LogController::class, 'index'])->middleware('auth')->name('admin.logs');

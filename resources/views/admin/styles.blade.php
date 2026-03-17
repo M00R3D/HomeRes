@@ -9,26 +9,34 @@
 
   <form method="POST" action="{{ route('admin.styles.save') }}">
     @csrf
+    @php
+      function _safe_color($val, $fallback = '#ffffff'){
+        if (! $val) return $fallback;
+        $v = trim($val);
+        if (preg_match('/^#[0-9a-fA-F]{6}$/', $v)) return strtolower($v);
+        return $fallback;
+      }
+    @endphp
     <div style="display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start;">
       <div style="display:flex;flex-direction:column;gap:12px;">
         <label>Color botón primario
-          <input type="color" name="btn_primary" id="btn_primary" value="{{ $style->btn_primary ?? '#6366f1' }}">
+          <input type="color" name="btn_primary" id="btn_primary" value="{{ _safe_color($style->btn_primary ?? null, '#6366f1') }}">
         </label>
 
         <label>Color botón alternativo
-          <input type="color" name="btn_alt" id="btn_alt" value="{{ $style->btn_alt ?? '#06b6d4' }}">
+          <input type="color" name="btn_alt" id="btn_alt" value="{{ _safe_color($style->btn_alt ?? null, '#06b6d4') }}">
         </label>
 
         <label>Fondo (bg)
-          <input type="color" name="bg" id="bg" value="{{ $style->bg ?? '#f8fafc' }}">
+          <input type="color" name="bg" id="bg" value="{{ _safe_color($style->bg ?? null, '#f8fafc') }}">
         </label>
 
         <label>Sidebar fondo
-          <input type="color" name="sidebar_bg" id="sidebar_bg" value="{{ $style->sidebar_bg ?? '#ffffff' }}">
+          <input type="color" name="sidebar_bg" id="sidebar_bg" value="{{ _safe_color($style->sidebar_bg ?? null, '#ffffff') }}">
         </label>
 
         <label>Sidebar texto
-          <input type="color" name="sidebar_text" id="sidebar_text" value="{{ $style->sidebar_text ?? '#0f172a' }}">
+          <input type="color" name="sidebar_text" id="sidebar_text" value="{{ _safe_color($style->sidebar_text ?? null, '#0f172a') }}">
         </label>
 
         <label>Transparencia general (0-100)

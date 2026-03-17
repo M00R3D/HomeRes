@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             HomepageSeeder::class,
             NotificacionesTableSeeder::class,
             NotificationSeeder::class,
+            ThemeSeeder::class,
             ComentariosTableSeeder::class,
         ]);
     }

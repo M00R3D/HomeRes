@@ -37,7 +37,7 @@
         <div style="height:12px;width:100%;background:{{ $stripBg }};transition:background .36s ease;"></div>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:8px;">
-        <span style="display:inline-flex;align-items:center;padding:6px 12px;border-radius:999px;background:rgba(0,0,0,0.04);font-weight:800;color:#0f172a;font-size:0.9rem;">Estado pago: <span style="margin-left:8px;padding:6px 10px;border-radius:999px;color:#fff;background:{{ $stripBg }};font-weight:900;">{{ $epLabel }}</span></span>
+        <span style="display:inline-flex;align-items:center;padding:6px 12px;border-radius:999px;background:rgba(0,0,0,0.04);font-weight:800;color:#0f172a;font-size:0.9rem;">Estado pago: <span class="payment-status-badge" data-state="{{ $ep }}" style="margin-left:8px;padding:6px 10px;border-radius:999px;font-weight:900;">{{ $epLabel }}</span></span>
       </div>
     </div>
   </div>
@@ -108,7 +108,7 @@
             </div>
           </div>
 
-          <div style="font-size:1.6rem;font-weight:900;color:{{ $priceColor }};">
+          <div class="price-amount" data-estado="{{ $estado }}" style="font-size:1.6rem;font-weight:900;">
             ${{ number_format($r->total ?? 0, 2, ',', '.') }}
           </div>
 
