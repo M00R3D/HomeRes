@@ -57,11 +57,7 @@
       </form>
     </nav>
   </aside>
-  @if($isAdmin)
-  <nav style="padding:8px 12px;">
-    <a href="{{ route('admin.logs') }}" class="nav-item">Logs</a>
-  </nav>
-  @endif
+
   <div class="main">
     <header class="topbar">
       <button id="sidebar-toggle" class="icon-btn show-desktop" aria-label="Abrir menú">☰</button>
@@ -88,18 +84,49 @@
       const sidebar = document.getElementById('sidebar');
       const toggle = document.getElementById('sidebar-toggle');
       const closeBtn = document.getElementById('sidebar-close');
+      const body = document.body;
 
-      toggle && toggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+      const isMobile = () => window.innerWidth <= 900;
+
+      function setCollapsed(collapsed) {
+        if (collapsed) body.classList.add('sidebar-collapsed');
+        else body.classList.remove('sidebar-collapsed');
+        try { localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0'); } catch(e){}
+      }
+
+      // Initialize from preference
+      try {
+        const saved = localStorage.getItem('sidebar-collapsed');
+        if (saved === '1') setCollapsed(true);
+      } catch(e){}
+
+      // Toggle behavior: on mobile open/close the overlay menu, on desktop collapse
+      toggle && toggle.addEventListener('click', () => {
+        if (isMobile()) {
+          sidebar.classList.toggle('open');
+        } else {
+          const collapsed = body.classList.toggle('sidebar-collapsed');
+          try { localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0'); } catch(e){}
+        }
+      });
+
       closeBtn && closeBtn.addEventListener('click', () => sidebar.classList.remove('open'));
 
       document.addEventListener('click', (e) => {
-        if (!sidebar.contains(e.target) && window.innerWidth < 900) {
+        if (isMobile() && !sidebar.contains(e.target) && !e.target.closest('#sidebar-toggle')) {
           sidebar.classList.remove('open');
         }
       });
 
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') sidebar.classList.remove('open');
+      });
+
+      // Respond to window resize: ensure mobile state doesn't keep collapsed class
+      window.addEventListener('resize', () => {
+        if (isMobile()) {
+          sidebar.classList.remove('open');
+        }
       });
     })();
   </script>

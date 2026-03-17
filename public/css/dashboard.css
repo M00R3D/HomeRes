@@ -24,16 +24,40 @@ body{margin:0;background:var(--bg);color:#111}
 
 .app-root{display:flex;min-height:100vh}
 .sidebar{
-  width:260px;
+  --sidebar-width:260px;
+  width:var(--sidebar-width);
   background:linear-gradient(180deg,var(--sidebar),#08101a);
   color:#fff;
   padding:18px;
   display:flex;
   flex-direction:column;
   gap:14px;
-  transition:transform .22s ease;
+  transition:transform .22s ease, left .22s ease;
   position:fixed;
-  top:0;left:0;bottom:0;z-index:30;
+  top:0;left:0;bottom:0;z-index:100;
+  height:100vh;
+  transform: translateX(0);
+}
+/* Collapsed sidebar (desktop) */
+/* When collapsed, move the sidebar completely off-screen to the left so it doesn't look squashed.
+   The toggle button will be fixed at the left edge to reopen it. */
+body.sidebar-collapsed .sidebar{
+  transform: translateX(calc(var(--sidebar-width) * -1));
+  /* keep full width off-screen so internal layout doesn't reflow */
+  overflow:hidden;
+}
+body.sidebar-collapsed .sidebar .brand-text{ display:none; }
+body.sidebar-collapsed .nav-item{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-left:12px; }
+body.sidebar-collapsed .main{ margin-left:0; }
+
+/* Place the desktop toggle button fixed at the left edge when collapsed */
+body.sidebar-collapsed .icon-btn.show-desktop{
+  position:fixed;
+  left:12px;
+  top:14px;
+  z-index:110;
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 6px 18px rgba(2,6,23,0.06);
 }
 .sidebar .brand{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .brand-link{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none}
@@ -43,13 +67,40 @@ body{margin:0;background:var(--bg);color:#111}
   filter: none;
 }
 .brand-text{font-weight:700}
-.nav{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.nav{display:flex;flex-direction:column;gap:6px;margin-top:8px;flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;padding-bottom:12px}
+
+/* Custom scrollbar for the sidebar nav (WebKit + Firefox) */
+.nav::-webkit-scrollbar { width:10px; }
+.nav::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius:8px; margin:6px 0; }
+.nav::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--accent), var(--accent-2)); border-radius:8px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }
+.nav::-webkit-scrollbar-thumb:hover { filter: brightness(1.05); }
+.nav { scrollbar-width: thin; scrollbar-color: var(--accent) rgba(255,255,255,0.02); }
+
+/* Slightly thinner scrollbar when sidebar is collapsed */
+body.sidebar-collapsed .nav::-webkit-scrollbar { width:6px; }
+body.sidebar-collapsed .nav::-webkit-scrollbar-thumb { border-radius:6px; }
 .nav-item{color:rgba(255,255,255,0.95);padding:10px;border-radius:8px;text-decoration:none}
 .nav-item:hover{background:rgba(255,255,255,0.04)}
 .link-button{background:none;border:0;color:inherit;cursor:pointer;padding:0;font:inherit}
 
 .main{margin-left:260px;flex:1;display:flex;flex-direction:column;min-height:100vh}
-.topbar{height:64px;background:rgba(255,255,255,0.95);display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid #e6e9ef}
+.topbar{height:64px;background:rgba(255,255,255,0.95);display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid #e6e9ef;position:sticky;top:0;z-index:40;backdrop-filter: blur(6px);}
+
+/* Topbar right alignment and spacing */
+.topbar .topbar-right{display:flex;align-items:center;gap:12px;margin-left:auto}
+.topbar .topbar-right .top-action{color:var(--muted);background:transparent;padding:8px 10px;border-radius:8px;text-decoration:none;font-weight:600}
+.topbar .topbar-right .top-action:hover{background:rgba(15,23,42,0.03);color:var(--accent-2)}
+.topbar .icon-btn{background:transparent;border:0;color:var(--muted);font-size:20px;padding:8px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.topbar .icon-btn:hover{background:rgba(15,23,42,0.03);color:var(--accent)}
+.topbar .icon-btn:focus{outline:2px solid rgba(99,102,241,0.18)}
+
+/* Ensure notification bell and small controls don't wrap */
+.topbar .topbar-right > *{flex-shrink:0}
+
+@media (max-width:900px){
+  .topbar{padding:0 12px}
+  .topbar .topbar-right{gap:8px}
+}
 .content{flex:1;padding:20px;max-width:1200px;margin:18px auto;width:calc(100% - 40px)}
 .footer{height:48px;background:transparent;display:flex;align-items:center;justify-content:center;color:var(--muted)}
 
