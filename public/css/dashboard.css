@@ -79,8 +79,8 @@ body.sidebar-collapsed .icon-btn.show-desktop{
 /* Slightly thinner scrollbar when sidebar is collapsed */
 body.sidebar-collapsed .nav::-webkit-scrollbar { width:6px; }
 body.sidebar-collapsed .nav::-webkit-scrollbar-thumb { border-radius:6px; }
-.nav-item{color:rgba(255,255,255,0.95);padding:10px;border-radius:8px;text-decoration:none}
-.nav-item:hover{background:rgba(255,255,255,0.04)}
+.nav-item{color:rgba(255,255,255,0.95);padding:10px;border-radius:8px;text-decoration:none;transition:background .18s ease,transform .12s ease}
+.nav-item:hover{background:rgba(255,255,255,0.12);transform:translateX(4px)}
 .link-button{background:none;border:0;color:inherit;cursor:pointer;padding:0;font:inherit}
 
 .main{margin-left:260px;flex:1;display:flex;flex-direction:column;min-height:100vh}
@@ -494,8 +494,8 @@ div[class*="relative z-0 inline-flex"] a:hover{ background:#f8fafc; }
 .card.table-card .table tbody tr { background: transparent !important; }
 .card.table-card .table tbody tr:nth-child(odd) { background: var(--table-row-odd, rgba(0,0,0,0.01)) !important; }
 
-/* Badges */
-.badge, .pay-badge, .badge-pendiente, .badge-confirmada, .pay-pendiente {
+/* Badges — base */
+.badge, .pay-badge {
   background: var(--badge-bg, #f3f4f6) !important;
   color: var(--badge-text, #111111) !important;
   padding: 4px 8px !important;
@@ -503,6 +503,11 @@ div[class*="relative z-0 inline-flex"] a:hover{ background:#f8fafc; }
   display: inline-block !important;
   font-weight: 700 !important;
 }
+/* Status badges — semantic colours that work on ALL themes */
+.badge-pendiente { background: linear-gradient(90deg,#f59e0b,#f97316) !important; color: #fff !important; }
+.badge-confirmada { background: linear-gradient(90deg,#10b981,#059669) !important; color: #fff !important; }
+.badge-cancelada { background: linear-gradient(90deg,#ef4444,#dc2626) !important; color: #fff !important; }
+.badge-pagada { background: linear-gradient(90deg,#6366f1,#06b6d4) !important; color: #fff !important; }
 
 /* Generic button/link overrides (covers .link-button, .action-btn, .btn, etc.) */
 .link-button, .action-btn, .btn, .open-schedule, a.link-button, button.link-button {
@@ -516,9 +521,10 @@ div[class*="relative z-0 inline-flex"] a:hover{ background:#f8fafc; }
 
 .action-btn.view, .action-btn.secondary { background: var(--btn-alt, #e6e9ee) !important; color: var(--btn-alt-text, #111111) !important; }
 
-.action-btn.danger, .link-button.danger, .btn.danger {
-  background: var(--btn-danger, #dc2626) !important;
-  color: var(--btn-danger-text, #ffffff) !important;
+.action-btn.danger, .action-btn.delete, .link-button.danger, .btn.danger, .btn-danger,
+.link-button[data-open-delete] {
+  background: linear-gradient(90deg, #ef4444, #dc2626) !important;
+  color: #fff !important;
 }
 
 /* Inputs / selects (exclude native color picker so its swatch stays visible) */

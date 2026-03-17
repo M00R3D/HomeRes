@@ -5,18 +5,18 @@
     <span id="notif-badge" role="status" aria-live="polite" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:999px;font-size:12px;display:none;">0</span>
   </button>
 
-  <div id="notif-dropdown" role="menu" aria-label="Notificaciones" style="display:none;position:absolute;right:0;top:36px;width: min(560px, calc(100vw - 40px));background:#fbfdff;border-radius:8px;box-shadow:0 8px 30px rgba(2,6,23,0.08);z-index:1200;">
-    <div style="padding:8px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;">
+  <div id="notif-dropdown" role="menu" aria-label="Notificaciones" style="display:none;position:absolute;right:0;top:36px;width: min(560px, calc(100vw - 40px));border-radius:8px;z-index:1200;">
+    <div style="padding:8px;display:flex;justify-content:space-between;align-items:center;">
       <strong>Notificaciones</strong>
       <div>
         <button id="notif-mark-all" class="btn-alt" style="padding:6px 8px;border-radius:6px">Marcar todas</button>
-        <a href="{{ route('notifications.index') }}" style="margin-left:8px;color:#094;">Ver todas</a>
+        <a href="{{ route('notifications.index') }}" style="margin-left:8px;">Ver todas</a>
       </div>
     </div>
     <div id="notif-list" style="max-height:480px;overflow:auto;overflow-x:hidden;padding:6px;">
-      <div style="padding:12px;text-align:center;color:#6b7280;">Cargando…</div>
+      <div style="padding:12px;text-align:center;">Cargando…</div>
     </div>
-    <div style="padding:8px;border-top:1px solid #f3f4f6;text-align:center;"><button id="notif-load-more" class="btn-alt" style="display:none;padding:8px 12px;border-radius:8px">Ver más</button></div>
+    <div style="padding:8px;text-align:center;"><button id="notif-load-more" class="btn-alt" style="display:none;padding:8px 12px;border-radius:8px">Ver más</button></div>
   </div>
 </div>
 
@@ -29,9 +29,9 @@
 const _notifTooltipStyle = document.createElement('style');
 _notifTooltipStyle.textContent = `
 .notif-item{position:relative}
-.notif-tooltip, .action-hint { position:absolute; right:12px; top:8px; background:rgba(2,6,23,0.06); color:#0f172a; padding:6px 8px; border-radius:8px; font-size:12px; opacity:0; transform:translateY(6px); transition:opacity .18s ease, transform .18s ease; pointer-events:none; backdrop-filter:blur(4px); }
+.notif-tooltip, .action-hint { position:absolute; right:12px; top:8px; padding:6px 8px; border-radius:8px; font-size:12px; opacity:0; transform:translateY(6px); transition:opacity .18s ease, transform .18s ease; pointer-events:none; backdrop-filter:blur(4px); }
 .notif-item:hover .notif-tooltip, .action-hint.show { opacity:1; transform:translateY(0); }
-.action-hint.inline{ position:static; display:inline-block; margin-left:8px; background:rgba(2,6,23,0.06); padding:4px 8px; border-radius:6px; font-size:12px; transform:none; opacity:1 }
+.action-hint.inline{ position:static; display:inline-block; margin-left:8px; padding:4px 8px; border-radius:6px; font-size:12px; transform:none; opacity:1 }
 `;
 document.head.appendChild(_notifTooltipStyle);
 
@@ -130,7 +130,6 @@ document.addEventListener('DOMContentLoaded', function(){
     const el = document.createElement('div');
     el.className = 'notification-toast';
     el.style.pointerEvents='auto';
-    el.style.background='#fff';
     el.style.borderRadius='8px';
     el.style.padding='10px 12px';
     el.style.boxShadow='0 12px 36px rgba(2,6,23,0.12)';
@@ -138,12 +137,12 @@ document.addEventListener('DOMContentLoaded', function(){
     el.style.gap='10px';
     el.style.alignItems='flex-start';
     el.innerHTML = `
-      <div style="width:44px;height:44px;border-radius:8px;background:#f3f4f6;flex:0 0 44px"></div>
+      <div style="width:44px;height:44px;border-radius:8px;flex:0 0 44px" class="toast-icon-placeholder"></div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:700;margin-bottom:4px">${(data.title||'Notificación')}</div>
-        <div style="font-size:13px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(data.body||'')}</div>
+        <div class="toast-body-text" style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(data.body||'')}</div>
       </div>
-      <button aria-label="Cerrar" style="background:transparent;border:0;color:#6b7280;cursor:pointer;margin-left:6px">✕</button>
+      <button aria-label="Cerrar" style="border:0;cursor:pointer;margin-left:6px">✕</button>
     `;
     const container = document.getElementById('notif-toast-container');
     container.appendChild(el);
@@ -165,7 +164,7 @@ document.addEventListener('DOMContentLoaded', function(){
       // show only unread notifications in the bell dropdown
       const unread = items.filter(x => !x.read_at);
       if(unread.length===0){
-        list.innerHTML = `<div style="padding:12px;text-align:center;color:#6b7280">No tienes notificaciones sin leer. <a href="/notifications" style="color:#06b6d4;margin-left:6px">Ver todas las notificaciones</a></div>`;
+        list.innerHTML = `<div style="padding:12px;text-align:center;">No tienes notificaciones sin leer. <a href="/notifications" style="margin-left:6px;">Ver todas las notificaciones</a></div>`;
         loadMoreBtn.style.display='none';
         return;
       }
@@ -173,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function(){
       unread.forEach(n => {
         const read = n.read_at ? 'opacity:0.6' : 'font-weight:700';
         const data = n.data || {};
-        const icon = data.icon ? `<img src="${data.icon}" style="width:28px;height:28px;border-radius:6px;margin-right:8px">` : `<div style="width:28px;height:28px;border-radius:6px;background:#f3f4f6;margin-right:8px"></div>`;
+        const icon = data.icon ? `<img src="${data.icon}" style="width:28px;height:28px;border-radius:6px;margin-right:8px">` : `<div class="notif-icon-placeholder" style="width:28px;height:28px;border-radius:6px;margin-right:8px"></div>`;
           const el = document.createElement('div');
         el.setAttribute('role','menuitem');
           // keep resource link separate; clicking the item opens the notification detail
@@ -183,18 +182,18 @@ document.addEventListener('DOMContentLoaded', function(){
           el.style.padding='10px';
           el.style.display='flex';
           el.style.alignItems='center';
-          el.style.borderBottom='1px solid #f3f4f6';
+          el.style.borderBottom='1px solid var(--input-border, #f3f4f6)';
           el.style.position = 'relative';
         el.innerHTML = `
               <div style="display:flex;align-items:center;flex:1;${read}">
                 ${icon}
                 <div style="flex:1;min-width:0">
                   <div style="white-space:normal;overflow-wrap:break-word;word-break:break-word">${data.title||''}</div>
-                  <div style="font-size:12px;color:#6b7280;white-space:normal;overflow-wrap:break-word;word-break:break-word">${(data.body||'')}</div>
+                  <div class="notif-body-text" style="font-size:12px;white-space:normal;overflow-wrap:break-word;word-break:break-word">${(data.body||'')}</div>
                 </div>
               </div>
               <div style="margin-left:8px">
-                <button data-id="${n.id}" class="notif-mark-read" style="background:transparent;border:0;color:#06b6d4;cursor:pointer">Marcar</button>
+                <button data-id="${n.id}" class="notif-mark-read" style="border:0;cursor:pointer">Marcar</button>
               </div>
                 <span class="notif-tooltip">Clic para ver detalle de notificación</span>
             `;

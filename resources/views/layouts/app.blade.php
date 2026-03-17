@@ -101,6 +101,7 @@
 
       /* Card / surface */
       --card: {{ $_isDark ? '#1e293b' : '#ffffff' }};
+      --card-bg: {{ $_isDark ? '#1e293b' : '#ffffff' }};
       --card-text: {{ $_isDark ? '#f1f5f9' : '#111827' }};
       /* Inputs */
       --input-bg: {{ $_isDark ? '#0f172a' : '#ffffff' }};
@@ -232,7 +233,23 @@
     @else
       .sidebar{ background: var(--sidebar-bg); color: var(--sidebar-text); }
     @endif
-    .sidebar .nav .nav-item{ color: var(--sidebar-text); }
+    .sidebar .nav .nav-item{ color: var(--sidebar-text); transition: background .18s ease, transform .12s ease; }
+    @php
+      $_sbHex = $appliedTheme['sidebar_bg'] ?? $__appStyle->sidebar_bg ?? '#0f172a';
+      $_sbH = ltrim($_sbHex, '#');
+      if (strlen($_sbH) === 3) { $_sbH = $_sbH[0].$_sbH[0].$_sbH[1].$_sbH[1].$_sbH[2].$_sbH[2]; }
+      $_sbLum = (strlen($_sbH) === 6)
+        ? (0.2126*hexdec(substr($_sbH,0,2)) + 0.7152*hexdec(substr($_sbH,2,2)) + 0.0722*hexdec(substr($_sbH,4,2))) / 255
+        : 0.95;
+      $_sbIsDark = $_sbLum < 0.45;
+    @endphp
+    .sidebar .nav .nav-item:hover {
+      background: {{ $_sbIsDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)' }} !important;
+      transform: translateX(4px);
+    }
+    .sidebar .nav .nav-item:active {
+      background: {{ $_sbIsDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }} !important;
+    }
     /* Topbar: use configured topbar meta when present */
     @if(!empty($appliedTheme['meta']['topbar']['gradient_start']) && !empty($appliedTheme['meta']['topbar']['gradient_end']))
       .topbar { background: linear-gradient({{ $appliedTheme['meta']['topbar']['gradient_angle'] ?? 90 }}deg, {{ $appliedTheme['meta']['topbar']['gradient_start'] }}, {{ $appliedTheme['meta']['topbar']['gradient_end'] }}); background-size:200% 200%; {{ ($appliedTheme['meta']['topbar']['animated'] ?? false) ? "animation: animatedGradient var(--animation-speed) ease infinite;" : '' }}; color: var(--topbar-text); }
@@ -353,6 +370,29 @@
   $isAdmin = $isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin');
 @endphp
 <body class="app-root">
+  <script>
+    // Show session error messages stored by interceptors (persist across redirect)
+    (function(){
+      try {
+        const msg = localStorage.getItem('session_error');
+        if (!msg) return;
+        localStorage.removeItem('session_error');
+        const el = document.createElement('div');
+        el.className = 'session-error-toast';
+        el.style.position = 'fixed';
+        el.style.top = '18px';
+        el.style.right = '18px';
+        el.style.zIndex = 1600;
+        el.style.padding = '10px 14px';
+        el.style.borderRadius = '8px';
+        el.style.boxShadow = '0 10px 30px rgba(0,0,0,0.12)';
+        el.style.background = 'var(--card)';
+        el.style.color = 'var(--text-color)';
+        el.textContent = msg;
+        document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(el); setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 6500); });
+      } catch(e) {}
+    })();
+  </script>
   <aside id="sidebar" class="sidebar">
     <div class="brand">
       <a class="brand-link" href="{{ route('homepage.index') }}">
@@ -549,6 +589,220 @@
       min-height: 28px !important;
       cursor: pointer !important;
       border-radius: 4px !important;
+    }
+
+    /* ===== Reservaciones: table, rv-day, btn-edit ===== */
+    .table { background: var(--card) !important; }
+    .rv-day {
+      background: var(--card) !important;
+      color: var(--text-color) !important;
+      border-color: var(--input-border) !important;
+    }
+    .rv-day.past {
+      background: var(--badge-bg) !important;
+      color: var(--muted) !important;
+      border-color: var(--input-border) !important;
+    }
+    .rv-day.today {
+      background: linear-gradient(90deg,var(--btn-primary),var(--btn-alt)) !important;
+      color: var(--btn-primary-text) !important;
+    }
+    .rv-day .date { color: var(--text-color) !important; }
+    .rv-day .label { color: var(--text-color) !important; }
+    .rv-day div[style*="color:#6b7280"] { color: var(--muted) !important; }
+    .btn-edit {
+      background: linear-gradient(90deg,var(--btn-primary),var(--btn-alt)) !important;
+      color: var(--btn-primary-text) !important;
+      border: 0 !important;
+      padding: 8px 14px !important;
+      border-radius: 8px !important;
+      font-weight: 700 !important;
+      cursor: pointer !important;
+    }
+
+    /* ===== Propiedades: pr-card, pr-comments, pr-thumb, pr-title ===== */
+    .pr-card {
+      background: var(--card) !important;
+      color: var(--text-color) !important;
+    }
+    .pr-card .pr-title { color: var(--text-color) !important; }
+    .pr-card .pr-meta { color: var(--muted) !important; }
+    .pr-comments {
+      background: var(--card) !important;
+      color: var(--text-color) !important;
+      border-color: var(--input-border) !important;
+    }
+    .pr-thumb {
+      background: var(--thumb-bg) !important;
+    }
+    .service-chip {
+      background: var(--badge-bg) !important;
+      color: var(--text-color) !important;
+    }
+
+    /* ===== Generic: override in-page :root redefinitions ===== */
+    :root {
+      --card: {{ $_isDark ? '#1e293b' : '#ffffff' }};
+      --card-bg: {{ $_isDark ? '#1e293b' : '#ffffff' }};
+      --muted: {{ $_isDark ? '#94a3b8' : '#6b7280' }};
+      --shadow: 0 12px 34px rgba(2,6,23,{{ $_isDark ? '0.18' : '0.06' }});
+    }
+
+    /* Row cancelled in dark: softer look */
+    .table tbody tr.row-cancelled {
+      background: var(--table-row-odd) !important;
+    }
+
+    /* rv-thumb inline style override */
+    .rv-thumb div[style*="background:#f3f4f6"] {
+      background: var(--thumb-bg) !important;
+      color: var(--muted) !important;
+    }
+
+    /* ===== Status badges — universal semantic colours ===== */
+    .badge-pendiente { background: linear-gradient(90deg,#f59e0b,#f97316) !important; color: #fff !important; }
+    .badge-confirmada { background: linear-gradient(90deg,#10b981,#059669) !important; color: #fff !important; }
+    .badge-cancelada { background: linear-gradient(90deg,#ef4444,#dc2626) !important; color: #fff !important; }
+    .badge-pagada { background: linear-gradient(90deg,#6366f1,#06b6d4) !important; color: #fff !important; }
+    /* Payment status badges — keep gradient colours always */
+    .pay-pagado { background: linear-gradient(90deg,#10b981,#059669) !important; color: #fff !important; }
+    .pay-pendiente { background: linear-gradient(90deg,#f59e0b,#f97316) !important; color: #fff !important; }
+    .pay-fallido { background: linear-gradient(90deg,#ef4444,#dc2626) !important; color: #fff !important; }
+    .pay-parcial { background: linear-gradient(90deg,#6366f1,#06b6d4) !important; color: #fff !important; }
+    .pay-unknown { background: #6b7280 !important; color: #fff !important; }
+
+    /* ===== btn-group-col: transparent so it blends with table row ===== */
+    .btn-group-col {
+      background: transparent !important;
+    }
+
+    /* ===== Delete buttons — always red across all themes ===== */
+    .action-btn.delete, .action-btn.danger, .link-button.danger, .btn.danger, .btn-danger,
+    .link-button[data-open-delete] {
+      background: linear-gradient(90deg, #ef4444, #dc2626) !important;
+      color: #fff !important;
+    }
+
+    /* ===== Imagenes: dir-item folder cards ===== */
+    .dir-item {
+      background: var(--card) !important;
+      color: var(--text-color) !important;
+      border: 1px solid var(--input-border) !important;
+      border-radius: 8px !important;
+    }
+    .dir-item div[style*="font-weight"] {
+      color: var(--text-color) !important;
+    }
+    .dir-item div[style*="background: rgb(255, 255, 255)"],
+    .dir-item div[style*="background:rgb(255, 255, 255)"],
+    .dir-item div[style*="background: rgb(255"] {
+      background: var(--card) !important;
+      border-color: var(--input-border) !important;
+    }
+    .dir-list {
+      background: transparent !important;
+    }
+    .uploader {
+      background: var(--card) !important;
+      color: var(--text-color) !important;
+      border-color: var(--input-border) !important;
+    }
+    .preview {
+      background: var(--badge-bg) !important;
+      color: var(--muted) !important;
+    }
+
+    /* ===== Toast notifications ===== */
+    .notification-toast {
+      background: var(--card) !important;
+      color: var(--text-color) !important;
+      box-shadow: 0 12px 36px rgba(2,6,23,{{ $_isDark ? '0.3' : '0.12' }}) !important;
+    }
+    .notification-toast .toast-icon-placeholder {
+      background: var(--badge-bg) !important;
+    }
+    .notification-toast .toast-body-text {
+      color: var(--muted) !important;
+    }
+    .notification-toast button {
+      color: var(--muted) !important;
+      background: transparent !important;
+    }
+    #notif-toast-container .notification-toast div[style*="background:#f3f4f6"] {
+      background: var(--badge-bg) !important;
+    }
+    #notif-toast-container .notification-toast div[style*="color:#6b7280"] {
+      color: var(--muted) !important;
+    }
+    #notif-toast-container .notification-toast button {
+      color: var(--muted) !important;
+      background: transparent !important;
+    }
+
+    /* ===== Notification dropdown panel ===== */
+    #notif-dropdown {
+      background: var(--card) !important;
+      color: var(--text-color) !important;
+      box-shadow: 0 8px 30px rgba(2,6,23,{{ $_isDark ? '0.3' : '0.08' }}) !important;
+    }
+    #notif-dropdown strong {
+      color: var(--text-color) !important;
+    }
+    /* header & footer borders */
+    #notif-dropdown > div {
+      border-color: var(--input-border) !important;
+    }
+    /* notification items */
+    #notif-dropdown .notif-item {
+      border-bottom-color: var(--input-border) !important;
+      color: var(--text-color) !important;
+    }
+    #notif-dropdown .notif-item div {
+      color: var(--text-color) !important;
+    }
+    /* icon placeholder circles */
+    #notif-dropdown .notif-item .notif-icon-placeholder {
+      background: var(--badge-bg) !important;
+    }
+    /* body / subtitle text */
+    #notif-dropdown .notif-item .notif-body-text {
+      color: var(--muted) !important;
+    }
+    /* empty-state text */
+    #notif-dropdown #notif-list > div {
+      color: var(--muted) !important;
+    }
+    /* "Marcar todas" button */
+    #notif-dropdown #notif-mark-all {
+      background: var(--badge-bg) !important;
+      color: var(--text-color) !important;
+      border: 1px solid var(--input-border) !important;
+    }
+    /* "Ver todas" link */
+    #notif-dropdown a[href*="notification"] {
+      color: var(--btn-primary, #06b6d4) !important;
+    }
+    /* "Marcar" per-item button */
+    #notif-dropdown .notif-mark-read {
+      background: transparent !important;
+      color: var(--btn-primary, #06b6d4) !important;
+      border: 0 !important;
+    }
+    /* "ver recurso" action hint button */
+    #notif-dropdown .notif-open-resource {
+      background: var(--badge-bg) !important;
+      color: var(--text-color) !important;
+    }
+    /* "Ver más" button */
+    #notif-dropdown #notif-load-more {
+      background: var(--badge-bg) !important;
+      color: var(--text-color) !important;
+      border: 1px solid var(--input-border) !important;
+    }
+    /* tooltip */
+    #notif-dropdown .notif-tooltip {
+      background: var(--badge-bg) !important;
+      color: var(--text-color) !important;
     }
   </style>
  </body>

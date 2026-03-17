@@ -147,7 +147,7 @@
                 data-fecha="{{ $p->fecha_pago ?? '' }}"
                 data-update-url="{{ route('pagos.update',$p->id) }}">Editar</button>
 
-              <button type="button" class="link-button" data-open-delete data-id="{{ $p->id }}" data-monto="{{ number_format($p->monto,2,'.','') }}" data-reservacion="{{ $p->reservacion_id }}" data-tarjeta="{{ $p->tarjeta_id }}">Eliminar</button>
+              <button type="button" class="link-button danger" data-open-delete data-id="{{ $p->id }}" data-monto="{{ number_format($p->monto,2,'.','') }}" data-reservacion="{{ $p->reservacion_id }}" data-tarjeta="{{ $p->tarjeta_id }}">Eliminar</button>
               </form>
             </td>
           </tr>

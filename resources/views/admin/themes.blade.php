@@ -31,9 +31,20 @@
 
           $sbDefault = (isset($theme) && isset($theme->bg) && preg_match('/^#[0-9a-fA-F]{6}$/',$theme->bg)) ? '#0f172a' : '#ffffff';
         @endphp
+        @php
+          $presetGradients = [
+            'Light'    => ['start' => '#2563eb', 'end' => '#06b6d4', 'text' => '#ffffff'],
+            'Dark'     => ['start' => '#7c3aed', 'end' => '#fb923c', 'text' => '#ffffff'],
+            'Sakura'   => ['start' => '#f9a8d4', 'end' => '#ffd7b5', 'text' => '#111827'],
+            'Abstract' => ['start' => '#6d28d9', 'end' => '#fb923c', 'text' => '#ffffff'],
+          ];
+        @endphp
         @foreach($presetNames as $pn)
-          @php $p = $presets[$pn] ?? null; @endphp
-          <form method="POST" action="{{ route('admin.themes.apply') }}">@csrf<input type="hidden" name="preset" value="{{ $pn }}"><button class="btn" type="submit" style="{{ _btn_style($p) }}">Usar {{ $pn }}</button></form>
+          @php
+            $pg = $presetGradients[$pn] ?? ['start' => '#6366f1', 'end' => '#06b6d4', 'text' => '#ffffff'];
+            $presetStyle = "background:linear-gradient(90deg,{$pg['start']},{$pg['end']});color:{$pg['text']};border:0;padding:10px 16px;border-radius:8px;font-weight:700;cursor:pointer;";
+          @endphp
+          <form method="POST" action="{{ route('admin.themes.apply') }}">@csrf<input type="hidden" name="preset" value="{{ $pn }}"><button class="btn" type="submit" style="{{ $presetStyle }}">Usar {{ $pn }}</button></form>
         @endforeach
       </div>
       <form method="POST" action="{{ route('admin.themes.save') }}">
