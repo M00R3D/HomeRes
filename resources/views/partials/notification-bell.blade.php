@@ -5,7 +5,7 @@
     <span id="notif-badge" role="status" aria-live="polite" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:999px;font-size:12px;display:none;">0</span>
   </button>
 
-  <div id="notif-dropdown" role="menu" aria-label="Notificaciones" style="display:none;position:absolute;right:0;top:36px;width:340px;background:#fff;border-radius:8px;box-shadow:0 8px 30px rgba(2,6,23,0.08);z-index:1200;">
+  <div id="notif-dropdown" role="menu" aria-label="Notificaciones" style="display:none;position:absolute;right:0;top:36px;width: min(560px, calc(100vw - 40px));background:#fbfdff;border-radius:8px;box-shadow:0 8px 30px rgba(2,6,23,0.08);z-index:1200;">
     <div style="padding:8px;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center;">
       <strong>Notificaciones</strong>
       <div>
@@ -13,7 +13,7 @@
         <a href="{{ route('notifications.index') }}" style="margin-left:8px;color:#094;">Ver todas</a>
       </div>
     </div>
-    <div id="notif-list" style="max-height:360px;overflow:auto;">
+    <div id="notif-list" style="max-height:480px;overflow:auto;overflow-x:hidden;padding:6px;">
       <div style="padding:12px;text-align:center;color:#6b7280;">Cargando…</div>
     </div>
     <div style="padding:8px;border-top:1px solid #f3f4f6;text-align:center;"><button id="notif-load-more" class="btn-alt" style="display:none;padding:8px 12px;border-radius:8px">Ver más</button></div>
@@ -133,18 +133,18 @@ document.addEventListener('DOMContentLoaded', function(){
           el.style.borderBottom='1px solid #f3f4f6';
           el.style.position = 'relative';
         el.innerHTML = `
-          <div style="display:flex;align-items:center;flex:1;${read}">
-            ${icon}
-            <div style="flex:1;min-width:0">
-              <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${data.title||''}</div>
-              <div style="font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(data.body||'').slice(0,120)}</div>
-            </div>
-          </div>
-          <div style="margin-left:8px">
-            <button data-id="${n.id}" class="notif-mark-read" style="background:transparent;border:0;color:#06b6d4;cursor:pointer">Marcar</button>
-          </div>
-            <span class="notif-tooltip">Clic para ver detalle de notificación</span>
-        `;
+              <div style="display:flex;align-items:center;flex:1;${read}">
+                ${icon}
+                <div style="flex:1;min-width:0">
+                  <div style="white-space:normal;overflow-wrap:break-word;word-break:break-word">${data.title||''}</div>
+                  <div style="font-size:12px;color:#6b7280;white-space:normal;overflow-wrap:break-word;word-break:break-word">${(data.body||'')}</div>
+                </div>
+              </div>
+              <div style="margin-left:8px">
+                <button data-id="${n.id}" class="notif-mark-read" style="background:transparent;border:0;color:#06b6d4;cursor:pointer">Marcar</button>
+              </div>
+                <span class="notif-tooltip">Clic para ver detalle de notificación</span>
+            `;
         // click on item -> mark read then navigate or open detail
         el.addEventListener('click', async function(e){
           // prevent when clicking mark button
@@ -159,9 +159,26 @@ document.addEventListener('DOMContentLoaded', function(){
         // add small action button to open resource link if present
         const resource = el.dataset.resourceLink;
         if(resource){
+          function inferTypeFromUrl(url, data){
+            try{
+              const parsed = new URL(url, window.location.origin);
+              const path = parsed.pathname.replace(/^\/+|\/+$/g,'');
+              const seg = path.split('/').filter(Boolean);
+              const first = (seg[0] || '').toLowerCase();
+              const map = {reservaciones:'reservacion',pagos:'pago',propiedades:'propiedad',usuarios:'usuario',tarjetas_simuladas:'tarjeta',tarjetas:'tarjeta',cabanas:'cabana'};
+              if(data && (data.tipo || data.type)) return (data.tipo || data.type).toString().toLowerCase();
+              if(map[first]) return map[first];
+              if(first.endsWith('es')) return first.slice(0,-2);
+              return first.replace(/s$/,'') || 'recurso';
+            }catch(e){
+              return (data && (data.tipo || data.type)) ? (data.tipo || data.type).toString().toLowerCase() : 'recurso';
+            }
+          }
+
           const action = document.createElement('button');
           action.className = 'notif-open-resource action-hint inline';
-          action.textContent = 'Ver recurso';
+          const inferred = inferTypeFromUrl(resource, data);
+          action.textContent = 'ver ' + (inferred || 'recurso');
           action.style.marginLeft = '8px';
           action.addEventListener('click', function(ev){
             ev.stopPropagation();
