@@ -123,7 +123,8 @@ document.addEventListener('DOMContentLoaded', function(){
         const icon = data.icon ? `<img src="${data.icon}" style="width:28px;height:28px;border-radius:6px;margin-right:8px">` : `<div style="width:28px;height:28px;border-radius:6px;background:#f3f4f6;margin-right:8px"></div>`;
           const el = document.createElement('div');
         el.setAttribute('role','menuitem');
-        el.dataset.link = n.link || data.link || data.url || '';
+          // keep resource link separate; clicking the item opens the notification detail
+          el.dataset.resourceLink = n.link || data.link || data.url || '';
         el.dataset.id = n.id;
           el.className = 'notif-item';
           el.style.padding='10px';
@@ -152,11 +153,25 @@ document.addEventListener('DOMContentLoaded', function(){
           try{
             await fetch(`/notifications/${id}/read`, {method:'POST', headers:{'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),'X-Requested-With':'XMLHttpRequest'}});
           }catch(err){}
-          const link = el.dataset.link;
-          if (link) { window.location.href = link; return; }
-          // fallback to notification detail page
+          // open notification detail page (primary action)
           window.location.href = `/notifications/${id}`;
         });
+        // add small action button to open resource link if present
+        const resource = el.dataset.resourceLink;
+        if(resource){
+          const action = document.createElement('button');
+          action.className = 'notif-open-resource action-hint inline';
+          action.textContent = 'Ver recurso';
+          action.style.marginLeft = '8px';
+          action.addEventListener('click', function(ev){
+            ev.stopPropagation();
+            // open in new tab
+            window.open(resource, '_blank');
+          });
+          // place inside right-side container
+          const right = el.querySelector('div[style*="margin-left:8px"]');
+          if(right) right.appendChild(action);
+        }
         list.appendChild(el);
       });
       loadMoreBtn.style.display = items.length>10 ? 'block' : 'none';

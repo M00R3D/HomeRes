@@ -41,7 +41,7 @@ class PaymentController extends Controller
         $data = $request->only(['reservacion_id','tarjeta_id','monto','metodo_pago','estado','fecha_pago']);
         $payment = Payment::create($data);
 
-        try { Log::entry('pago', 'Pago creado: #' . $payment->id, auth()->id(), 'reservacion', $payment->reservacion_id); } catch (\Throwable $e) {}
+        try { Log::entry('pago', 'Pago creado: #' . $payment->id, auth()->id(), 'reservacion', $payment->reservacion_id, route('pagos.show', $payment->id)); } catch (\Throwable $e) {}
 
         if ($request->wantsJson()) return response()->json($payment, 201);
         return redirect()->route('pagos.index')->with('success','Pago creado');
@@ -100,7 +100,7 @@ class PaymentController extends Controller
         ]);
 
         $p->update($request->only(['reservacion_id','tarjeta_id','monto','metodo_pago','estado','fecha_pago']));
-        try { Log::entry('pago', 'Pago actualizado: #' . $p->id, auth()->id(), 'reservacion', $p->reservacion_id); } catch (\Throwable $e) {}
+        try { Log::entry('pago', 'Pago actualizado: #' . $p->id, auth()->id(), 'reservacion', $p->reservacion_id, route('pagos.show', $p->id)); } catch (\Throwable $e) {}
         if ($request->wantsJson()) return response()->json($p);
         return redirect()->route('pagos.index')->with('success','Pago actualizado');
     }
@@ -110,7 +110,7 @@ class PaymentController extends Controller
         $p = Payment::find($id);
         if (!$p) return $request->wantsJson() ? response()->json(['message'=>'No encontrado'],404) : abort(404);
         $p->delete();
-        try { Log::entry('pago', 'Pago eliminado: #' . $p->id, auth()->id(), 'reservacion', $p->reservacion_id); } catch (\Throwable $e) {}
+        try { Log::entry('pago', 'Pago eliminado: #' . $p->id, auth()->id(), 'reservacion', $p->reservacion_id, route('pagos.show', $p->id)); } catch (\Throwable $e) {}
         if ($request->wantsJson()) return response()->json(['message'=>'Eliminado']);
         return redirect()->route('pagos.index')->with('success','Pago eliminado');
     }
@@ -224,7 +224,7 @@ class PaymentController extends Controller
                 });
 
                 if ($request->wantsJson()) return response()->json($result);
-                try { Log::entry('pago', 'Pago realizado correctamente: #' . ($result->id ?? 'n/a'), $usuarioId, 'reservacion', $reservacionId); } catch (\Throwable $e) {}
+                try { Log::entry('pago', 'Pago realizado correctamente: #' . ($result->id ?? 'n/a'), $usuarioId, 'reservacion', $reservacionId, isset($result->id) ? route('pagos.show', $result->id) : route('reservaciones.show', $reservacionId)); } catch (\Throwable $e) {}
                 return redirect()->route('reservaciones.show', $reservacionId)->with('success', 'Pago realizado correctamente');
 
             } else {
@@ -247,7 +247,7 @@ class PaymentController extends Controller
                 }
 
                 if ($request->wantsJson()) return response()->json($p);
-                try { Log::entry('pago', 'Pago registrado (efectivo): #' . $p->id, $usuarioId, 'reservacion', $reservacionId); } catch (\Throwable $e) {}
+                try { Log::entry('pago', 'Pago registrado (efectivo): #' . $p->id, $usuarioId, 'reservacion', $reservacionId, route('pagos.show', $p->id)); } catch (\Throwable $e) {}
                 return redirect()->route('reservaciones.show', $reservacionId)->with('success', 'Pago registrado (efectivo)');
             }
 
@@ -276,9 +276,9 @@ class PaymentController extends Controller
                 }
             }
 
-                try { Log::entry('pago', 'Pago fallido (CVV): reservacion #' . $reservacionId . ' usuario #' . (auth()->id() ?? 'anon') . ' - ' . $msg, auth()->id(), 'reservacion', $reservacionId); } catch (\Throwable $e) {}
+                try { Log::entry('pago', 'Pago fallido (CVV): reservacion #' . $reservacionId . ' usuario #' . (auth()->id() ?? 'anon') . ' - ' . $msg, auth()->id(), 'reservacion', $reservacionId, route('reservaciones.show', $reservacionId)); } catch (\Throwable $e) {}
                 if ($request->wantsJson()) return response()->json(['message' => $msg], 400);
-            try { Log::entry('pago', 'Pago fallido: reservacion #' . $reservacionId . ' usuario #' . (auth()->id() ?? 'anon') . ' - ' . $msg, auth()->id(), 'reservacion', $reservacionId); } catch (\Throwable $e) {}
+            try { Log::entry('pago', 'Pago fallido: reservacion #' . $reservacionId . ' usuario #' . (auth()->id() ?? 'anon') . ' - ' . $msg, auth()->id(), 'reservacion', $reservacionId, route('reservaciones.show', $reservacionId)); } catch (\Throwable $e) {}
             return back()->withInput()->withErrors(['pagos' => $msg]);
         }
     }

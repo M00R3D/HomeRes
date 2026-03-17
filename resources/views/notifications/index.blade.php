@@ -27,10 +27,15 @@
           <td style="max-width:480px;overflow:hidden;text-overflow:ellipsis">{{ $n->data['body'] ?? '' }}</td>
           <td>{{ $n->created_at->diffForHumans() }}</td>
           <td>
-            @if(!$n->read_at)
-              <form method="POST" action="{{ route('notifications.read', $n->id) }}" style="display:inline">@csrf<button class="btn-alt">Marcar leído</button></form>
+            <a class="btn-alt" href="{{ route('notifications.show', $n->id) }}">Ver notificación</a>
+            @php $resLink = $n->data['link'] ?? ($n->data['url'] ?? ($n->link ?? null)); @endphp
+            @if($resLink)
+              <a class="btn-alt" href="{{ $resLink }}" target="_blank" style="margin-left:8px">Ver recurso</a>
             @endif
-            <form method="POST" action="{{ route('notifications.destroy', $n->id) }}" style="display:inline">@csrf @method('DELETE')<button class="btn-alt">Eliminar</button></form>
+            @if(!$n->read_at)
+              <form method="POST" action="{{ route('notifications.read', $n->id) }}" style="display:inline;margin-left:8px">@csrf<button class="btn-alt">Marcar leído</button></form>
+            @endif
+            <form method="POST" action="{{ route('notifications.destroy', $n->id) }}" style="display:inline;margin-left:8px">@csrf @method('DELETE')<button class="btn-alt">Eliminar</button></form>
           </td>
         </tr>
         @endforeach

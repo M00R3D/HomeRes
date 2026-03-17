@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Propiedad;
+use App\Models\Log;
 
 class PropiedadController extends Controller
 {
@@ -38,7 +39,13 @@ class PropiedadController extends Controller
             'ruta_img' => 'nullable|string',
         ]);
 
-        Propiedad::create($validated);
+        $propiedad = Propiedad::create($validated);
+
+        try {
+            Log::entry('propiedad', 'Propiedad creada: #' . $propiedad->id . ' - ' . ($propiedad->nombre ?? ''), auth()->id(), 'propiedad', $propiedad->id, route('propiedades.show', $propiedad->id));
+        } catch (\Throwable $e) {
+            // continue silently
+        }
 
         return redirect()->route('propiedades.index')->with('success', 'Propiedad creada exitosamente.');
     }
@@ -100,6 +107,7 @@ class PropiedadController extends Controller
     public function update(Request $request, $id)
     {
         $propiedad = Propiedad::findOrFail($id);
+        $oldEstado = $propiedad->estado;
 
         $validated = $request->validate([
             'tipo' => 'required|in:cabaña,casa,departamento',
@@ -116,13 +124,31 @@ class PropiedadController extends Controller
 
         $propiedad->update($validated);
 
+        try {
+            Log::entry('propiedad', 'Propiedad actualizada: #' . $propiedad->id . ' - ' . ($propiedad->nombre ?? ''), auth()->id(), 'propiedad', $propiedad->id, route('propiedades.show', $propiedad->id));
+
+            // If estado changed, add a specific state-change log
+            if (array_key_exists('estado', $validated) && $validated['estado'] !== $oldEstado) {
+                Log::entry('propiedad', 'Estado cambiado de ' . ($oldEstado ?? 'N/A') . ' a ' . $validated['estado'] . ': #' . $propiedad->id, auth()->id(), 'propiedad', $propiedad->id, route('propiedades.show', $propiedad->id));
+            }
+        } catch (\Throwable $e) {
+            // ignore notification/logging failures
+        }
+
         return redirect()->route('propiedades.index')->with('success', 'Propiedad actualizada exitosamente.');
     }
 
     public function destroy($id)
     {
         $propiedad = Propiedad::findOrFail($id);
+        $nombre = $propiedad->nombre ?? '';
         $propiedad->delete();
+
+        try {
+            Log::entry('propiedad', 'Propiedad eliminada: #' . $id . ' - ' . $nombre, auth()->id(), 'propiedad', $id, route('propiedades.index'));
+        } catch (\Throwable $e) {
+            // continue
+        }
 
         return redirect()->route('propiedades.index')->with('success', 'Propiedad eliminada exitosamente.');
     }

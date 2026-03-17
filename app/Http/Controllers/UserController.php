@@ -41,7 +41,7 @@ class UserController extends Controller
         // reload model for response
         $u->refresh();
 
-        try { Log::entry('usuario', 'Bloqueo ' . ($new ? 'activado' : 'removido') . ' para usuario #' . $u->id, $actor->id, 'usuario', $u->id); } catch (\Throwable $e) {}
+        try { Log::entry('usuario', 'Bloqueo ' . ($new ? 'activado' : 'removido') . ' para usuario #' . $u->id, $actor->id, 'usuario', $u->id, route('users.show', $u->id)); } catch (\Throwable $e) {}
 
         if ($request->wantsJson()) return response()->json(['bloqueo_tarjetas' => (bool)$new, 'intentos_cvv' => $u->intentos_cvv]);
 
@@ -61,7 +61,7 @@ class UserController extends Controller
         $data = $request->only(['nombre','apellido','email','password','rol','area']);
         $user = User::create($data);
 
-        try { Log::entry('usuario', 'Usuario creado: #' . $user->id . ' ' . ($user->email ?? ''), auth()->id(), 'usuario', $user->id); } catch (\Throwable $e) {}
+        try { Log::entry('usuario', 'Usuario creado: #' . $user->id . ' ' . ($user->email ?? ''), auth()->id(), 'usuario', $user->id, route('users.show', $user->id)); } catch (\Throwable $e) {}
 
         if ($request->wantsJson()) {
             return response()->json($user, 201);
@@ -128,7 +128,7 @@ class UserController extends Controller
             DB::table('usuarios')->where('id', $u->id)->update($direct);
         }
 
-        try { Log::entry('usuario', 'Usuario actualizado: #' . $u->id, $actor->id ?? auth()->id(), 'usuario', $u->id); } catch (\Throwable $e) {}
+        try { Log::entry('usuario', 'Usuario actualizado: #' . $u->id, $actor->id ?? auth()->id(), 'usuario', $u->id, route('users.show', $u->id)); } catch (\Throwable $e) {}
 
         if ($request->wantsJson()) return response()->json($u);
 
@@ -159,7 +159,7 @@ class UserController extends Controller
 
         $uid = $u->id;
         $u->delete();
-        try { Log::entry('usuario', 'Usuario eliminado: #' . $uid, auth()->id(), 'usuario', $uid); } catch (\Throwable $e) {}
+        try { Log::entry('usuario', 'Usuario eliminado: #' . $uid, auth()->id(), 'usuario', $uid, route('users.show', $uid)); } catch (\Throwable $e) {}
 
         if ($request->wantsJson()) return response()->json(['message' => 'Usuario eliminado']);
 
@@ -179,7 +179,7 @@ class UserController extends Controller
         if ($request->filled('area')) $u->area = $request->area;
         $u->save();
 
-        try { Log::entry('usuario', 'Rol cambiado para usuario #' . $u->id . ' a ' . $u->rol, auth()->id(), 'usuario', $u->id); } catch (\Throwable $e) {}
+        try { Log::entry('usuario', 'Rol cambiado para usuario #' . $u->id . ' a ' . $u->rol, auth()->id(), 'usuario', $u->id, route('users.show', $u->id)); } catch (\Throwable $e) {}
 
         return response()->json($u);
     }

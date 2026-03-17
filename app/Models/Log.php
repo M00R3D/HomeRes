@@ -49,13 +49,40 @@ class Log extends Model
             $recipients = $recipients->merge($admins)->unique('id')->filter();
 
             if ($recipients->isNotEmpty()) {
+                // Normalize link: prefer storing path-relative links when they point to this app
+                $storedLink = null;
+                if (! empty($link)) {
+                    if (strpos($link, '/') === 0) {
+                        // already a relative path
+                        $storedLink = $link;
+                    } elseif (preg_match('#^https?://#i', $link)) {
+                        try {
+                            $parsed = parse_url($link);
+                            $appUrl = config('app.url') ?? env('APP_URL');
+                            $appHost = $appUrl ? parse_url($appUrl, PHP_URL_HOST) : null;
+                            $linkHost = $parsed['host'] ?? null;
+                            if ($appHost && $linkHost && strcasecmp($appHost, $linkHost) === 0) {
+                                $storedLink = ($parsed['path'] ?? '') . (isset($parsed['query']) ? '?' . $parsed['query'] : '') . (isset($parsed['fragment']) ? '#' . $parsed['fragment'] : '');
+                            } else {
+                                // external host — keep absolute
+                                $storedLink = $link;
+                            }
+                        } catch (\Throwable $e) {
+                            $storedLink = $link;
+                        }
+                    } else {
+                        // not a full URL and not starting with / — store as-is
+                        $storedLink = $link;
+                    }
+                }
+
                 Notification::send($recipients, new LogCreatedNotification([
                     'tipo' => $log->tipo,
                     'mensaje' => $log->mensaje,
                     'usuario_id' => $log->usuario_id,
                     'referencia_tipo' => $log->referencia_tipo,
                     'referencia_id' => $log->referencia_id,
-                    'link' => $link,
+                    'link' => $storedLink,
                 ]));
             }
         } catch (\Throwable $e) {
