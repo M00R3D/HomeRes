@@ -82,7 +82,26 @@ class ThemeController extends Controller
 
         $buttonVariants = array_values(array_unique(array_filter($variants)));
 
-        return view('admin.themes', ['theme' => $theme, 'buttonVariants' => $buttonVariants]);
+        $layoutSections = [
+            'dashboard' => 'Dashboard',
+            'reservations' => 'Reservaciones',
+            'properties' => 'Propiedades',
+            'notifications' => 'Notificaciones',
+            'cards' => 'Tarjetas',
+        ];
+
+        $layoutVariants = [
+            'card' => 'Carta',
+            'elegant' => 'Elegante',
+            'hyperminimal' => 'Hyperminimalista',
+        ];
+
+        return view('admin.themes', [
+            'theme' => $theme,
+            'buttonVariants' => $buttonVariants,
+            'layoutSections' => $layoutSections,
+            'layoutVariants' => $layoutVariants,
+        ]);
     }
 
     public function save(Request $request)
@@ -125,6 +144,17 @@ class ThemeController extends Controller
             $payload['button_variants'] = $data['button_variants'];
         }
 
+        // Preserve existing meta sub-keys (layouts, payment, price, notif, topbar) when saving
+        $existing = Theme::find(1);
+        if ($existing && is_array($existing->meta ?? null)) {
+            $preserveKeys = ['layouts', 'payment', 'price', 'notif'];
+            foreach ($preserveKeys as $key) {
+                if (! isset($payload['meta'][$key]) && isset($existing->meta[$key])) {
+                    $payload['meta'][$key] = $existing->meta[$key];
+                }
+            }
+        }
+
         // Single global theme stored at id=1. Always write/update id=1.
         $payload['name'] = $payload['name'] ?? 'custom';
         Theme::updateOrCreate(['id' => 1], $payload);
@@ -153,6 +183,18 @@ class ThemeController extends Controller
         unset($attrs['id']);
         if (isset($attrs['created_at'])) unset($attrs['created_at']);
         if (isset($attrs['updated_at'])) unset($attrs['updated_at']);
+
+        // Preserve existing meta keys from id=1 when applying preset
+        $existing = Theme::find(1);
+        if ($existing && is_array($existing->meta ?? null)) {
+            $preserveKeys = ['layouts', 'payment', 'price', 'notif'];
+            foreach ($preserveKeys as $key) {
+                if (! isset($attrs['meta'][$key]) && isset($existing->meta[$key])) {
+                    if (! isset($attrs['meta'])) $attrs['meta'] = [];
+                    $attrs['meta'][$key] = $existing->meta[$key];
+                }
+            }
+        }
 
         // Ensure dark preset has visible light text by default
         if (strtolower($presetName) === 'dark') {

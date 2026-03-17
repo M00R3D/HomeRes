@@ -25,6 +25,37 @@
     } catch (\Throwable $e) {
       $appliedTheme = null; // fail-safe
     }
+
+    $routeName = request()->route()?->getName() ?? '';
+    $layoutMeta = is_array($appliedTheme['meta']['layouts'] ?? null) ? $appliedTheme['meta']['layouts'] : [];
+    $dbSectionsMeta = is_array($layoutMeta['sections'] ?? null) ? $layoutMeta['sections'] : [];
+    $layoutSidebarSide = in_array(($layoutMeta['sidebar_side'] ?? 'left'), ['left', 'right'], true)
+      ? ($layoutMeta['sidebar_side'] ?? 'left')
+      : 'left';
+    $layoutSection = 'default';
+    if ($routeName === 'dashboard') {
+      $layoutSection = 'dashboard';
+    } elseif (str_starts_with($routeName, 'reservaciones.')) {
+      $layoutSection = 'reservations';
+    } elseif (str_starts_with($routeName, 'propiedades.')) {
+      $layoutSection = 'properties';
+    } elseif (str_starts_with($routeName, 'notificaciones.') || str_starts_with($routeName, 'notifications.')) {
+      $layoutSection = 'notifications';
+    } elseif (str_starts_with($routeName, 'tarjetas.')) {
+      $layoutSection = 'cards';
+    }
+    $_sectionVariant = isset($dbSectionsMeta[$layoutSection]) ? ($dbSectionsMeta[$layoutSection]['variant'] ?? null) : null;
+    $layoutVariant = ($layoutSection !== 'default' && in_array($_sectionVariant, ['card', 'elegant', 'hyperminimal'], true))
+      ? $_sectionVariant
+      : 'default';
+
+    $previewParam = request()->query('preview_as');
+    if ($isAdmin && in_array($previewParam, ['admin', 'user'], true)) {
+      session(['layout_preview_as' => $previewParam]);
+    }
+    $layoutPreviewMode = $isAdmin ? session('layout_preview_as', 'admin') : 'user';
+    $viewingAsUser = $isAdmin && $layoutPreviewMode === 'user';
+    $effectiveIsAdmin = $isAdmin && ! $viewingAsUser;
     // helper to compute readable text color for CSS variables
     function __pick_text_color_for_var($hex) {
       if (! $hex) return '#111827';
@@ -348,6 +379,113 @@
     /* Float / autoplay animations applied via variant classes */
     .autoplay-float { animation: floatY var(--float-animation-duration) ease-in-out infinite; }
     .autoplay-pulse { animation: pulseScale var(--float-animation-duration) ease-in-out infinite; }
+
+    body.sidebar-right .sidebar{left:auto !important;right:0 !important}
+    body.sidebar-right .main{margin-left:0 !important;margin-right:260px !important}
+    body.sidebar-right .topbar{position:relative}
+    body.sidebar-right .topbar .topbar-right{right:52px !important;margin-right:0 !important}
+    body.sidebar-right #sidebar-toggle{
+      position:fixed !important;
+      top:14px !important;
+      right:12px !important;
+      left:auto !important;
+      transform:none !important;
+      margin-left:0 !important;
+      z-index:120 !important;
+    }
+    body.sidebar-right.sidebar-collapsed .main{margin-right:0 !important}
+    body.sidebar-right.sidebar-collapsed .sidebar{transform:translateX(260px) !important}
+    body.sidebar-right .sidebar .nav-item:hover{transform:translateX(-4px)}
+    body.sidebar-right.sidebar-collapsed .icon-btn.show-desktop{left:auto;right:12px}
+    body.preview-as-user .preview-admin-only{display:none !important}
+    .preview-pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(15,23,42,0.06);color:var(--topbar-text);font-weight:700}
+    .preview-pill strong{font-size:.82rem;text-transform:uppercase;letter-spacing:.08em}
+
+    body.layout-variant-card .card,
+    body.layout-variant-card .card-wide,
+    body.layout-variant-card .table-card,
+    body.layout-variant-card .list-card,
+    body.layout-variant-card .pr-card,
+    body.layout-variant-card .modal-panel,
+    body.layout-variant-card .card-preview{
+      border-radius:22px !important;
+      box-shadow:0 22px 54px rgba(2,6,23,0.12) !important;
+      border:1px solid rgba(148,163,184,0.16) !important;
+    }
+    body.layout-variant-card .table th,
+    body.layout-variant-card .table td{padding:12px 12px !important}
+    body.layout-variant-card .action-btn,
+    body.layout-variant-card .btn,
+    body.layout-variant-card .btn-primary,
+    body.layout-variant-card .btn-alt,
+    body.layout-variant-card .pr-btn{border-radius:999px !important}
+
+    body.layout-variant-elegant .card,
+    body.layout-variant-elegant .card-wide,
+    body.layout-variant-elegant .table-card,
+    body.layout-variant-elegant .list-card,
+    body.layout-variant-elegant .pr-card,
+    body.layout-variant-elegant .modal-panel{
+      border-radius:18px !important;
+      border:1px solid rgba(148,163,184,0.24) !important;
+      box-shadow:0 14px 34px rgba(15,23,42,0.08) !important;
+      background:linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.92)) !important;
+    }
+    body.layout-variant-elegant .table th{letter-spacing:.04em;text-transform:uppercase;font-size:.74rem !important}
+    body.layout-variant-elegant .page-header h1,
+    body.layout-variant-elegant h1,
+    body.layout-variant-elegant h2{letter-spacing:-.02em}
+    body.layout-variant-elegant .action-btn,
+    body.layout-variant-elegant .btn,
+    body.layout-variant-elegant .btn-primary,
+    body.layout-variant-elegant .btn-alt,
+    body.layout-variant-elegant .pr-btn{
+      box-shadow:0 10px 24px rgba(37,99,235,0.12) !important;
+    }
+
+    body.layout-variant-hyperminimal .card,
+    body.layout-variant-hyperminimal .card-wide,
+    body.layout-variant-hyperminimal .table-card,
+    body.layout-variant-hyperminimal .list-card,
+    body.layout-variant-hyperminimal .pr-card,
+    body.layout-variant-hyperminimal .modal-panel,
+    body.layout-variant-hyperminimal div[style*="background:#fff"],
+    body.layout-variant-hyperminimal form[style*="background:#fff"]{
+      box-shadow:none !important;
+      border:1px solid var(--input-border) !important;
+      border-radius:12px !important;
+      background:var(--card) !important;
+    }
+    body.layout-variant-hyperminimal .table th,
+    body.layout-variant-hyperminimal .table td{padding:10px 8px !important}
+    body.layout-variant-hyperminimal .btn,
+    body.layout-variant-hyperminimal .btn-primary,
+    body.layout-variant-hyperminimal .btn-alt,
+    body.layout-variant-hyperminimal .action-btn,
+    body.layout-variant-hyperminimal .pr-btn,
+    body.layout-variant-hyperminimal .link-button{
+      background:transparent !important;
+      color:var(--text-color) !important;
+      border:1px solid var(--input-border) !important;
+      box-shadow:none !important;
+    }
+    body.layout-variant-hyperminimal .btn:hover,
+    body.layout-variant-hyperminimal .btn-primary:hover,
+    body.layout-variant-hyperminimal .btn-alt:hover,
+    body.layout-variant-hyperminimal .action-btn:hover,
+    body.layout-variant-hyperminimal .pr-btn:hover,
+    body.layout-variant-hyperminimal .link-button:hover{
+      background:rgba(15,23,42,0.05) !important;
+      transform:none !important;
+    }
+
+    @media (max-width:900px){
+      body.sidebar-right .main{margin-right:0}
+      body.sidebar-right .sidebar{left:auto;right:0;transform:translateX(110%)}
+      body.sidebar-right .sidebar.open{transform:translateX(0)}
+      body.sidebar-right #sidebar-toggle{top:12px !important;right:10px !important}
+      body.sidebar-right .topbar .topbar-right{margin-right:46px}
+    }
   </style>
   <style>
     .content{
@@ -369,7 +507,7 @@
   $currentUser = $currentUser ?? auth()->user();
   $isAdmin = $isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin');
 @endphp
-<body class="app-root">
+<body class="app-root {{ $layoutSidebarSide === 'right' ? 'sidebar-right' : 'sidebar-left' }} layout-section-{{ $layoutSection }} layout-variant-{{ $layoutVariant }} {{ $viewingAsUser ? 'preview-as-user' : 'preview-as-admin' }}">
   <script>
     // Show session error messages stored by interceptors (persist across redirect)
     (function(){
@@ -410,7 +548,7 @@
       <a class="nav-item" href="/propiedades">Propiedades</a>
       <a class="nav-item" href="/notificaciones">Notificaciones</a>
       <a class="nav-item" href="{{ route('tarjetas.index') }}">Tarjetas</a>
-      @if($isAdmin)
+      @if($effectiveIsAdmin)
         <a class="nav-item" href="/users">Usuarios</a>
         <a class="nav-item" href="{{ route('admin.logs') }}">Logs</a>
         <a class="nav-item" href="{{ route('images.index') }}">Imágenes</a>
@@ -426,12 +564,21 @@
 
   <div class="main">
     <header class="topbar">
-      <button id="sidebar-toggle" class="icon-btn show-desktop" aria-label="Abrir menú">☰</button>
+      <button id="sidebar-toggle" class="icon-btn show-desktop sidebar-toggle-btn" aria-label="Abrir menú">☰</button>
       <div class="topbar-right">
+        @if($isAdmin)
+          <span class="preview-pill">
+            <strong>Vista</strong>
+            <span>{{ $viewingAsUser ? 'Usuario' : 'Admin' }}</span>
+          </span>
+          <a href="{{ request()->fullUrlWithQuery(['preview_as' => $viewingAsUser ? 'admin' : 'user']) }}" class="top-action">
+            {{ $viewingAsUser ? 'Volver a admin' : 'Ver como usuario' }}
+          </a>
+        @endif
         @include('partials.notification-bell')
         <a href="{{ route('notifications.preferences') }}" class="top-action">Perfil</a>
-        @if($isAdmin)
-          <span class="top-action" style="color:#ef4444;font-weight:700;">Usted inicio sesion como Administrador</span>
+        @if($effectiveIsAdmin)
+          <span class="top-action preview-admin-only" style="color:#ef4444;font-weight:700;">Usted inicio sesion como Administrador</span>
         @endif
       </div>
     </header>
@@ -448,7 +595,7 @@
   <script>
     (function () {
       const sidebar = document.getElementById('sidebar');
-      const toggle = document.getElementById('sidebar-toggle');
+      const toggles = document.querySelectorAll('.sidebar-toggle-btn');
       const closeBtn = document.getElementById('sidebar-close');
       const body = document.body;
 
@@ -467,19 +614,21 @@
       } catch(e){}
 
       // Toggle behavior: on mobile open/close the overlay menu, on desktop collapse
-      toggle && toggle.addEventListener('click', () => {
-        if (isMobile()) {
-          sidebar.classList.toggle('open');
-        } else {
-          const collapsed = body.classList.toggle('sidebar-collapsed');
-          try { localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0'); } catch(e){}
-        }
+      toggles.forEach((toggleBtn) => {
+        toggleBtn.addEventListener('click', () => {
+          if (isMobile()) {
+            sidebar.classList.toggle('open');
+          } else {
+            const collapsed = body.classList.toggle('sidebar-collapsed');
+            try { localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0'); } catch(e){}
+          }
+        });
       });
 
       closeBtn && closeBtn.addEventListener('click', () => sidebar.classList.remove('open'));
 
       document.addEventListener('click', (e) => {
-        if (isMobile() && !sidebar.contains(e.target) && !e.target.closest('#sidebar-toggle')) {
+        if (isMobile() && !sidebar.contains(e.target) && !e.target.closest('.sidebar-toggle-btn')) {
           sidebar.classList.remove('open');
         }
       });

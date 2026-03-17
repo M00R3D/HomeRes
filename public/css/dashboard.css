@@ -569,3 +569,57 @@ input[type="color"]{
 */
 .card, .card-wide, .card .table th, .card .table td { color: var(--text-color, #111111) !important; }
 
+/* Sidebar positioned on the right side */
+body.sidebar-right .sidebar {
+  left: auto !important;
+  right: 0 !important;
+  transform: translateX(0) !important;
+}
+
+body.sidebar-right .main {
+  margin-left: 0 !important;
+  margin-right: 260px !important;
+}
+
+body.sidebar-right.sidebar-collapsed .main {
+  margin-right: 0 !important;
+}
+
+body.sidebar-right.sidebar-collapsed .sidebar {
+  transform: translateX(260px) !important;
+}
+
+body.sidebar-right .sidebar .nav-item:hover {
+  transform: translateX(-4px);
+}
+
+body.sidebar-right.sidebar-collapsed .icon-btn.show-desktop {
+  left: auto !important;
+  right: 12px !important;
+}
+
+/* Mobile: sidebar-right on smaller screens */
+@media (max-width: 900px) {
+  body.sidebar-right .sidebar {
+    transform: translateX(110%) !important;
+  }
+  body.sidebar-right .sidebar.open {
+    transform: translateX(0) !important;
+  }
+  body.sidebar-right .main {
+    margin-right: 0 !important;
+  }
+}
+
+/* Fallback: ensure sidebar toggle is fixed on the right when layout uses sidebar-right.
+   This helps when compiled inline view CSS isn't applied due to cached templates. */
+body.sidebar-right #sidebar-toggle{
+  position:fixed !important;
+  top:14px !important;
+  right:12px !important;
+  left:auto !important;
+  transform:none !important;
+  margin-left:0 !important;
+  z-index:120 !important;
+}
+

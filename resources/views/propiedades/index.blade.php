@@ -7,7 +7,8 @@
   use App\Models\Comentario;
   use Illuminate\Support\Str;
   $currentUser = $currentUser ?? auth()->user();
-  $isAdmin = $isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin');
+  $layoutPreviewMode = ($currentUser && ($currentUser->rol ?? '') === 'admin') ? session('layout_preview_as', 'admin') : 'user';
+  $isAdmin = ($isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin')) && $layoutPreviewMode !== 'user';
 @endphp
 
 <link rel="stylesheet" href="{{ asset('css/propiedades.css') }}">

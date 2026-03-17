@@ -5,7 +5,8 @@
 @section('content')
 @php
     $current = auth()->user() ?? null;
-    $isAdmin = $current && ($current->rol === 'admin');
+    $layoutPreviewMode = ($current && ($current->rol ?? '') === 'admin') ? session('layout_preview_as', 'admin') : 'user';
+    $isAdmin = ($current && ($current->rol === 'admin')) && $layoutPreviewMode !== 'user';
     use Carbon\Carbon;
     Carbon::setLocale('es');
     $estadoOrder = ['cerrada' => 0, 'abierta' => 1, 'vista' => 2];

@@ -48,7 +48,8 @@
 <div style="max-width:1100px;margin:18px auto;padding:12px;">
   @php
     $currentUser = $currentUser ?? auth()->user();
-    $isAdmin = $isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin');
+    $layoutPreviewMode = ($currentUser && ($currentUser->rol ?? '') === 'admin') ? session('layout_preview_as', 'admin') : 'user';
+    $isAdmin = ($isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin')) && $layoutPreviewMode !== 'user';
     $myTarjeta = null;
     if (!$isAdmin && $currentUser) {
       // Prefer the direct foreign key on usuarios.id_tarjeta when present on the current user
