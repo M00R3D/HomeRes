@@ -36,6 +36,40 @@ _notifTooltipStyle.textContent = `
 document.head.appendChild(_notifTooltipStyle);
 
 document.addEventListener('DOMContentLoaded', function(){
+  // Browser Notification support: request permission once and show native notifications
+  let browserNotificationsEnabled = false;
+  async function ensureNotificationPermission(){
+    try{
+      if(!('Notification' in window)) return false;
+      if(Notification.permission === 'granted'){ browserNotificationsEnabled = true; return true; }
+      if(Notification.permission === 'denied'){ browserNotificationsEnabled = false; return false; }
+      const p = await Notification.requestPermission();
+      browserNotificationsEnabled = (p === 'granted');
+      return browserNotificationsEnabled;
+    }catch(e){ return false; }
+  }
+
+  function showBrowserNotification(n){
+    try{
+      if(!('Notification' in window) || Notification.permission !== 'granted') return;
+      const data = n.data || {};
+      const title = data.title || 'Notificación';
+      const body = data.body || '';
+      const icon = data.icon || '/logos/logoHomeRes.png';
+      const resource = n.link || data.link || data.url || '';
+      const options = { body, icon, tag: n.id };
+      const notif = new Notification(title, options);
+      notif.onclick = function(ev){
+        try{
+          window.focus();
+          if(resource){ window.open(resource, '_blank'); } else { window.location.href = '/notifications'; }
+        }catch(e){}
+        notif.close();
+      };
+      // auto-close after 8s
+      setTimeout(()=>{ try{ notif.close(); }catch(e){} }, 8000);
+    }catch(e){}
+  }
   const btn = document.getElementById('notif-bell-btn');
   const badge = document.getElementById('notif-badge');
   const dropdown = document.getElementById('notif-dropdown');
@@ -70,6 +104,13 @@ document.addEventListener('DOMContentLoaded', function(){
             const j = await dd.json();
             const first = (j.notifications && j.notifications[0]) || null;
             if(first){ showToast(first); }
+          }
+        }catch(e){}
+        // show browser push-style notification if permitted
+        try{
+          if(browserNotificationsEnabled){
+            const dd2 = await fetch('/notifications/dropdown?limit=1', {headers:{'X-Requested-With':'XMLHttpRequest'}});
+            if(dd2.ok){ const j2 = await dd2.json(); const first2 = (j2.notifications && j2.notifications[0]) || null; if(first2) showBrowserNotification(first2); }
           }
         }catch(e){}
       }
@@ -255,6 +296,13 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // initial count
   fetchCount();
+  // request permission politely when user first loads page (only if never asked)
+  if('Notification' in window && Notification.permission === 'default'){
+    // defer request slightly so it feels less abrupt
+    setTimeout(() => ensureNotificationPermission(), 2000);
+  } else if('Notification' in window && Notification.permission === 'granted'){
+    browserNotificationsEnabled = true;
+  }
   // start poll every 5s
   pollForNew();
   setInterval(pollForNew, 5000);
