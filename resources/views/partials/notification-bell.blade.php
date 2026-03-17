@@ -115,9 +115,15 @@ document.addEventListener('DOMContentLoaded', function(){
       if(!res.ok){ list.innerHTML = '<div style="padding:12px;color:#b91c1c">Error cargando</div>'; return; }
       const json = await res.json();
       const items = json.notifications || [];
-      if(items.length===0){ list.innerHTML = '<div style="padding:12px;text-align:center;color:#6b7280">Sin notificaciones</div>'; loadMoreBtn.style.display='none'; return; }
+      // show only unread notifications in the bell dropdown
+      const unread = items.filter(x => !x.read_at);
+      if(unread.length===0){
+        list.innerHTML = `<div style="padding:12px;text-align:center;color:#6b7280">No tienes notificaciones sin leer. <a href="/notifications" style="color:#06b6d4;margin-left:6px">Ver todas las notificaciones</a></div>`;
+        loadMoreBtn.style.display='none';
+        return;
+      }
       list.innerHTML = '';
-      items.forEach(n => {
+      unread.forEach(n => {
         const read = n.read_at ? 'opacity:0.6' : 'font-weight:700';
         const data = n.data || {};
         const icon = data.icon ? `<img src="${data.icon}" style="width:28px;height:28px;border-radius:6px;margin-right:8px">` : `<div style="width:28px;height:28px;border-radius:6px;background:#f3f4f6;margin-right:8px"></div>`;
