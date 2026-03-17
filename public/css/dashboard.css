@@ -470,3 +470,96 @@ div[class*="sm:flex-1"] .text-sm{ color:#374151; }
 div[class*="relative z-0 inline-flex"]{ display:inline-flex; gap:6px; align-items:center; }
 div[class*="relative z-0 inline-flex"] a, div[class*="relative z-0 inline-flex"] span{ border-radius:6px; padding:8px 10px; border:1px solid #e6e9ef; background:#fff; color:#374151; text-decoration:none; }
 div[class*="relative z-0 inline-flex"] a:hover{ background:#f8fafc; }
+
+/* ===== Theme overrides (end of file) =====
+   Ensure cards, tables, inputs and buttons reflect the active theme variables
+   emitted by the layout (e.g. --card, --text-color, --btn-primary, etc.).
+*/
+.card, .card.table-card, .card-wide {
+  background: var(--card, #ffffff) !important;
+  color: var(--text-color, #111111) !important;
+  border-radius: var(--radius, 12px) !important;
+  box-shadow: 0 8px 24px rgba(2,6,23,0.06) !important;
+}
+
+.card.table-card .table, .card-wide .table, .table {
+  color: var(--text-color, #111111) !important;
+}
+
+.card .table thead th {
+  background: var(--table-header-bg, rgba(0,0,0,0.03)) !important;
+  color: var(--text-color, #111111) !important;
+}
+
+.card.table-card .table tbody tr { background: transparent !important; }
+.card.table-card .table tbody tr:nth-child(odd) { background: var(--table-row-odd, rgba(0,0,0,0.01)) !important; }
+
+/* Badges */
+.badge, .pay-badge, .badge-pendiente, .badge-confirmada, .pay-pendiente {
+  background: var(--badge-bg, #f3f4f6) !important;
+  color: var(--badge-text, #111111) !important;
+  padding: 4px 8px !important;
+  border-radius: 8px !important;
+  display: inline-block !important;
+  font-weight: 700 !important;
+}
+
+/* Generic button/link overrides (covers .link-button, .action-btn, .btn, etc.) */
+.link-button, .action-btn, .btn, .open-schedule, a.link-button, button.link-button {
+  background: var(--btn-primary, linear-gradient(90deg,#6366f1,#06b6d4)) !important;
+  color: var(--btn-primary-text, #ffffff) !important;
+  border: 0 !important;
+  padding: 8px 12px !important;
+  border-radius: var(--btn-radius, 8px) !important;
+  cursor: pointer !important;
+}
+
+.action-btn.view, .action-btn.secondary { background: var(--btn-alt, #e6e9ee) !important; color: var(--btn-alt-text, #111111) !important; }
+
+.action-btn.danger, .link-button.danger, .btn.danger {
+  background: var(--btn-danger, #dc2626) !important;
+  color: var(--btn-danger-text, #ffffff) !important;
+}
+
+/* Inputs / selects (exclude native color picker so its swatch stays visible) */
+input:not([type="color"]), select, textarea {
+  background: var(--input-bg, #ffffff) !important;
+  color: var(--text-color, #111111) !important;
+  border: 1px solid var(--input-border, #e6e9ee) !important;
+  padding: 8px !important;
+  border-radius: 8px !important;
+}
+
+/* Keep native appearance for color inputs so browser shows the selected swatch */
+input[type="color"]{
+  -webkit-appearance: color !important;
+  appearance: auto !important;
+  background: none !important;
+  border: 1px solid #ccc !important;
+  padding: 2px !important;
+  min-width: 40px !important;
+  min-height: 30px !important;
+  width: 40px !important;
+  height: 30px !important;
+  cursor: pointer !important;
+  border-radius: 4px !important;
+}
+
+/* Specific overrides for inline-styled elements in reservation views */
+.card-wide button#btn-new, .card-wide button {
+  background: var(--btn-primary, linear-gradient(90deg,#6366f1,#06b6d4)) !important;
+  color: var(--btn-primary-text, #ffffff) !important;
+}
+
+.rv-thumb div {
+  background: var(--thumb-bg, #f3f4f6) !important;
+  color: var(--muted, #9ca3af) !important;
+}
+
+.rv-day .date { color: var(--muted, #6b7280) !important; }
+
+/* Ensure text contrast across card/table content in Dark mode
+   The Dark preset should set --text-color and related variables.
+*/
+.card, .card-wide, .card .table th, .card .table td { color: var(--text-color, #111111) !important; }
+

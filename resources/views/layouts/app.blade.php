@@ -87,6 +87,40 @@
       --price-color-default: {{ $appliedTheme['meta']['price']['default'] ?? ($__appStyle->meta['price']['default'] ?? '#374151') }};
       /* global text color (Dark theme forces white) */
       --text-color: {{ ($appliedTheme['name'] ?? '') === 'Dark' ? '#ffffff' : (__pick_text_color_for_var($appliedTheme['bg'] ?? $__appStyle->bg ?? '#f8fafc')) }};
+
+      @php
+        // Determine if bg is dark to auto-derive card/input/badge colours
+        $_bgHex = $appliedTheme['bg'] ?? $__appStyle->bg ?? '#f8fafc';
+        $_bgH = ltrim($_bgHex, '#');
+        if (strlen($_bgH) === 3) { $_bgH = $_bgH[0].$_bgH[0].$_bgH[1].$_bgH[1].$_bgH[2].$_bgH[2]; }
+        $_bgLum = (strlen($_bgH) === 6)
+          ? (0.2126*hexdec(substr($_bgH,0,2)) + 0.7152*hexdec(substr($_bgH,2,2)) + 0.0722*hexdec(substr($_bgH,4,2))) / 255
+          : 0.95;
+        $_isDark = $_bgLum < 0.45;
+      @endphp
+
+      /* Card / surface */
+      --card: {{ $_isDark ? '#1e293b' : '#ffffff' }};
+      --card-text: {{ $_isDark ? '#f1f5f9' : '#111827' }};
+      /* Inputs */
+      --input-bg: {{ $_isDark ? '#0f172a' : '#ffffff' }};
+      --input-border: {{ $_isDark ? '#334155' : '#e6e9ee' }};
+      /* Table helpers */
+      --table-header-bg: {{ $_isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)' }};
+      --table-row-odd: {{ $_isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.01)' }};
+      /* Badges */
+      --badge-bg: {{ $_isDark ? '#334155' : '#f3f4f6' }};
+      --badge-text: {{ $_isDark ? '#f1f5f9' : '#111827' }};
+      /* Muted */
+      --muted: {{ $_isDark ? '#94a3b8' : '#6b7280' }};
+      /* Thumb placeholder */
+      --thumb-bg: {{ $_isDark ? '#1e293b' : '#f3f4f6' }};
+      /* Danger button */
+      --btn-danger: {{ $appliedTheme['button_variants']['danger']['bg'] ?? '#dc2626' }};
+      --btn-danger-text: {{ $appliedTheme['button_variants']['danger']['color'] ?? '#ffffff' }};
+      /* Alt button text */
+      --btn-alt-text: {{ __pick_text_color_for_var($appliedTheme['btn_alt'] ?? $__appStyle->btn_alt ?? '#06b6d4') }};
+
       /* ensure topbar accent and notif badge readable in dark preset */
       @if(($appliedTheme['name'] ?? '') === 'Dark')
         --topbar-accent: #ffffff;
@@ -119,6 +153,50 @@
     }
 
     body{ font-size: var(--font-base-size); color: var(--text-color); }
+
+    /* Card / surface theming — override hardcoded backgrounds */
+    .card, .card.table-card, .card-wide, .modal-panel, .confirm-card {
+      background: var(--card) !important;
+      color: var(--text-color) !important;
+    }
+    .card h1, .card h2, .card h3, .card-wide h1, .card-wide h2, .card-wide h3,
+    .card p, .card-wide p, .card span, .card-wide span, .card label, .card-wide label,
+    .card .small, .card-wide .small {
+      color: var(--text-color) !important;
+    }
+    .table, .table th, .table td { color: var(--text-color) !important; }
+    .table th { background: var(--table-header-bg) !important; }
+    h1, h2, h3, h4, h5 { color: var(--text-color); }
+
+    /* Override hardcoded inline background:#fff on generic containers */
+    div[style*="background:#fff"],
+    form[style*="background:#fff"],
+    div[style*="background: #fff"],
+    form[style*="background: #fff"] {
+      background: var(--card) !important;
+      color: var(--text-color) !important;
+    }
+    /* In-page <style> class overrides for cards without .card class */
+    .list-card, .pr-card, .field-card, .uploader, .calendar, .comment,
+    .person-selector, .modal-panel, .confirm-card, .delete-modal-panel,
+    .picker-panel {
+      background: var(--card) !important;
+      color: var(--text-color) !important;
+    }
+    /* Table border colour for dark */
+    .table th, .table td { border-bottom-color: var(--input-border) !important; }
+    /* Input/select inline override */
+    .input-inline input, .input-inline select {
+      background: var(--input-bg) !important;
+      color: var(--text-color) !important;
+      border-color: var(--input-border) !important;
+    }
+    /* Form inputs override */
+    .form input, .form select, .form textarea {
+      background: var(--input-bg) !important;
+      color: var(--text-color) !important;
+    }
+
     /* Body background: prefer gradient when configured */
     @if(!empty($appliedTheme['bg_gradient_start']) && !empty($appliedTheme['bg_gradient_end']))
       body{ background: linear-gradient({{ $appliedTheme['bg_gradient_angle'] ?? 90 }}deg, {{ $appliedTheme['bg_gradient_start'] }}, {{ $appliedTheme['bg_gradient_end'] }}); background-size:200% 200%; {{ ($appliedTheme['bg_animated'] ?? false) ? "animation: animatedGradient var(--animation-speed) ease infinite;" : '' }} }
@@ -423,5 +501,55 @@
   @section('scripts')
   @show
    @stack('scripts')
+
+  {{-- Last-priority theme overrides: these load AFTER any in-page <style> blocks --}}
+  <style>
+    /* Cards with inline or in-page background:#fff */
+    .card, .card.table-card, .card-wide,
+    .list-card, .pr-card, .field-card, .uploader, .calendar,
+    .comment, .person-selector, .modal-panel, .confirm-card,
+    .delete-modal-panel, .picker-panel {
+      background: var(--card) !important;
+      color: var(--text-color) !important;
+    }
+    div[style*="background:#fff"],
+    form[style*="background:#fff"],
+    div[style*="background: #fff"],
+    form[style*="background: #fff"] {
+      background: var(--card) !important;
+      color: var(--text-color) !important;
+    }
+    .table, .table th, .table td {
+      color: var(--text-color) !important;
+      border-bottom-color: var(--input-border) !important;
+    }
+    .table th { background: var(--table-header-bg) !important; }
+    /* In-page .card overrides from tarjetas/pagos <style> blocks */
+    .card { background: var(--card) !important; color: var(--text-color) !important; }
+    .table th, .table td { color: var(--text-color) !important; }
+    .input-inline input, .input-inline select {
+      background: var(--input-bg) !important;
+      color: var(--text-color) !important;
+      border-color: var(--input-border) !important;
+    }
+    .modal-panel { background: var(--card) !important; color: var(--text-color) !important; }
+    input:not([type="color"]), select, textarea {
+      background: var(--input-bg) !important;
+      color: var(--text-color) !important;
+      border-color: var(--input-border) !important;
+    }
+    /* Color picker: restore native swatch */
+    input[type="color"] {
+      -webkit-appearance: color !important;
+      appearance: auto !important;
+      background: none !important;
+      border: 1px solid var(--input-border, #ccc) !important;
+      padding: 2px !important;
+      min-width: 40px !important;
+      min-height: 28px !important;
+      cursor: pointer !important;
+      border-radius: 4px !important;
+    }
+  </style>
  </body>
  </html>
