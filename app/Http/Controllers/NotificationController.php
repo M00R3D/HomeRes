@@ -46,7 +46,11 @@ class NotificationController extends Controller
             ->where('notifiable_id', $user->id)
             ->whereNull('read_at')
             ->count();
-        return response()->json(['unread_count' => $count]);
+        // include current user's notification preferences so frontend can decide what to show
+        $prefs = DB::table('notification_preferences')->where('user_id', $user->id)->first();
+        $channel_inapp = $prefs ? (bool) ($prefs->channel_inapp ?? false) : true;
+        $receive_push = $prefs ? (bool) ($prefs->receive_push ?? false) : true;
+        return response()->json(['unread_count' => $count, 'prefs' => ['channel_inapp' => $channel_inapp, 'receive_push' => $receive_push]]);
     }
 
     // Dropdown: latest N notifications as JSON
@@ -155,20 +159,46 @@ class NotificationController extends Controller
     {
         $user = Auth::user();
         $prefs = DB::table('notification_preferences')->where('user_id', $user->id)->first();
-        return view('profile.notifications_preferences', ['prefs' => $prefs]);
+        // load propiedades for admin UI
+        $propiedades = [];
+        try{
+            $propiedades = \App\Models\Propiedad::orderBy('nombre')->get();
+        }catch(\Throwable $e){ }
+        return view('profile.notifications_preferences', ['prefs' => $prefs, 'propiedades' => $propiedades, 'currentUser' => $user]);
     }
 
     public function savePreferences(Request $request)
     {
         $user = Auth::user();
+        $categories = null;
+        if($request->has('propiedades')){
+            $categories = json_encode(array_values((array)$request->input('propiedades')));
+        } elseif ($request->input('categories')){
+            $categories = is_array($request->input('categories')) ? json_encode($request->input('categories')) : $request->input('categories');
+        }
+
         $data = [
-            'channel_email' => $request->has('channel_email'),
+            // email option removed from UI; keep stored false by default
+            'channel_email' => false,
             'channel_inapp' => $request->has('channel_inapp'),
             'receive_push' => $request->has('receive_push'),
-            'categories' => $request->input('categories') ? json_encode($request->input('categories')) : null,
+            'categories' => $categories,
         ];
 
         DB::table('notification_preferences')->updateOrInsert(['user_id' => $user->id], $data);
+
+        // If admin, allow updating basic user fields
+        try{
+            if(($user->rol ?? '') === 'admin'){
+                $update = [];
+                if($request->filled('user_nombre')) $update['nombre'] = $request->input('user_nombre');
+                if($request->filled('user_apellido')) $update['apellido'] = $request->input('user_apellido');
+                if($request->filled('user_email')) $update['email'] = $request->input('user_email');
+                if(!empty($update)){
+                    \App\Models\User::where('id',$user->id)->update($update);
+                }
+            }
+        }catch(\Throwable $e){ }
 
         return redirect()->route('notifications.preferences')->with('success', 'Preferencias guardadas');
     }

@@ -19,7 +19,17 @@ class LogCreatedNotification extends Notification
 
     public function via($notifiable)
     {
-        return ['database', 'broadcast'];
+        try{
+            $prefs = \DB::table('notification_preferences')->where('user_id', $notifiable->id)->first();
+            // Always persist in DB so users can see notifications later
+            $channels = ['database'];
+            if($prefs && !empty($prefs->receive_push)){
+                $channels[] = 'broadcast';
+            }
+            return $channels;
+        }catch(\Throwable $e){
+            return ['database','broadcast'];
+        }
     }
 
     public function toDatabase($notifiable)

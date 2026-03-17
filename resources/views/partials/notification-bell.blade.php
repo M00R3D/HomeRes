@@ -90,12 +90,18 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // Polling to detect new notifications (simple fallback if broadcasting not configured)
   let lastCount = 0;
+  let userPrefInApp = true;
+  let userPrefPush = true;
   async function pollForNew(){
     try{
       const res = await fetch('/notifications/count', {headers:{'X-Requested-With':'XMLHttpRequest'}});
       if(!res.ok) return;
       const json = await res.json();
       const n = json.unread_count || 0;
+      if(json.prefs){
+        userPrefInApp = Boolean(json.prefs.channel_inapp);
+        userPrefPush = Boolean(json.prefs.receive_push);
+      }
       if(n > lastCount){
         // fetch newest notification payload and show toast
         try{
@@ -103,12 +109,12 @@ document.addEventListener('DOMContentLoaded', function(){
           if(dd.ok){
             const j = await dd.json();
             const first = (j.notifications && j.notifications[0]) || null;
-            if(first){ showToast(first); }
+            if(first && userPrefInApp){ showToast(first); }
           }
         }catch(e){}
         // show browser push-style notification if permitted
         try{
-          if(browserNotificationsEnabled){
+          if(browserNotificationsEnabled && userPrefPush){
             const dd2 = await fetch('/notifications/dropdown?limit=1', {headers:{'X-Requested-With':'XMLHttpRequest'}});
             if(dd2.ok){ const j2 = await dd2.json(); const first2 = (j2.notifications && j2.notifications[0]) || null; if(first2) showBrowserNotification(first2); }
           }
