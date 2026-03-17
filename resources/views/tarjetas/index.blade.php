@@ -37,6 +37,12 @@
 
 .card-flip-btn::after { content: attr(title); position:absolute; white-space:nowrap; top:-30px; right:0; transform:translateX(0); background:rgba(0,0,0,0.7); color:#fff; padding:6px 8px; border-radius:6px; font-size:12px; display:none; }
 .card-flip-btn:hover::after { display:block; }
+
+/* small preview for non-admin users */
+.card-preview { width:180px; height:112px; border-radius:10px; overflow:hidden; box-shadow:0 10px 26px rgba(2,6,23,0.08); display:inline-block; }
+.card-preview svg { width:100%; height:100%; display:block; }
+.card-placeholder { background:linear-gradient(180deg,#f3f4f6,#e5e7eb); display:flex; align-items:center; justify-content:center; color:#9ca3af; font-weight:900; font-size:32px; }
+.card-preview-small-back { display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.95); font-weight:800; }
 </style>
 
 <div style="max-width:1100px;margin:18px auto;padding:12px;">
@@ -281,8 +287,55 @@
               <div class="small" style="margin-top:8px;color:#6b7280;">Si necesitas más saldo, un administrador puede agregarlo a tu tarjeta.</div>
               <div class="small" style="margin-top:8px;color:#6b7280;">El CVV de tu tarjeta es {{ $myTarjeta->cvv ?? 'N/A' }}.</div>
             </div>
-            <div style="min-width:220px;text-align:right">
-              <button id="btn-edit-my" class="btn">Cambiar tarjeta</button>
+            <div style="min-width:220px;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:12px;">
+              @php
+                // small preview color like admin (deterministic by card digits)
+                $rawm = preg_replace('/\D/','', $myTarjeta->numero_tarjeta ?? '');
+                $lastm = (int) (strlen($rawm) ? substr($rawm, -1) : 0);
+                $penultm = (int) (strlen($rawm) >= 2 ? substr($rawm, -2, 1) : 0);
+                $colorsm = ['#0ea5e9','#06b6d4','#7c3aed','#ef4444','#f59e0b','#10b981','#f97316','#8b5cf6','#0f172a','#065f46'];
+                $bgm = $colorsm[$lastm % count($colorsm)];
+                $patternPm = 'pm_' . ($penultm % 6) . '_' . ($myTarjeta->id ?? 'x');
+                $maskedm = preg_replace('/\s+/', '', $rawm);
+                $displaym = strlen($maskedm) >= 4 ? substr($maskedm, -4) : $maskedm;
+              @endphp
+
+              <div class="card-preview" aria-hidden="true">
+                <svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Vista previa de tarjeta">
+                  <defs>
+                    <pattern id="{{ $patternPm }}" patternUnits="userSpaceOnUse" width="8" height="8">
+                      @switch($penultm % 6)
+                        @case(0)
+                          <rect width="8" height="8" fill="rgba(255,255,255,0.06)"/>
+                          @break
+                        @case(1)
+                          <path d="M0 8 L8 0" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+                          @break
+                        @case(2)
+                          <circle cx="4" cy="4" r="0.8" fill="rgba(255,255,255,0.05)"/>
+                          @break
+                        @case(3)
+                          <rect width="4" height="4" x="0" y="0" fill="rgba(255,255,255,0.04)"/>
+                          @break
+                        @case(4)
+                          <path d="M0 0 L8 0 L8 8" stroke="rgba(255,255,255,0.04)" stroke-width="0.5" fill="none"/>
+                          @break
+                        @default
+                          <path d="M0 4 L8 4" stroke="rgba(255,255,255,0.04)" stroke-width="0.5"/>
+                      @endswitch
+                    </pattern>
+                  </defs>
+                  <rect x="0" y="0" width="320" height="200" rx="12" ry="12" fill="{{ $bgm }}"/>
+                  <rect x="0" y="0" width="320" height="200" rx="12" ry="12" fill="url(#{{ $patternPm }})" style="mix-blend-mode:overlay;opacity:0.9"/>
+                  <g font-family="monospace" font-size="20" fill="#ffffff" font-weight="800" text-anchor="end">
+                    <text x="296" y="170" style="letter-spacing:3px;">{{ $displaym ? ('•••• ' . $displaym) : '••••' }}</text>
+                  </g>
+                </svg>
+              </div>
+
+              <div style="width:100%;text-align:right;">
+                <button id="btn-edit-my" class="btn">Cambiar tarjeta</button>
+              </div>
             </div>
           </div>
 
@@ -339,6 +392,9 @@
               </div>
             </div>
             <div class="small" style="margin-top:6px;color:#6b7280;">Un administrador podrá agregar saldo a tu tarjeta si es necesario.</div>
+            <div style="margin-top:8px;">
+              <div class="card-preview card-placeholder" aria-hidden="true">X</div>
+            </div>
           </div>
         @endif
       </div>
