@@ -7,14 +7,21 @@ use App\Http\Controllers\PropiedadController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\ImageController;
+use App\Http\Controllers\Admin\StyleController;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Models\Propiedad;
 use App\Http\Controllers\LogController;
+use App\Http\Controllers\Admin\ThemeController;
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
     Route::post('/register', [AuthController::class, 'register'])->name('register.post');
+});
+
+Route::middleware('auth')->group(function(){
+    Route::get('/admin/themes', [ThemeController::class, 'index'])->name('admin.themes');
+    Route::post('/admin/themes/save', [ThemeController::class, 'save'])->name('admin.themes.save');
 });
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 Route::get('/admin/logs', [LogController::class, 'index'])->middleware('auth')->name('admin.logs');
@@ -43,6 +50,10 @@ Route::middleware('auth')->group(function () {
     Route::post('tarjetas/create-random', [\App\Http\Controllers\TarjetaSimuladaController::class,'createRandom'])->name('tarjetas.create_random');
     Route::resource('tarjetas', \App\Http\Controllers\TarjetaSimuladaController::class)->names('tarjetas');
     Route::resource('homepage', \App\Http\Controllers\HomepageController::class)->only(['index','store','update','show','destroy'])->names('homepage');
+    
+    // Admin styles panel
+    Route::get('/admin/styles', [StyleController::class, 'index'])->name('admin.styles.index');
+    Route::post('/admin/styles', [StyleController::class, 'save'])->name('admin.styles.save');
 });
 
 Route::get('/reservaciones', [ReservationController::class, 'index'])->middleware('auth')->name('reservaciones.index');

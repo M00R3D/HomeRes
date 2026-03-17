@@ -8,6 +8,60 @@
   <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
   <link rel="icon" type="image/png" href="{{ asset('logos/logoHomeRes.png') }}">
   <link rel="apple-touch-icon" href="{{ asset('logos/logoHomeRes.png') }}">
+  <?php $__appStyle = \App\Models\Style::first(); ?>
+  @php
+    use App\Models\Comentario;
+    use Illuminate\Support\Str;
+    $currentUser = $currentUser ?? auth()->user();
+    $isAdmin = $isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin');
+
+    // Load global theme (single customization controlled by admins)
+    use App\Models\Theme;
+
+    $appliedTheme = null;
+    try {
+      $t = Theme::find(1); // explicitly read the single global theme at id=1
+      $appliedTheme = $t ? $t->toArray() : null;
+    } catch (\Throwable $e) {
+      $appliedTheme = null; // fail-safe
+    }
+  @endphp
+  <style>
+    :root {
+      --btn-primary: {{ $appliedTheme['btn_primary'] ?? $__appStyle->btn_primary ?? '#6366f1' }};
+      --btn-alt: {{ $appliedTheme['btn_alt'] ?? $__appStyle->btn_alt ?? '#06b6d4' }};
+      --bg: {{ $appliedTheme['bg'] ?? $__appStyle->bg ?? '#f8fafc' }};
+      --sidebar-bg: {{ $appliedTheme['sidebar_bg'] ?? $__appStyle->sidebar_bg ?? '#ffffff' }};
+      --sidebar-text: {{ $appliedTheme['sidebar_text'] ?? $__appStyle->sidebar_text ?? '#0f172a' }};
+      --global-transparency: {{ isset($appliedTheme['transparency']) ? ($appliedTheme['transparency']/100) : (isset($__appStyle->transparency) ? ($__appStyle->transparency/100) : 0) }};
+      --font-base-size: {{ $appliedTheme['font_size'] ?? 16 }}px;
+      --gradient-start: {{ $appliedTheme['gradient_start'] ?? ($__appStyle->btn_primary ?? 'transparent') }};
+      --gradient-end: {{ $appliedTheme['gradient_end'] ?? ($__appStyle->btn_alt ?? 'transparent') }};
+      --gradient-angle: {{ $appliedTheme['gradient_angle'] ?? 90 }}deg;
+      --animated-gradient: {{ ($appliedTheme['animated_gradient'] ?? false) ? 1 : 0 }};
+      --animation-speed: {{ $appliedTheme['animation_speed'] ?? 6 }}s;
+    }
+
+    @keyframes animatedGradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    body{ background: var(--bg); font-size: var(--font-base-size); }
+    .btn{ background: linear-gradient(90deg,var(--btn-primary),var(--btn-alt)) !important; color: #fff; border:0; }
+    .btn-alt{ background: linear-gradient(90deg,var(--btn-alt),var(--btn-primary)) !important; color: #fff; border:0; }
+    .sidebar{ background: var(--sidebar-bg); color: var(--sidebar-text); }
+    .sidebar .nav .nav-item{ color: var(--sidebar-text); }
+    .topbar{ background: rgba(255,255,255, calc(1 - var(--global-transparency))); }
+
+    /* global gradient utility */
+    .global-gradient {
+      background: linear-gradient(var(--gradient-angle), var(--gradient-start), var(--gradient-end));
+      background-size: 200% 200%;
+      {{ ($appliedTheme['animated_gradient'] ?? false) ? "animation: animatedGradient var(--animation-speed) ease infinite;" : '' }}
+    }
+  </style>
   <style>
     .content{
       padding: 24px;
@@ -24,8 +78,7 @@
   </style>
 </head>
 @php
-  use App\Models\Comentario;
-  use Illuminate\Support\Str;
+  // $currentUser and $isAdmin are already initialised above in head
   $currentUser = $currentUser ?? auth()->user();
   $isAdmin = $isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin');
 @endphp
@@ -52,6 +105,7 @@
         <a class="nav-item" href="{{ route('admin.logs') }}">Logs</a>
         <a class="nav-item" href="{{ route('images.index') }}">Imágenes</a>
         <a class="nav-item" href="{{ route('pagos.index') }}">Pagos</a>
+        <a class="nav-item" href="{{ route('admin.themes') }}">Apariencia</a>
       @endif
       <form method="POST" action="{{ route('logout') }}" class="nav-item logout-form" style="display:flex;">
         @csrf

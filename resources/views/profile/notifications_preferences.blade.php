@@ -13,6 +13,8 @@
       <label><input type="checkbox" name="channel_inapp" {{ ($prefs && $prefs->channel_inapp) ? 'checked':'' }}> In-app (campana)</label>
       <label><input type="checkbox" name="receive_push" {{ ($prefs && $prefs->receive_push) ? 'checked':'' }}> Recibir push</label>
 
+      {{-- No theme selector here: site-wide theme is controlled by admins. --}}
+
       @php $isAdmin = ($currentUser && ($currentUser->rol ?? '') === 'admin'); @endphp
       @if($isAdmin)
         <hr />
@@ -34,3 +36,11 @@
   </form>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  // No per-user theme controls (admin-only global theme)
+});
+</script>
+@endpush
