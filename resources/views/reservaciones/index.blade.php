@@ -412,6 +412,8 @@
                     <div class="btn-group-col">
                       <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn view">Ver</a>
 
+                      <a href="/notificaciones?reservacion_id={{ $r->id }}" class="action-btn view">Notificaciones</a>
+
                       <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar</a>
 
                       <a href="{{ route('reservaciones.edit', $r->id) }}" class="action-btn primary">Editar</a>
@@ -425,6 +427,8 @@
                   @else
                     <div class="btn-group-col">
                       <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn view">Ver</a>
+
+                      <a href="/notificaciones?reservacion_id={{ $r->id }}" class="action-btn view">Notificaciones</a>
 
                       @if(in_array($r->estado, ['pendiente','confirmada']) && (($r->estado_pago ?? '') !== 'pagado'))
                         <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar</a>

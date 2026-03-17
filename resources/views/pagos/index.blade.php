@@ -125,26 +125,29 @@
               <form method="POST" action="{{ route('pagos.destroy',$p->id) }}" style="display:inline;" data-payment-id="{{ $p->id }}">
                 @csrf
                 @method('DELETE')
+              @php $tarAssignedName = optional(optional($p->tarjeta)->assignedUser)->nombre ? trim(optional($p->tarjeta->assignedUser)->nombre . ' ' . optional($p->tarjeta->assignedUser)->apellido) : ''; @endphp
+              <span style="position:relative;display:inline-block;margin-right:8px;">
+                <a href="{{ url('/pagos/'.$p->id) }}" class="link-button">Ver</a>
+                <span class="action-hint" style="right:-6px;top:100%;margin-top:6px;">Clic para ver detalle de notificación</span>
+              </span>
+              <button type="button"
+                class="link-button"
+                data-edit
+                data-id="{{ $p->id }}"
+                data-reservacion="{{ $p->reservacion_id }}"
+                data-reservacion-img="{{ optional($p->reservation->propiedad)->ruta_img ?? '' }}"
+                data-reservacion-title="{{ $p->reservation ? ($p->reservation->propiedad->nombre ?? '') : '' }}"
+                data-tarjeta="{{ $p->tarjeta_id }}"
+                data-tarjeta-numero="{{ optional($p->tarjeta)->numero_tarjeta ?? '' }}"
+                data-tarjeta-nombre="{{ optional($p->tarjeta)->nombre ?? '' }}"
+                data-tarjeta-assigned-name="{{ $tarAssignedName }}"
+                data-monto="{{ number_format($p->monto,2,'.','') }}"
+                data-metodo="{{ $p->metodo_pago }}"
+                data-estado="{{ $p->estado }}"
+                data-fecha="{{ $p->fecha_pago ?? '' }}"
+                data-update-url="{{ route('pagos.update',$p->id) }}">Editar</button>
 
-                @php $tarAssignedName = optional(optional($p->tarjeta)->assignedUser)->nombre ? trim(optional($p->tarjeta->assignedUser)->nombre . ' ' . optional($p->tarjeta->assignedUser)->apellido) : ''; @endphp
-                <button type="button"
-                        class="link-button"
-                        data-edit
-                        data-id="{{ $p->id }}"
-                        data-reservacion="{{ $p->reservacion_id }}"
-                        data-reservacion-img="{{ optional($p->reservation->propiedad)->ruta_img ?? '' }}"
-                        data-reservacion-title="{{ $p->reservation ? ($p->reservation->propiedad->nombre ?? '') : '' }}"
-                        data-tarjeta="{{ $p->tarjeta_id }}"
-                        data-tarjeta-numero="{{ optional($p->tarjeta)->numero_tarjeta ?? '' }}"
-                        data-tarjeta-nombre="{{ optional($p->tarjeta)->nombre ?? '' }}"
-                        data-tarjeta-assigned-name="{{ $tarAssignedName }}"
-                        data-monto="{{ number_format($p->monto,2,'.','') }}"
-                        data-metodo="{{ $p->metodo_pago }}"
-                        data-estado="{{ $p->estado }}"
-                        data-fecha="{{ $p->fecha_pago ?? '' }}"
-                        data-update-url="{{ route('pagos.update',$p->id) }}">Editar</button>
-
-                <button type="button" class="link-button" data-open-delete data-id="{{ $p->id }}" data-monto="{{ number_format($p->monto,2,'.','') }}" data-reservacion="{{ $p->reservacion_id }}" data-tarjeta="{{ $p->tarjeta_id }}">Eliminar</button>
+              <button type="button" class="link-button" data-open-delete data-id="{{ $p->id }}" data-monto="{{ number_format($p->monto,2,'.','') }}" data-reservacion="{{ $p->reservacion_id }}" data-tarjeta="{{ $p->tarjeta_id }}">Eliminar</button>
               </form>
             </td>
           </tr>

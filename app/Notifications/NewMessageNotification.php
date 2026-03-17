@@ -37,6 +37,7 @@ class NewMessageNotification extends Notification
             'body' => $this->body,
             'icon' => $this->icon,
             'url' => $this->url,
+            'link' => $this->url,
             'metadata' => $this->meta,
         ];
     }

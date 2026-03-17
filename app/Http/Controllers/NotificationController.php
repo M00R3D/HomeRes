@@ -64,6 +64,7 @@ class NotificationController extends Controller
                     'id' => $n->id,
                     'type' => $n->type,
                     'data' => $n->data,
+                    'link' => $n->data['link'] ?? ($n->data['url'] ?? ($n->link ?? null)),
                     'read_at' => $n->read_at,
                     'created_at' => $n->created_at->toDateTimeString(),
                 ];
@@ -113,6 +114,24 @@ class NotificationController extends Controller
         $this->audit($user->id, 'delete', 'notification', $id, $request);
 
         return response()->json(['ok' => true]);
+    }
+
+    // Show notification detail page
+    public function show(Request $request, $id)
+    {
+        $user = Auth::user();
+        $notif = DatabaseNotification::where('id', $id)
+            ->where('notifiable_type', get_class($user))
+            ->where('notifiable_id', $user->id)
+            ->firstOrFail();
+
+        // mark as read
+        if (is_null($notif->read_at)) $notif->markAsRead();
+
+        // extract link if any
+        $link = $notif->data['link'] ?? ($notif->data['url'] ?? ($notif->link ?? null));
+
+        return view('notifications.show', ['notification' => $notif, 'link' => $link]);
     }
 
     protected function audit($userId, $action, $targetType = null, $targetId = null, Request $request)

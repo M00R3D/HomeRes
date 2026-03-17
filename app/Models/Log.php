@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Notification;
+use App\Models\User;
+use App\Notifications\LogCreatedNotification;
 
 class Log extends Model
 {
@@ -25,15 +28,41 @@ class Log extends Model
      * Helper to create log entries easily.
      * Usage: \App\Models\Log::entry('pago', 'Pago realizado', auth()->id(), 'reservacion', $id);
      */
-    public static function entry(string $tipo, string $mensaje, $usuarioId = null, $referenciaTipo = null, $referenciaId = null)
+    public static function entry(string $tipo, string $mensaje, $usuarioId = null, $referenciaTipo = null, $referenciaId = null, $link = null)
     {
-        return self::create([
+        $log = self::create([
             'tipo' => $tipo,
             'mensaje' => $mensaje,
             'usuario_id' => $usuarioId ?? (auth()->id() ?? null),
             'referencia_tipo' => $referenciaTipo,
             'referencia_id' => $referenciaId,
         ]);
+
+        try {
+            // Prepare recipients: referenced user + all admins
+            $recipients = collect();
+            if ($log->usuario_id) {
+                $u = User::find($log->usuario_id);
+                if ($u) $recipients->push($u);
+            }
+            $admins = User::where('rol', 'admin')->get();
+            $recipients = $recipients->merge($admins)->unique('id')->filter();
+
+            if ($recipients->isNotEmpty()) {
+                Notification::send($recipients, new LogCreatedNotification([
+                    'tipo' => $log->tipo,
+                    'mensaje' => $log->mensaje,
+                    'usuario_id' => $log->usuario_id,
+                    'referencia_tipo' => $log->referencia_tipo,
+                    'referencia_id' => $log->referencia_id,
+                    'link' => $link,
+                ]));
+            }
+        } catch (\Throwable $e) {
+            // avoid breaking the flow if notifications fail
+        }
+
+        return $log;
     }
 
     public function user()
