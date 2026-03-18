@@ -27,7 +27,6 @@
               'usuarios' => 'usuario',
               'tarjetas_simuladas' => 'tarjeta',
               'tarjetas' => 'tarjeta',
-              'cabanas' => 'cabana',
             ];
             if(isset($map[$first])) $resTipo = $map[$first];
             else { if(substr($first, -2) === 'es') $resTipo = substr($first, 0, -2); else $resTipo = rtrim($first, 's'); }

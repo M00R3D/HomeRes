@@ -8,7 +8,6 @@ use App\Http\Controllers\PropiedadController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\ImageController;
-use App\Http\Controllers\Admin\StyleController;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Models\Propiedad;
@@ -91,9 +90,6 @@ Route::middleware('auth')->group(function () {
     Route::resource('tarjetas', \App\Http\Controllers\TarjetaSimuladaController::class)->names('tarjetas');
     Route::resource('homepage', \App\Http\Controllers\HomepageController::class)->only(['index','store','update','show','destroy'])->names('homepage');
     
-    // Admin styles panel
-    Route::get('/admin/styles', [StyleController::class, 'index'])->name('admin.styles.index');
-    Route::post('/admin/styles', [StyleController::class, 'save'])->name('admin.styles.save');
 });
 
 Route::get('/reservaciones', [ReservationController::class, 'index'])->middleware('auth')->name('reservaciones.index');

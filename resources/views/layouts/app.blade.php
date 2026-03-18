@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
   <link rel="icon" type="image/png" href="{{ asset('logos/logoHomeRes.png') }}">
   <link rel="apple-touch-icon" href="{{ asset('logos/logoHomeRes.png') }}">
-  <?php $__appStyle = \App\Models\Style::first(); ?>
   @php
     use App\Models\Comentario;
     use Illuminate\Support\Str;
@@ -59,15 +58,15 @@
   @endphp
   <style>
     :root {
-      --btn-primary: {{ $appliedTheme['btn_primary'] ?? $__appStyle->btn_primary ?? '#6366f1' }};
-      --btn-alt: {{ $appliedTheme['btn_alt'] ?? $__appStyle->btn_alt ?? '#06b6d4' }};
-      --bg: {{ $appliedTheme['bg'] ?? $__appStyle->bg ?? '#f8fafc' }};
-      --sidebar-bg: {{ $appliedTheme['sidebar_bg'] ?? $__appStyle->sidebar_bg ?? '#ffffff' }};
-      --sidebar-text: {{ $appliedTheme['sidebar_text'] ?? $__appStyle->sidebar_text ?? '#0f172a' }};
-      --global-transparency: {{ isset($appliedTheme['transparency']) ? ($appliedTheme['transparency']/100) : (isset($__appStyle->transparency) ? ($__appStyle->transparency/100) : 0) }};
+      --btn-primary: {{ $appliedTheme['btn_primary'] ?? '#6366f1' }};
+      --btn-alt: {{ $appliedTheme['btn_alt'] ?? '#06b6d4' }};
+      --bg: {{ $appliedTheme['bg'] ?? '#f8fafc' }};
+      --sidebar-bg: {{ $appliedTheme['sidebar_bg'] ?? '#ffffff' }};
+      --sidebar-text: {{ $appliedTheme['sidebar_text'] ?? '#0f172a' }};
+      --global-transparency: {{ isset($appliedTheme['transparency']) ? ($appliedTheme['transparency']/100) : 0 }};
       --font-base-size: {{ $appliedTheme['font_size'] ?? 16 }}px;
-      --gradient-start: {{ $appliedTheme['gradient_start'] ?? ($__appStyle->btn_primary ?? 'transparent') }};
-      --gradient-end: {{ $appliedTheme['gradient_end'] ?? ($__appStyle->btn_alt ?? 'transparent') }};
+      --gradient-start: {{ $appliedTheme['gradient_start'] ?? 'transparent' }};
+      --gradient-end: {{ $appliedTheme['gradient_end'] ?? 'transparent' }};
       --gradient-angle: {{ $appliedTheme['gradient_angle'] ?? 90 }}deg;
       --animated-gradient: {{ ($appliedTheme['animated_gradient'] ?? false) ? 1 : 0 }};
       --animation-speed: {{ $appliedTheme['animation_speed'] ?? 6 }}s;
@@ -83,35 +82,35 @@
       --hover-animation-duration: {{ $appliedTheme['hover_animation_duration'] ?? 0.18 }}s;
       --float-animation: {{ $appliedTheme['float_animation'] ?? 'none' }};
       --float-animation-duration: {{ $appliedTheme['float_animation_duration'] ?? 6 }}s;
-      --topbar-bg: {{ $appliedTheme['meta']['topbar']['bg'] ?? ($__appStyle->topbar_bg ?? '#ffffff') }};
-      --topbar-text: {{ $appliedTheme['meta']['topbar']['text'] ?? ($__appStyle->topbar_text ?? '#0f172a') }};
-      --topbar-accent: {{ $appliedTheme['meta']['topbar']['accent'] ?? ($appliedTheme['btn_alt'] ?? ($__appStyle->btn_alt ?? '#ef4444')) }};
+      --topbar-bg: {{ $appliedTheme['meta']['topbar']['bg'] ?? '#ffffff' }};
+      --topbar-text: {{ $appliedTheme['meta']['topbar']['text'] ?? '#0f172a' }};
+      --topbar-accent: {{ $appliedTheme['meta']['topbar']['accent'] ?? ($appliedTheme['btn_alt'] ?? '#ef4444') }};
       --notif-badge-bg: {{ $appliedTheme['meta']['notif']['bg'] ?? ($appliedTheme['meta']['payment']['fallido']['bg'] ?? ($appliedTheme['btn_alt'] ?? '#ef4444')) }};
       --notif-badge-text: {{ $appliedTheme['meta']['notif']['text'] ?? '#ffffff' }};
       --topbar-gradient-start: {{ $appliedTheme['meta']['topbar']['gradient_start'] ?? '' }};
       --topbar-gradient-end: {{ $appliedTheme['meta']['topbar']['gradient_end'] ?? '' }};
       --topbar-animated: {{ ($appliedTheme['meta']['topbar']['animated'] ?? false) ? 1 : 0 }};
-      --btn-primary-text: {{ __pick_text_color_for_var($appliedTheme['btn_primary'] ?? $__appStyle->btn_primary ?? '#6366f1') }};
+      --btn-primary-text: {{ __pick_text_color_for_var($appliedTheme['btn_primary'] ?? '#6366f1') }};
       /* payment badge colors per state (defaults provided) */
-      --payment-badge-bg-pagado: {{ $appliedTheme['meta']['payment']['pagado']['bg'] ?? ($__appStyle->meta['payment']['pagado']['bg'] ?? '#10b981') }};
-      --payment-badge-text-pagado: {{ $appliedTheme['meta']['payment']['pagado']['text'] ?? ($__appStyle->meta['payment']['pagado']['text'] ?? '#ffffff') }};
-      --payment-badge-bg-pendiente: {{ $appliedTheme['meta']['payment']['pendiente']['bg'] ?? ($__appStyle->meta['payment']['pendiente']['bg'] ?? '#f59e0b') }};
-      --payment-badge-text-pendiente: {{ $appliedTheme['meta']['payment']['pendiente']['text'] ?? ($__appStyle->meta['payment']['pendiente']['text'] ?? '#ffffff') }};
-      --payment-badge-bg-fallido: {{ $appliedTheme['meta']['payment']['fallido']['bg'] ?? ($__appStyle->meta['payment']['fallido']['bg'] ?? '#ef4444') }};
-      --payment-badge-text-fallido: {{ $appliedTheme['meta']['payment']['fallido']['text'] ?? ($__appStyle->meta['payment']['fallido']['text'] ?? '#ffffff') }};
-      --payment-badge-bg-parcial: {{ $appliedTheme['meta']['payment']['parcial']['bg'] ?? ($__appStyle->meta['payment']['parcial']['bg'] ?? '#6366f1') }};
-      --payment-badge-text-parcial: {{ $appliedTheme['meta']['payment']['parcial']['text'] ?? ($__appStyle->meta['payment']['parcial']['text'] ?? '#ffffff') }};
+      --payment-badge-bg-pagado: {{ $appliedTheme['meta']['payment']['pagado']['bg'] ?? '#10b981' }};
+      --payment-badge-text-pagado: {{ $appliedTheme['meta']['payment']['pagado']['text'] ?? '#ffffff' }};
+      --payment-badge-bg-pendiente: {{ $appliedTheme['meta']['payment']['pendiente']['bg'] ?? '#f59e0b' }};
+      --payment-badge-text-pendiente: {{ $appliedTheme['meta']['payment']['pendiente']['text'] ?? '#ffffff' }};
+      --payment-badge-bg-fallido: {{ $appliedTheme['meta']['payment']['fallido']['bg'] ?? '#ef4444' }};
+      --payment-badge-text-fallido: {{ $appliedTheme['meta']['payment']['fallido']['text'] ?? '#ffffff' }};
+      --payment-badge-bg-parcial: {{ $appliedTheme['meta']['payment']['parcial']['bg'] ?? '#6366f1' }};
+      --payment-badge-text-parcial: {{ $appliedTheme['meta']['payment']['parcial']['text'] ?? '#ffffff' }};
       /* price colors by reservation estado */
-      --price-color-confirmada: {{ $appliedTheme['meta']['price']['confirmada'] ?? ($__appStyle->meta['price']['confirmada'] ?? '#065f46') }};
-      --price-color-pendiente: {{ $appliedTheme['meta']['price']['pendiente'] ?? ($__appStyle->meta['price']['pendiente'] ?? '#92400e') }};
-      --price-color-cancelada: {{ $appliedTheme['meta']['price']['cancelada'] ?? ($__appStyle->meta['price']['cancelada'] ?? '#7f1d1d') }};
-      --price-color-default: {{ $appliedTheme['meta']['price']['default'] ?? ($__appStyle->meta['price']['default'] ?? '#374151') }};
+      --price-color-confirmada: {{ $appliedTheme['meta']['price']['confirmada'] ?? '#065f46' }};
+      --price-color-pendiente: {{ $appliedTheme['meta']['price']['pendiente'] ?? '#92400e' }};
+      --price-color-cancelada: {{ $appliedTheme['meta']['price']['cancelada'] ?? '#7f1d1d' }};
+      --price-color-default: {{ $appliedTheme['meta']['price']['default'] ?? '#374151' }};
       /* global text color (Dark theme forces white) */
-      --text-color: {{ ($appliedTheme['name'] ?? '') === 'Dark' ? '#ffffff' : (__pick_text_color_for_var($appliedTheme['bg'] ?? $__appStyle->bg ?? '#f8fafc')) }};
+      --text-color: {{ ($appliedTheme['name'] ?? '') === 'Dark' ? '#ffffff' : (__pick_text_color_for_var($appliedTheme['bg'] ?? '#f8fafc')) }};
 
       @php
         // Determine if bg is dark to auto-derive card/input/badge colours
-        $_bgHex = $appliedTheme['bg'] ?? $__appStyle->bg ?? '#f8fafc';
+        $_bgHex = $appliedTheme['bg'] ?? '#f8fafc';
         $_bgH = ltrim($_bgHex, '#');
         if (strlen($_bgH) === 3) { $_bgH = $_bgH[0].$_bgH[0].$_bgH[1].$_bgH[1].$_bgH[2].$_bgH[2]; }
         $_bgLum = (strlen($_bgH) === 6)
@@ -141,7 +140,7 @@
       --btn-danger: {{ $appliedTheme['button_variants']['danger']['bg'] ?? '#dc2626' }};
       --btn-danger-text: {{ $appliedTheme['button_variants']['danger']['color'] ?? '#ffffff' }};
       /* Alt button text */
-      --btn-alt-text: {{ __pick_text_color_for_var($appliedTheme['btn_alt'] ?? $__appStyle->btn_alt ?? '#06b6d4') }};
+      --btn-alt-text: {{ __pick_text_color_for_var($appliedTheme['btn_alt'] ?? '#06b6d4') }};
 
       /* ensure topbar accent and notif badge readable in dark preset */
       @if(($appliedTheme['name'] ?? '') === 'Dark')
@@ -256,7 +255,7 @@
     @endif
     .sidebar .nav .nav-item{ color: var(--sidebar-text); transition: background .18s ease, transform .12s ease; }
     @php
-      $_sbHex = $appliedTheme['sidebar_bg'] ?? $__appStyle->sidebar_bg ?? '#0f172a';
+      $_sbHex = $appliedTheme['sidebar_bg'] ?? '#0f172a';
       $_sbH = ltrim($_sbHex, '#');
       if (strlen($_sbH) === 3) { $_sbH = $_sbH[0].$_sbH[0].$_sbH[1].$_sbH[1].$_sbH[2].$_sbH[2]; }
       $_sbLum = (strlen($_sbH) === 6)
@@ -288,7 +287,7 @@
     /* Per-button variant rules from theme.button_variants (JSON) */
     @php
       // Merge explicit button_variants with any meta-defined buttons
-      $__btnVars = $appliedTheme['button_variants'] ?? ($__appStyle->button_variants ?? []);
+      $__btnVars = $appliedTheme['button_variants'] ?? [];
       if (!empty($appliedTheme['meta']['buttons']) && is_array($appliedTheme['meta']['buttons'])) {
         $__btnVars = array_merge($__btnVars, $appliedTheme['meta']['buttons']);
       }

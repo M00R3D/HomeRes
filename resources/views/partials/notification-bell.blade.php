@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function(){
               const path = parsed.pathname.replace(/^\/+|\/+$/g,'');
               const seg = path.split('/').filter(Boolean);
               const first = (seg[0] || '').toLowerCase();
-              const map = {reservaciones:'reservacion',pagos:'pago',propiedades:'propiedad',usuarios:'usuario',tarjetas_simuladas:'tarjeta',tarjetas:'tarjeta',cabanas:'cabana'};
+              const map = {reservaciones:'reservacion',pagos:'pago',propiedades:'propiedad',usuarios:'usuario',tarjetas_simuladas:'tarjeta',tarjetas:'tarjeta'};
               if(data && (data.tipo || data.type)) return (data.tipo || data.type).toString().toLowerCase();
               if(map[first]) return map[first];
               if(first.endsWith('es')) return first.slice(0,-2);

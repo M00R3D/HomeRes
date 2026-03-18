@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('reservaciones', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('usuario_id')->nullable();
-            $table->unsignedBigInteger('cabana_id')->nullable();
+            $table->unsignedBigInteger('propiedad_id')->nullable();
             $table->date('check_in');
             $table->date('check_out');
             $table->unsignedInteger('num_personas')->default(1);
@@ -25,7 +25,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('usuario_id')->references('id')->on('usuarios')->onDelete('cascade');
-            $table->foreign('cabana_id')->references('id')->on('cabanas')->onDelete('cascade');
+            $table->foreign('propiedad_id')->references('id')->on('propiedades')->onDelete('cascade');
         });
     }
 

@@ -47,7 +47,6 @@
                     'usuarios' => 'usuario',
                     'tarjetas_simuladas' => 'tarjeta',
                     'tarjetas' => 'tarjeta',
-                    'cabanas' => 'cabana',
                   ];
                   if(isset($map[$first])) $resTipo = $map[$first];
                   else {
