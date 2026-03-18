@@ -6,6 +6,7 @@
   <title>{{ config('app.name', 'HomeRes') }}</title>
   <meta name="csrf-token" content="{{ csrf_token() }}" >
   <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ asset('css/components.css') }}">
   <link rel="icon" type="image/png" href="{{ asset('logos/logoHomeRes.png') }}">
   <link rel="apple-touch-icon" href="{{ asset('logos/logoHomeRes.png') }}">
   @php
@@ -486,6 +487,20 @@
     </header>
 
     <main class="content">
+      @if(session('success'))
+        <x-alert type="success">{{ session('success') }}</x-alert>
+      @endif
+
+      @if(session('error'))
+        <x-alert type="error">{{ session('error') }}</x-alert>
+      @endif
+
+      @if($errors->any())
+        <x-alert type="error">
+          {{ $errors->first() }}
+        </x-alert>
+      @endif
+
       @yield('content')
     </main>
 

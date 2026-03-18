@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ProcessPaymentRequest;
 use Illuminate\Http\Request;
 use App\Models\Payment;
 use App\Models\Reservation;
@@ -216,17 +217,8 @@ class PaymentController extends Controller
     /**
      * Procesar pago desde el formulario público/administración
      */
-    public function procesarPago(Request $request)
+    public function procesarPago(ProcessPaymentRequest $request)
     {
-        $request->validate([
-            'reservacion_id' => 'required|exists:reservaciones,id',
-            'tarjeta_id' => 'nullable|exists:tarjetas_simuladas,id',
-            'usuario_id' => 'required|exists:usuarios,id',
-            'monto' => 'required|numeric|min:0.01',
-            'metodo_pago' => 'required|string|in:tarjeta,efectivo',
-            'cvv' => 'nullable|string',
-        ]);
-
         $reservacionId = $request->input('reservacion_id');
         $tarjetaId = $request->input('tarjeta_id');
         $usuarioId = $request->input('usuario_id');

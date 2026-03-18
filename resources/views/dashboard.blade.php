@@ -27,7 +27,7 @@
         <thead>
           <tr>
             <th>Estado</th>
-            <th>Casita</th>
+            <th>Propiedad</th>
             <th>Costo</th>
             <th>Llegada</th>
             <th>Salida</th>
@@ -40,7 +40,7 @@
             <tr class="reserv-row @if(($r->estado ?? '') === 'pendiente') pending @endif @if(($r->estado ?? '') === 'cancelada') cancelled @endif"
                 data-checkin="{{ $r->check_in }}" data-checkout="{{ $r->check_out }}" data-id="{{ $r->id }}">
               <td class="estado {{ \Illuminate\Support\Str::slug($r->estado ?? 'pendiente') }}">{{ $r->estado ?? 'pendiente' }}</td>
-              <td>{{ $r->cabana_nombre ?? $r->cabana_id ?? '-' }}</td>
+              <td>{{ $r->propiedad->nombre ?? $r->propiedad_id ?? '-' }}</td>
               <td>${{ number_format($r->total ?? 0, 2, ',', '.') }}</td>
               <td>{{ isset($r->check_in) ? \Carbon\Carbon::parse($r->check_in)->format('d M Y') : '-' }}</td>
               <td>{{ isset($r->check_out) ? \Carbon\Carbon::parse($r->check_out)->format('d M Y') : '-' }}</td>
@@ -116,7 +116,7 @@
       <h3>Nueva Reservación</h3>
       <form method="POST" action="#" class="form-grid">
         @csrf
-        <label><span>Casita</span><input name="cabana_id" /></label>
+        <label><span>Propiedad</span><input name="propiedad_id" /></label>
         <label><span>Check-in</span><input type="date" name="check_in" /></label>
         <label><span>Check-out</span><input type="date" name="check_out" /></label>
         <label><span>Personas</span><input type="number" name="num_personas" min="1" /></label>

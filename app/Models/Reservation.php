@@ -34,6 +34,4 @@ class Reservation extends Model
         return $this->belongsTo(\App\Models\Propiedad::class, 'propiedad_id', 'id');
     }
     public function payments() { return $this->hasMany(Payment::class, 'reservacion_id', 'id'); }
-    public function chats() { return $this->hasMany(Chat::class); }
-    public function histories() { return $this->hasMany(ReservationHistory::class); }
 }

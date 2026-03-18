@@ -2,13 +2,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreReservationRequest;
 use Illuminate\Http\Request;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Models\Propiedad;
 use App\Models\Payment;
 use App\Models\Log;
-use Carbon\Carbon; 
+use Carbon\Carbon;
 use Illuminate\Support\Str;
 
 class ReservationController extends Controller
@@ -63,21 +64,9 @@ class ReservationController extends Controller
         return response()->json(['blocked' => $blocked]);
     }
  
-    public function store(Request $request)
+    public function store(StoreReservationRequest $request)
     {
-        $request->validate([
-            'usuario_id' => 'nullable|exists:usuarios,id',
-            'propiedad_id' => 'nullable|exists:propiedades,id',
-            'check_in' => 'required|date|after_or_equal:today',
-            'check_out' => 'required|date|after:check_in',
-            'num_personas' => 'required|integer|min:1',
-            'total' => 'required|numeric',
-            'estado' => 'nullable|in:pendiente,confirmada,cancelada,completada',
-            'nota' => 'nullable|string|max:500',
-            'estado_pago' => 'nullable|in:pendiente,pagado,cancelado',
-        ]);
-
-        $data = $request->all();
+        $data = $request->validated();
         if (empty($data['usuario_id']) && auth()->check()) {
             $data['usuario_id'] = auth()->id();
         }

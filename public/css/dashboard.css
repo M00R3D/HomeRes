@@ -1,14 +1,14 @@
 :root{
   --bg:#f6f7fb;
   --sidebar:#0f1724;
-  --accent:#2b6cb0;
+  --accent:#6366f1;
+  --accent-alt:#2b6cb0;
   --muted:#6b7280;
   --card:#fff;
   --radius:10px;
   --btn-radius:10px;
   --btn-font-weight:700;
   --btn-size:0.7rem;
-  --accent:#6366f1;
   --accent-2:#06b6d4;
   --alt-1:#60a5fa; /* azul claro */
   --alt-2:#38bdf8; /* azul cielo */

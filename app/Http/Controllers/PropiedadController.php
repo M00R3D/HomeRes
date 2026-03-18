@@ -2,6 +2,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StorePropiedadRequest;
+use App\Http\Requests\UpdatePropiedadRequest;
 use Illuminate\Http\Request;
 use App\Models\Propiedad;
 use App\Models\Log;
@@ -24,22 +26,9 @@ class PropiedadController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StorePropiedadRequest $request)
     {
-        $validated = $request->validate([
-            'tipo' => 'required|in:cabaña,casa,departamento',
-            'codigo' => 'required|string|unique:propiedades,codigo',
-            'nombre' => 'required|string',
-            'descripcion' => 'nullable|string',
-            'capacidad' => 'required|integer|min:1',
-            'precio_noche' => 'required|numeric|min:0',
-            'ubicacion' => 'nullable|string',
-            'servicios' => 'nullable|string',
-            'estado' => 'nullable|in:disponible,ocupada,mantenimiento',
-            'ruta_img' => 'nullable|string',
-        ]);
-
-        $propiedad = Propiedad::create($validated);
+        $propiedad = Propiedad::create($request->validated());
 
         try {
             Log::entry('propiedad', 'Propiedad creada: #' . $propiedad->id . ' - ' . ($propiedad->nombre ?? ''), auth()->id(), 'propiedad', $propiedad->id, route('propiedades.show', $propiedad->id));
@@ -104,23 +93,12 @@ class PropiedadController extends Controller
         return view('propiedades.create', ['imageFolders' => $folders]);
     }
 
-    public function update(Request $request, $id)
+    public function update(UpdatePropiedadRequest $request, $id)
     {
         $propiedad = Propiedad::findOrFail($id);
         $oldEstado = $propiedad->estado;
 
-        $validated = $request->validate([
-            'tipo' => 'required|in:cabaña,casa,departamento',
-            'codigo' => 'required|string|unique:propiedades,codigo,'.$id,
-            'nombre' => 'required|string',
-            'descripcion' => 'nullable|string',
-            'capacidad' => 'required|integer|min:1',
-            'precio_noche' => 'required|numeric|min:0',
-            'ubicacion' => 'nullable|string',
-            'servicios' => 'nullable|string',
-            'estado' => 'nullable|in:disponible,ocupada,mantenimiento',
-            'ruta_img' => 'nullable|string',
-        ]);
+        $validated = $request->validated();
 
         $propiedad->update($validated);
 

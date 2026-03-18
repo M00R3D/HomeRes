@@ -1,0 +1,21 @@
+# Railway / Nixpacks build config for HomeRes (Laravel 11 + MySQL)
+# https://nixpacks.com/docs/providers/php
+
+[phases.install]
+cmds = [
+  "composer install --no-dev --optimize-autoloader --no-interaction"
+]
+
+[phases.build]
+cmds = [
+  "npm ci --prefer-offline",
+  "npm run build",
+  "php artisan config:cache",
+  "php artisan route:cache",
+  "php artisan view:cache"
+]
+
+# Run DB migrations then start the server.
+# On Railway, set all env vars (APP_KEY, DB_*, etc.) in the Railway dashboard.
+[start]
+cmd = "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=$PORT"

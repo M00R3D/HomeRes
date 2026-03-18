@@ -585,7 +585,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if(data){
       try {
         const set = (id, val) => { const el = document.getElementById(id); if(el) el.value = val ?? ''; };
-        set('rv-propiedad', data.propiedad_id ?? data.cabana_id ?? '');
+        set('rv-propiedad', data.propiedad_id ?? '');
         set('rv-checkin', data.check_in ?? '');
         set('rv-checkout', data.check_out ?? '');
         set('rv-num', data.num_personas ?? 1);
