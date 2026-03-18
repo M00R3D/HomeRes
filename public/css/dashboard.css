@@ -47,6 +47,62 @@ body.sidebar-collapsed .sidebar{
   overflow:hidden;
 }
 body.sidebar-collapsed .sidebar .brand-text{ display:none; }
+
+/* Layout variants: card, elegant, hyperminimal
+   - body.layout-variant-card: deck of cards (grid), comfortable spacing and larger radius
+   - body.layout-variant-elegant: larger, robust panels with subtle animations (existing elegant style)
+   - body.layout-variant-hyperminimal: very minimal, flat UI but full functionality
+   These use theme variables so colors follow `themes` configuration.
+*/
+
+/* Shared helpers for any layout-variant */
+body[class*="layout-variant-"] .card{ background: var(--card, #fff); color: var(--text, #111); transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+body[class*="layout-variant-"] .page-header h1{ transition: all .22s ease; }
+
+/* Card (deck) variant: turn list areas into responsive card grids */
+body.layout-variant-card .cards-deck, body.layout-variant-card .pr-grid, body.layout-variant-card .cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+body.layout-variant-card .cards-deck .card, body.layout-variant-card .pr-grid .card, body.layout-variant-card .cards-grid .card { margin: 0; }
+body.layout-variant-card .cards-panel{ display:flex; gap:18px; align-items:flex-start; }
+body.layout-variant-card .cards-panel .filters{ width:260px; flex:0 0 260px; }
+body.layout-variant-card .cards-panel .cards-deck{ flex:1 1 auto; }
+body.layout-variant-card .card{ border-radius:14px; padding:16px; box-shadow: 0 8px 30px rgba(2,6,23,0.06); }
+body.layout-variant-card .card .card-title{ font-weight:700; margin-bottom:8px; }
+body.layout-variant-card .page-header h1{ font-size: clamp(1.4rem,2vw,1.9rem); }
+body.layout-variant-card .btn{ background: var(--btn_primary, #6366f1); color: var(--btn_text, #fff); }
+
+/* Elegant: keep richer, spacious, animated UI (align with server inline rules) */
+body.layout-variant-elegant .card{ border-radius:8px; padding:24px; box-shadow: 0 18px 44px rgba(2,6,23,0.08); }
+body.layout-variant-elegant .card:hover{ transform: translateY(-6px); }
+body.layout-variant-elegant .page-header h1{ font-size: clamp(1.8rem,2.6vw,2.6rem); letter-spacing: -0.5px; }
+body.layout-variant-elegant .topbar, body.layout-variant-elegant .hp-toolbar{ gap:18px; }
+body.layout-variant-elegant .btn{ background: linear-gradient(90deg, var(--btn_primary, #6366f1), var(--btn_alt, #06b6d4)); color: var(--btn_text, #fff); box-shadow: 0 10px 30px rgba(2,6,23,0.06); }
+
+/* Hyperminimal: very low visual noise but maintain functionality */
+body.layout-variant-hyperminimal .card{ border-radius:4px; padding:12px; box-shadow: none; border: 1px solid rgba(0,0,0,0.04); background: var(--card, #fff); }
+body.layout-variant-hyperminimal .card:hover{ transform: translateY(-6px); box-shadow: 0 8px 18px rgba(2,6,23,0.06); }
+body.layout-variant-hyperminimal .page-header h1{ font-size: clamp(1.3rem,1.8vw,1.8rem); font-weight:700; }
+body.layout-variant-hyperminimal .btn{ background: transparent !important; color: var(--text-color) !important; border: 1px solid var(--input-border) !important; border-radius:6px; }
+
+/* Component-specific tweaks */
+body.layout-variant-elegant .table-card, body.layout-variant-card .table-card, body.layout-variant-hyperminimal .table-card{ transition: box-shadow .18s ease, transform .18s ease; }
+body.layout-variant-card .table-card{ border-radius:12px; }
+body.layout-variant-elegant .table-card{ border-radius:10px; padding:18px; }
+body.layout-variant-hyperminimal .table-card{ border-radius:6px; }
+
+/* Respect theme colors for buttons across variants */
+body.layout-variant-elegant .btn, body.layout-variant-card .btn, body.layout-variant-hyperminimal .btn{ --btn-bg: var(--btn_primary, #6366f1); color: var(--btn_text, #fff); }
+
+@media (max-width:900px){
+  body.layout-variant-elegant .card, body.layout-variant-card .card, body.layout-variant-hyperminimal .card{ padding:12px; }
+  body.layout-variant-elegant .page-header h1, body.layout-variant-card .page-header h1, body.layout-variant-hyperminimal .page-header h1{ font-size: 1.4rem; }
+}
+
+/* End layout variants */
 body.sidebar-collapsed .nav-item{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-left:12px; }
 body.sidebar-collapsed .main{ margin-left:0; }
 

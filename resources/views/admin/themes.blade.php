@@ -65,71 +65,51 @@
   <div style="display:flex;gap:16px;align-items:flex-start;">
     <div style="flex:1">
       <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        @php
-          $presetNames = ['Light','Dark','Sakura','Abstract'];
-          $presets = \App\Models\Theme::whereIn('name', $presetNames)->get()->keyBy('name');
-          function _btn_style($p){
-            if (! $p) return '';
-            $bg = $p['gradient_start'] ?? ($p['btn_primary'] ?? '#6366f1');
-            $bg2 = $p['gradient_end'] ?? ($p['btn_alt'] ?? '#06b6d4');
-            $text = '#ffffff';
-            if (!empty($p['button_variants']['primary']['color'])) $text = $p['button_variants']['primary']['color'];
-            return "background: linear-gradient(90deg, $bg, $bg2); color: $text;";
-          }
-
-          function _safe_color($val, $fallback = '#ffffff'){
-            if (! $val) return $fallback;
-            $v = trim($val);
-            if (preg_match('/^#[0-9a-fA-F]{6}$/', $v)) return strtolower($v);
-            return $fallback;
-          }
-
-          $sbDefault = (isset($theme) && isset($theme->bg) && preg_match('/^#[0-9a-fA-F]{6}$/',$theme->bg)) ? '#0f172a' : '#ffffff';
-        @endphp
-        @php
-          $presetGradients = [
-            'Light'    => ['start' => '#2563eb', 'end' => '#06b6d4', 'text' => '#ffffff'],
-            'Dark'     => ['start' => '#7c3aed', 'end' => '#fb923c', 'text' => '#ffffff'],
-            'Sakura'   => ['start' => '#f9a8d4', 'end' => '#ffd7b5', 'text' => '#111827'],
-            'Abstract' => ['start' => '#6d28d9', 'end' => '#fb923c', 'text' => '#ffffff'],
-          ];
-        @endphp
-        @foreach($presetNames as $pn)
-          @php
-            $pg = $presetGradients[$pn] ?? ['start' => '#6366f1', 'end' => '#06b6d4', 'text' => '#ffffff'];
-            $presetStyle = "background:linear-gradient(90deg,{$pg['start']},{$pg['end']});color:{$pg['text']};border:0;padding:10px 16px;border-radius:8px;font-weight:700;cursor:pointer;";
-          @endphp
-          <form method="POST" action="{{ route('admin.themes.apply') }}">@csrf<input type="hidden" name="preset" value="{{ $pn }}"><button class="btn" type="submit" style="{{ $presetStyle }}">Usar {{ $pn }}</button></form>
-        @endforeach
+        <!-- Preset buttons with frontend-declared gradients -->
+        <form method="POST" action="{{ route('admin.themes.apply') }}">@csrf<input type="hidden" name="preset_id" value="1"><button class="btn" type="submit" style="background:linear-gradient(90deg,#2563eb,#06b6d4);color:#ffffff;border:0;padding:10px 16px;border-radius:8px;font-weight:700;cursor:pointer;">Usar Light</button></form>
+        <form method="POST" action="{{ route('admin.themes.apply') }}">@csrf<input type="hidden" name="preset_id" value="2"><button class="btn" type="submit" style="background:linear-gradient(90deg,#7c3aed,#fb923c);color:#ffffff;border:0;padding:10px 16px;border-radius:8px;font-weight:700;cursor:pointer;">Usar Dark</button></form>
+        <form method="POST" action="{{ route('admin.themes.apply') }}">@csrf<input type="hidden" name="preset_id" value="3"><button class="btn" type="submit" style="background:linear-gradient(90deg,#f9a8d4,#ffd7b5);color:#111827;border:0;padding:10px 16px;border-radius:8px;font-weight:700;cursor:pointer;">Usar Sakura</button></form>
+        <form method="POST" action="{{ route('admin.themes.apply') }}">@csrf<input type="hidden" name="preset_id" value="4"><button class="btn" type="submit" style="background:linear-gradient(90deg,#6d28d9,#fb923c);color:#ffffff;border:0;padding:10px 16px;border-radius:8px;font-weight:700;cursor:pointer;">Usar Abstract</button></form>
       </div>
 
       <div class="ap-tabs" role="tablist" aria-label="Panel de personalización">
         <button type="button" class="ap-tab is-active" data-tab="theme">Tema</button>
-        <button type="button" class="ap-tab" data-tab="layouts">Layouts</button>
       </div>
 
       <form method="POST" action="{{ route('admin.themes.save') }}">
         @csrf
         <input type="hidden" name="id" value="{{ $theme->id ?? '' }}">
-
         <div class="ap-panel is-active" data-panel="theme">
           <div class="ap-grid">
-            <label style="flex:1">Nombre <input name="name" value="{{ $theme->name ?? 'custom' }}"></label>
-            <label>Botón primario <input type="color" name="btn_primary" value="{{ _safe_color($theme->btn_primary ?? null, '#6366f1') }}"></label>
-            <label>Botón alterno <input type="color" name="btn_alt" value="{{ _safe_color($theme->btn_alt ?? null, '#06b6d4') }}"></label>
-            <label>Fondo (color) <input type="color" name="bg" value="{{ _safe_color($theme->bg ?? null, '#f8fafc') }}"></label>
-            <label>Fondo gradiente inicio <input type="color" name="bg_gradient_start" value="{{ _safe_color($theme->bg_gradient_start ?? $theme->bg ?? null, '#ffffff') }}"></label>
-            <label>Fondo gradiente fin <input type="color" name="bg_gradient_end" value="{{ _safe_color($theme->bg_gradient_end ?? $theme->bg ?? null, '#f8fafc') }}"></label>
+            <fieldset class="ap-fieldset">
+              <legend style="font-weight:700">Sidebar</legend>
+              <div class="sidebar-choice">
+                <label>
+                  <input type="radio" name="meta[layouts][sidebar_side]" value="left" {{ $layoutSidebarSide === 'left' ? 'checked' : '' }}>
+                  Izquierda
+                </label>
+                <label>
+                  <input type="radio" name="meta[layouts][sidebar_side]" value="right" {{ $layoutSidebarSide === 'right' ? 'checked' : '' }}>
+                  Derecha
+                </label>
+              </div>
+            </fieldset>
+            <label style="flex:1">Nombre <input name="name" value="custom" readonly></label>
+            <label>Botón primario <input type="color" name="btn_primary" value="{{ old('btn_primary', $theme->btn_primary ?? '#6366f1') }}"></label>
+            <label>Botón alterno <input type="color" name="btn_alt" value="{{ old('btn_alt', $theme->btn_alt ?? '#06b6d4') }}"></label>
+            <label>Fondo (color) <input type="color" name="bg" value="{{ old('bg', $theme->bg ?? '#f8fafc') }}"></label>
+            <label>Fondo gradiente inicio <input type="color" name="bg_gradient_start" value="{{ old('bg_gradient_start', $theme->bg_gradient_start ?? $theme->bg ?? '#ffffff') }}"></label>
+            <label>Fondo gradiente fin <input type="color" name="bg_gradient_end" value="{{ old('bg_gradient_end', $theme->bg_gradient_end ?? $theme->bg ?? '#f8fafc') }}"></label>
             <label>Fondo gradiente angulo <input type="number" name="bg_gradient_angle" value="{{ $theme->bg_gradient_angle ?? 90 }}"></label>
             <label>Animar fondo <input type="checkbox" name="bg_animated" value="1" {{ ($theme->bg_animated ?? false) ? 'checked' : '' }}></label>
-            <label>Sidebar bg (color) <input type="color" name="sidebar_bg" value="{{ _safe_color($theme->sidebar_bg ?? null, '#0f172a') }}"></label>
-            <label>Sidebar gradiente inicio <input type="color" name="sidebar_gradient_start" value="{{ _safe_color($theme->sidebar_gradient_start ?? $theme->sidebar_bg ?? null, '#ffffff') }}"></label>
-            <label>Sidebar gradiente fin <input type="color" name="sidebar_gradient_end" value="{{ _safe_color($theme->sidebar_gradient_end ?? $theme->sidebar_bg ?? null, '#ffffff') }}"></label>
+            <label>Sidebar bg (color) <input type="color" name="sidebar_bg" value="{{ old('sidebar_bg', $theme->sidebar_bg ?? '#0f172a') }}"></label>
+            <label>Sidebar gradiente inicio <input type="color" name="sidebar_gradient_start" value="{{ old('sidebar_gradient_start', $theme->sidebar_gradient_start ?? $theme->sidebar_bg ?? '#ffffff') }}"></label>
+            <label>Sidebar gradiente fin <input type="color" name="sidebar_gradient_end" value="{{ old('sidebar_gradient_end', $theme->sidebar_gradient_end ?? $theme->sidebar_bg ?? '#ffffff') }}"></label>
             <label>Sidebar gradiente angulo <input type="number" name="sidebar_gradient_angle" value="{{ $theme->sidebar_gradient_angle ?? 90 }}"></label>
             <label>Animar sidebar <input type="checkbox" name="sidebar_animated" value="1" {{ ($theme->sidebar_animated ?? false) ? 'checked' : '' }}></label>
-            <label>Sidebar texto <input type="color" name="sidebar_text" value="{{ _safe_color($theme->sidebar_text ?? null, $sbDefault) }}"></label>
-            <label>Gradiente inicio <input type="color" name="gradient_start" value="{{ _safe_color($theme->gradient_start ?? $theme->btn_primary ?? null, '#6366f1') }}"></label>
-            <label>Gradiente fin <input type="color" name="gradient_end" value="{{ _safe_color($theme->gradient_end ?? $theme->btn_alt ?? null, '#06b6d4') }}"></label>
+            <label>Sidebar texto <input type="color" name="sidebar_text" value="{{ old('sidebar_text', $theme->sidebar_text ?? '#ffffff') }}"></label>
+            <label>Gradiente inicio <input type="color" name="gradient_start" value="{{ old('gradient_start', $theme->gradient_start ?? $theme->btn_primary ?? '#6366f1') }}"></label>
+            <label>Gradiente fin <input type="color" name="gradient_end" value="{{ old('gradient_end', $theme->gradient_end ?? $theme->btn_alt ?? '#06b6d4') }}"></label>
             <label>Ángulo <input type="number" name="gradient_angle" value="{{ $theme->gradient_angle ?? 90 }}"></label>
             <label>Animar gradiente <input type="checkbox" name="animated_gradient" value="1" {{ ($theme->animated_gradient ?? false) ? 'checked' : '' }}></label>
             <label>Velocidad (s) <input type="range" min="1" max="30" name="animation_speed" value="{{ $theme->animation_speed ?? 6 }}"></label>
@@ -159,10 +139,10 @@
             <fieldset class="ap-fieldset">
               <legend style="font-weight:700">Topbar</legend>
               @php $topbar = $theme->meta['topbar'] ?? []; @endphp
-              <label>Topbar color <input type="color" name="meta[topbar][bg]" value="{{ _safe_color($topbar['bg'] ?? null, '#ffffff') }}"></label>
-              <label>Topbar texto <input type="color" name="meta[topbar][text]" value="{{ _safe_color($topbar['text'] ?? null, '#0f172a') }}"></label>
-              <label>Topbar gradiente inicio <input type="color" name="meta[topbar][gradient_start]" value="{{ _safe_color($topbar['gradient_start'] ?? ($theme->gradient_start ?? $theme->btn_primary ?? null), '#ffffff') }}"></label>
-              <label>Topbar gradiente fin <input type="color" name="meta[topbar][gradient_end]" value="{{ _safe_color($topbar['gradient_end'] ?? ($theme->gradient_end ?? $theme->btn_alt ?? null), '#ffffff') }}"></label>
+              <label>Topbar color <input type="color" name="meta[topbar][bg]" value="{{ old('meta.topbar.bg', $topbar['bg'] ?? '#ffffff') }}"></label>
+              <label>Topbar texto <input type="color" name="meta[topbar][text]" value="{{ old('meta.topbar.text', $topbar['text'] ?? '#0f172a') }}"></label>
+              <label>Topbar gradiente inicio <input type="color" name="meta[topbar][gradient_start]" value="{{ old('meta.topbar.gradient_start', $topbar['gradient_start'] ?? ($theme->gradient_start ?? $theme->btn_primary ?? '#ffffff')) }}"></label>
+              <label>Topbar gradiente fin <input type="color" name="meta[topbar][gradient_end]" value="{{ old('meta.topbar.gradient_end', $topbar['gradient_end'] ?? ($theme->gradient_end ?? $theme->btn_alt ?? '#ffffff')) }}"></label>
               <label>Animar topbar <input type="checkbox" name="meta[topbar][animated]" value="1" {{ ($topbar['animated'] ?? false) ? 'checked' : '' }}></label>
             </fieldset>
 
@@ -173,10 +153,10 @@
                 @php $bv = $currentButtons[$b] ?? []; @endphp
                 <div style="display:flex;gap:8px;align-items:center;padding:8px;border-radius:6px;border:1px solid #f3f4f6;margin-bottom:8px;flex-wrap:wrap;">
                   <div style="min-width:120px;font-weight:700">{{ $b }}</div>
-                  <label>BG <input type="color" name="button_variants[{{ $b }}][bg]" value="{{ _safe_color($bv['bg'] ?? ($b=='btn-alt' ? ($theme->btn_alt ?? null) : ($theme->btn_primary ?? null)), ($b=='btn-alt' ? '#06b6d4' : '#6366f1')) }}"></label>
-                  <label>Color <input type="color" name="button_variants[{{ $b }}][color]" value="{{ _safe_color($bv['color'] ?? null, '#ffffff') }}"></label>
-                  <label>Grad inicio <input type="color" name="button_variants[{{ $b }}][gradient_start]" value="{{ _safe_color($bv['gradient_start'] ?? ($theme->gradient_start ?? $theme->btn_primary ?? null), '#6366f1') }}"></label>
-                  <label>Grad fin <input type="color" name="button_variants[{{ $b }}][gradient_end]" value="{{ _safe_color($bv['gradient_end'] ?? ($theme->gradient_end ?? $theme->btn_alt ?? null), '#06b6d4') }}"></label>
+                  <label>BG <input type="color" name="button_variants[{{ $b }}][bg]" value="{{ old('button_variants.' . $b . '.bg', $bv['bg'] ?? ($b=='btn-alt' ? ($theme->btn_alt ?? '#06b6d4') : ($theme->btn_primary ?? '#6366f1'))) }}"></label>
+                  <label>Color <input type="color" name="button_variants[{{ $b }}][color]" value="{{ old('button_variants.' . $b . '.color', $bv['color'] ?? '#ffffff') }}"></label>
+                  <label>Grad inicio <input type="color" name="button_variants[{{ $b }}][gradient_start]" value="{{ old('button_variants.' . $b . '.gradient_start', $bv['gradient_start'] ?? ($theme->gradient_start ?? $theme->btn_primary ?? '#6366f1')) }}"></label>
+                  <label>Grad fin <input type="color" name="button_variants[{{ $b }}][gradient_end]" value="{{ old('button_variants.' . $b . '.gradient_end', $bv['gradient_end'] ?? ($theme->gradient_end ?? $theme->btn_alt ?? '#06b6d4')) }}"></label>
                   <label>Animación
                     <select name="button_variants[{{ $b }}][animation]">
                       @php $anim = $bv['animation'] ?? 'none'; @endphp
@@ -188,64 +168,7 @@
                 </div>
               @endforeach
             </fieldset>
-          </div>
-        </div>
-
-        <div class="ap-panel" data-panel="layouts">
-          <div class="ap-grid">
-            <fieldset class="ap-fieldset">
-              <legend style="font-weight:700">Sidebar</legend>
-              <div class="sidebar-choice">
-                <label>
-                  <input type="radio" name="meta[layouts][sidebar_side]" value="left" {{ $layoutSidebarSide === 'left' ? 'checked' : '' }}>
-                  Izquierda
-                </label>
-                <label>
-                  <input type="radio" name="meta[layouts][sidebar_side]" value="right" {{ $layoutSidebarSide === 'right' ? 'checked' : '' }}>
-                  Derecha
-                </label>
-              </div>
-            </fieldset>
-
-            @foreach($layoutSections as $layoutKey => $layoutLabel)
-              @php $currentVariant = $layoutSectionsMeta[$layoutKey]['variant'] ?? 'card'; @endphp
-              <label>
-                {{ $layoutLabel }}
-                <select name="meta[layouts][sections][{{ $layoutKey }}][variant]" data-layout-select data-layout-target="{{ $layoutKey }}">
-                  @foreach($layoutVariants as $variantKey => $variantLabel)
-                    <option value="{{ $variantKey }}" {{ $currentVariant === $variantKey ? 'selected' : '' }}>{{ $variantLabel }}</option>
-                  @endforeach
-                </select>
-              </label>
-            @endforeach
-          </div>
-
-          <div class="layout-preview-grid">
-            @foreach($layoutSections as $layoutKey => $layoutLabel)
-              @php $currentVariant = $layoutSectionsMeta[$layoutKey]['variant'] ?? 'card'; @endphp
-              <article class="layout-preview-card" data-preview-card="{{ $layoutKey }}" data-variant="{{ $currentVariant }}">
-                <div class="layout-preview-head">
-                  <div>
-                    <div style="font-weight:800;">{{ $layoutLabel }}</div>
-                    <div class="layout-preview-badge" data-preview-label>{{ $layoutVariants[$currentVariant] ?? 'Carta' }}</div>
-                  </div>
-                  <div class="layout-preview-badge">preview</div>
-                </div>
-                <div class="layout-preview-body">
-                  <div class="layout-preview-line"></div>
-                  <div class="layout-preview-line short"></div>
-                  <div class="layout-preview-list">
-                    <div class="layout-preview-item"></div>
-                    <div class="layout-preview-item"></div>
-                    <div class="layout-preview-item"></div>
-                  </div>
-                </div>
-                <div class="layout-preview-actions">
-                  <span class="small">Como usuario normal</span>
-                  <a href="{{ $previewLinks[$layoutKey] ?? route('dashboard', ['preview_as' => 'user']) }}" class="btn-alt">Abrir</a>
-                </div>
-              </article>
-            @endforeach
+              
           </div>
         </div>
 
@@ -270,17 +193,7 @@
     });
   });
 
-  const labels = @json($layoutVariants);
-  document.querySelectorAll('[data-layout-select]').forEach((select) => {
-    select.addEventListener('change', function(){
-      const key = select.dataset.layoutTarget;
-      const card = document.querySelector('[data-preview-card="' + key + '"]');
-      if (!card) return;
-      card.dataset.variant = select.value;
-      const label = card.querySelector('[data-preview-label]');
-      if (label) label.textContent = labels[select.value] || select.value;
-    });
-  });
+  // layout preview controls removed; no runtime listeners required
 })();
 </script>
 @endpush

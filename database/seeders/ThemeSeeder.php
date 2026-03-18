@@ -179,7 +179,33 @@ class ThemeSeeder extends Seeder
                 'float_animation_duration' => 6,
             ], $p);
 
-            Theme::updateOrCreate(['name' => $p['name']], $p);
+            $slotId = $i + 1;
+            Theme::updateOrCreate(['id' => $slotId], $p);
+        }
+
+        $custom = Theme::find(5);
+        if (! $custom) {
+            $base = Theme::find(1)?->toArray() ?? [
+                'name' => 'custom',
+                'btn_primary' => '#2563eb',
+                'btn_alt' => '#06b6d4',
+                'bg' => '#ffffff',
+                'sidebar_bg' => '#f8fafc',
+                'sidebar_text' => '#0f172a',
+                'gradient_start' => '#2563eb',
+                'gradient_end' => '#06b6d4',
+                'gradient_angle' => 90,
+                'animated_gradient' => false,
+                'animation_speed' => 6,
+                'font_size' => 16,
+            ];
+
+            unset($base['id'], $base['created_at'], $base['updated_at']);
+            $base['name'] = 'custom';
+            Theme::updateOrCreate(['id' => 5], $base);
+        } elseif (strtolower((string) $custom->name) !== 'custom') {
+            $custom->name = 'custom';
+            $custom->save();
         }
     }
 }

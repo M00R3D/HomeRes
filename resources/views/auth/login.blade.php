@@ -8,7 +8,7 @@
   @php
     use App\Models\Theme;
     $__theme = null;
-    try { $__theme = Theme::find(1)?->toArray(); } catch (\Throwable $e) {}
+    try { $__theme = (Theme::find(5) ?? Theme::find(1))?->toArray(); } catch (\Throwable $e) {}
 
     $__bg = $__theme['bg'] ?? '#f7f7f8';
     $__btn = $__theme['btn_primary'] ?? '#2b6cb0';
