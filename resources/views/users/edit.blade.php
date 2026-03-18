@@ -58,5 +58,86 @@
       <a class="btn btn-alt" href="{{ route('users.index') }}">Cancelar</a>
     </div>
   </form>
+
+  @if(($user->rol ?? '') !== 'admin')
+  <div style="border:1px solid #fecaca;border-radius:8px;padding:12px;margin-top:12px;background:#fff5f5;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div>
+        <strong style="color:#991b1b;">Ban de cuenta</strong>
+        <p style="margin:4px 0 0;font-size:13px;color:#6b7280;">El usuario baneado no puede iniciar sesión en el sistema.</p>
+      </div>
+      <form method="POST" action="{{ route('users.toggleBan', $user->id) }}" id="ban-toggle-form">
+        @csrf
+        @if($user->baneado ?? false)
+          <button type="button" class="btn" style="background:#16a34a;color:#fff;" data-ban-confirm data-confirm-title="Confirmar desbaneo" data-confirm-message="¿Quitar ban a este usuario?" data-confirm-ok="Quitar ban" data-confirm-ok-class="btn">Quitar ban</button>
+        @else
+          <button type="button" class="btn btn-danger" data-ban-confirm data-confirm-title="Confirmar ban" data-confirm-message="¿Banear a este usuario? No podrá iniciar sesión." data-confirm-ok="Banear usuario" data-confirm-ok-class="btn btn-danger">Banear usuario</button>
+        @endif
+      </form>
+    </div>
+  </div>
+  @endif
+
+  <div id="ban-confirm-overlay" class="confirm-overlay" aria-hidden="true" style="display:none;">
+    <div class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="ban-confirm-title">
+      <h3 id="ban-confirm-title" class="confirm-title">Confirmar acción</h3>
+      <p id="ban-confirm-message" class="confirm-msg">¿Estás seguro?</p>
+      <div class="confirm-actions">
+        <button type="button" id="ban-confirm-cancel" class="btn btn-alt">Cancelar</button>
+        <button type="button" id="ban-confirm-ok" class="btn btn-danger">Confirmar</button>
+      </div>
+    </div>
+  </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(function(){
+  const overlay = document.getElementById('ban-confirm-overlay');
+  const title = document.getElementById('ban-confirm-title');
+  const message = document.getElementById('ban-confirm-message');
+  const ok = document.getElementById('ban-confirm-ok');
+  const cancel = document.getElementById('ban-confirm-cancel');
+  const form = document.getElementById('ban-toggle-form');
+
+  if (!overlay || !ok || !cancel || !form) return;
+
+  let pending = null;
+
+  function show() {
+    overlay.setAttribute('aria-hidden', 'false');
+    overlay.style.display = 'flex';
+  }
+
+  function hide() {
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.style.display = 'none';
+    pending = null;
+  }
+
+  document.querySelectorAll('[data-ban-confirm]').forEach((btn) => {
+    btn.addEventListener('click', function(){
+      pending = this;
+      title.textContent = this.getAttribute('data-confirm-title') || 'Confirmar acción';
+      message.textContent = this.getAttribute('data-confirm-message') || '¿Estás seguro?';
+      ok.textContent = this.getAttribute('data-confirm-ok') || 'Confirmar';
+      ok.className = this.getAttribute('data-confirm-ok-class') || 'btn btn-danger';
+      show();
+      cancel.focus();
+    });
+  });
+
+  cancel.addEventListener('click', hide);
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) hide(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') hide(); });
+
+  ok.addEventListener('click', function(){
+    if (!pending) return hide();
+    if (typeof form.requestSubmit === 'function') form.requestSubmit();
+    else form.submit();
+    hide();
+  });
+})();
+</script>
+@endpush

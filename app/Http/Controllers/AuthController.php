@@ -24,6 +24,17 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
+
+            $user = Auth::user();
+            if ($user->baneado ?? false) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+                return response()->view('auth.account-banned', [
+                    'email' => $credentials['email'] ?? null,
+                ], 403);
+            }
+
             return redirect()->intended(route('dashboard'));
         }
 
@@ -60,11 +71,7 @@ class AuthController extends Controller
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        try {
-            $recallerName = Auth::guard()->getRecallerName();
-            Cookie::queue(Cookie::forget($recallerName));
-        } catch (\Throwable $e) {
-        }
+        Cookie::queue(Cookie::forget('remember_web_' . sha1('web')));
 
         return redirect()->route('login');
     }

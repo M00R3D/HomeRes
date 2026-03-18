@@ -210,6 +210,17 @@
             return;
           }
 
+          if (res.status === 403) {
+            const ct = (res.headers.get('content-type') || '').toLowerCase();
+            if (ct.includes('text/html')) {
+              const html = await res.text();
+              document.open();
+              document.write(html);
+              document.close();
+              return;
+            }
+          }
+
           if (!res.ok) {
             let data = null;
             try { data = await res.json(); } catch (er) {}

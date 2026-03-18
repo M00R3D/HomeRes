@@ -165,6 +165,38 @@ class UserController extends Controller
 
         return redirect()->route('users.index')->with('success', 'Usuario eliminado');
     }
+    public function toggleBan(Request $request, $id)
+    {
+        $actor = $request->user();
+        if (! $actor || ($actor->rol ?? '') !== 'admin') {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
+        $u = User::find($id);
+        if (! $u) return response()->json(['message' => 'Usuario no encontrado'], 404);
+
+        // No se puede banear a otro admin ni a uno mismo
+        if (($u->rol ?? '') === 'admin') {
+            if ($request->wantsJson()) return response()->json(['message' => 'No se puede banear a un administrador'], 403);
+            return redirect()->back()->withErrors(['ban' => 'No se puede banear a un administrador.']);
+        }
+        if ($u->id === $actor->id) {
+            if ($request->wantsJson()) return response()->json(['message' => 'No puedes banearte a ti mismo'], 403);
+            return redirect()->back()->withErrors(['ban' => 'No puedes banearte a ti mismo.']);
+        }
+
+        $new = ! (bool) ($u->baneado ?? false);
+
+        DB::table('usuarios')->where('id', $u->id)->update(['baneado' => $new]);
+        $u->refresh();
+
+        try { Log::entry('usuario', 'Ban ' . ($new ? 'aplicado' : 'removido') . ' para usuario #' . $u->id, $actor->id, 'usuario', $u->id, route('users.show', $u->id)); } catch (\Throwable $e) {}
+
+        if ($request->wantsJson()) return response()->json(['baneado' => (bool)$new]);
+
+        return redirect()->back()->with('success', $new ? 'Usuario baneado correctamente.' : 'Ban removido correctamente.');
+    }
+
     public function changeRol(Request $request, $id)
     {
         $u = User::find($id);
