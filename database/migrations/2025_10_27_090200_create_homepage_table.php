@@ -15,6 +15,7 @@ return new class extends Migration
             $table->string('ubicacion', 255)->nullable();
             $table->string('eslogan', 255)->nullable();
             $table->string('nombre_empresa', 255)->nullable();
+            $table->json('meta')->nullable();
             $table->timestamps();
         });
     }

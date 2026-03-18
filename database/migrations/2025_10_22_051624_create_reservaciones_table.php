@@ -20,6 +20,7 @@ return new class extends Migration
             $table->unsignedInteger('num_personas')->default(1);
             $table->decimal('total', 10, 2);
             $table->enum('estado', ['pendiente', 'confirmada', 'cancelada', 'completada'])->default('pendiente');
+            $table->string('estado_pago', 50)->nullable()->default('pendiente');
             $table->string('nota', 500)->nullable();
             $table->timestamps();
 

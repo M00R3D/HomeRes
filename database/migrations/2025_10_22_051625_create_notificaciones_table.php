@@ -19,6 +19,7 @@ return new class extends Migration
             $table->enum('estado', ['cerrada', 'abierta', 'vista'])->default('cerrada');
             $table->enum('tipo', ['info', 'confirmacion', 'pago', 'alerta', 'mantenimiento'])->default('info');
             $table->string('descripcion', 500);
+            $table->string('link', 512)->nullable();
             $table->timestamp('fecha_creacion')->useCurrent();
             $table->timestamp('fecha_visto')->nullable();
 

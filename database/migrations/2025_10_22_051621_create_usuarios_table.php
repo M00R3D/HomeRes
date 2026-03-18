@@ -17,8 +17,13 @@ return new class extends Migration
             $table->string('apellido', 100)->nullable();
             $table->string('email', 150)->unique()->nullable();
             $table->string('password', 255);
+            $table->rememberToken();
+            $table->integer('intentos_cvv')->default(0);
+            $table->boolean('bloqueo_tarjetas')->default(false);
+            $table->boolean('baneado')->default(false);
             $table->enum('rol', ['admin', 'recepcionista', 'cliente'])->default('cliente');
             $table->string('area', 100)->nullable();
+            $table->unsignedBigInteger('id_tarjeta')->nullable();
             $table->timestamps();
         });
     }

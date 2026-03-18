@@ -25,6 +25,18 @@ return new class extends Migration
                 $table->integer('font_size')->default(16); // px base
                 $table->json('button_variants')->nullable();
                 $table->json('meta')->nullable();
+                $table->string('bg_gradient_start', 32)->nullable();
+                $table->string('bg_gradient_end', 32)->nullable();
+                $table->integer('bg_gradient_angle')->nullable()->default(90);
+                $table->tinyInteger('bg_animated')->default(0);
+                $table->string('sidebar_gradient_start', 32)->nullable();
+                $table->string('sidebar_gradient_end', 32)->nullable();
+                $table->integer('sidebar_gradient_angle')->nullable()->default(90);
+                $table->tinyInteger('sidebar_animated')->default(0);
+                $table->string('hover_animation', 60)->nullable()->default('none');
+                $table->double('hover_animation_duration')->default(0.18);
+                $table->string('float_animation', 60)->nullable()->default('none');
+                $table->double('float_animation_duration')->default(6.0);
                 $table->timestamps();
             });
         }

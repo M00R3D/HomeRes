@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PropiedadController;
@@ -39,16 +40,28 @@ Route::get('/dashboard', function () {
     $usuarios = User::all();
     $propiedades = Propiedad::all();
 
+    $hasPagoCodigoQr = Schema::hasColumn('pagos', 'codigo_qr');
+    $hasPagoUsuarioId = Schema::hasColumn('pagos', 'usuario_id');
+
     $paymentsQ = Payment::with(['reservation.user','reservation.propiedad'])
         ->where('estado', 'pagado')
-        ->whereNotNull('codigo_qr')
         ->orderByDesc('id');
+    if ($hasPagoCodigoQr) {
+        $paymentsQ->whereNotNull('codigo_qr');
+    }
+
     if (! $currentUser || (($currentUser->rol ?? '') !== 'admin')) {
-        $paymentsQ->where(function ($q) use ($currentUser) {
-            $q->where('usuario_id', $currentUser?->id)
-              ->orWhereHas('reservation', function ($rq) use ($currentUser) {
-                  $rq->where('usuario_id', $currentUser?->id);
-              });
+        $paymentsQ->where(function ($q) use ($currentUser, $hasPagoUsuarioId) {
+            if ($hasPagoUsuarioId) {
+                $q->where('usuario_id', $currentUser?->id)
+                  ->orWhereHas('reservation', function ($rq) use ($currentUser) {
+                      $rq->where('usuario_id', $currentUser?->id);
+                  });
+            } else {
+                $q->whereHas('reservation', function ($rq) use ($currentUser) {
+                    $rq->where('usuario_id', $currentUser?->id);
+                });
+            }
         });
     }
     $dashboardPayments = $paymentsQ->take(8)->get();

@@ -13,6 +13,9 @@ return new class extends Migration
                 $table->id();
                 $table->string('tipo', 100)->nullable(false);
                 $table->text('mensaje');
+                $table->unsignedBigInteger('usuario_id')->nullable();
+                $table->unsignedBigInteger('referencia_id')->nullable();
+                $table->string('referencia_tipo', 50)->nullable();
                 $table->timestamps();
             });
         }
