@@ -115,7 +115,6 @@
 
         <p class="links">
           <a href="#" id="open-register">¿No tienes cuenta? Regístrate</a> ·
-          <a href="#" id="forgot-password">¿Olvidaste tu contraseña?</a>
         </p>
       </form>
     </div>
