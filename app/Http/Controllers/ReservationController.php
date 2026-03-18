@@ -6,8 +6,10 @@ use Illuminate\Http\Request;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Models\Propiedad;
+use App\Models\Payment;
 use App\Models\Log;
 use Carbon\Carbon; 
+use Illuminate\Support\Str;
 
 class ReservationController extends Controller
 {
@@ -138,8 +140,15 @@ class ReservationController extends Controller
         $usuarios = User::all();
         $propiedades = Propiedad::all();
         $currentUser = auth()->user();
+        $paidPayment = Payment::where('reservacion_id', $r->id)
+            ->where('estado', 'pagado')
+            ->orderByDesc('id')
+            ->first();
+        if ($paidPayment) {
+            $this->ensurePaymentQrCode($paidPayment);
+        }
 
-        return view('reservaciones.show', compact('r','usuarios','propiedades','currentUser'));
+        return view('reservaciones.show', compact('r','usuarios','propiedades','currentUser','paidPayment'));
     }
 
     public function editView(Request $request, $id)
@@ -230,5 +239,31 @@ class ReservationController extends Controller
         }
 
         return redirect()->route('reservaciones.index')->with('success', 'Estado actualizado');
+    }
+
+    private function ensurePaymentQrCode(Payment $payment): void
+    {
+        if (strtolower((string) $payment->estado) !== 'pagado') {
+            return;
+        }
+
+        if (! empty($payment->codigo_qr)) {
+            return;
+        }
+
+        $reservationPart = 'R' . (int) ($payment->reservacion_id ?? 0);
+        $paymentPart = 'P' . (int) $payment->id;
+
+        for ($i = 0; $i < 5; $i++) {
+            $candidate = $reservationPart . '-' . $paymentPart . '-' . strtoupper(Str::random(8));
+            if (Payment::where('codigo_qr', $candidate)->exists()) {
+                continue;
+            }
+
+            $payment->codigo_qr = $candidate;
+            $payment->codigo_qr_generado_en = now();
+            $payment->save();
+            return;
+        }
     }
 }

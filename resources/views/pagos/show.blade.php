@@ -46,6 +46,20 @@
         @else
           <p>No hay tarjeta asociada.</p>
         @endif
+
+        @if(($payment->estado ?? '') === 'pagado' && !empty($payment->codigo_qr))
+          @php
+            $qrPayload = 'HOMERES|RES:' . ($payment->reservacion_id ?? '-') . '|PAGO:' . ($payment->id ?? '-') . '|COD:' . ($payment->codigo_qr ?? '');
+            $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' . rawurlencode($qrPayload);
+          @endphp
+          <hr />
+          <h4 style="margin:8px 0">Código de llegada</h4>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start;">
+            <img src="{{ $qrUrl }}" alt="QR reservación pagada" style="width:220px;height:220px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;padding:8px;">
+            <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:800;color:#0f172a;">{{ $payment->codigo_qr }}</div>
+            <div class="small">Muestra este QR o código al llegar a la propiedad.</div>
+          </div>
+        @endif
       </div>
     </div>
   </div>

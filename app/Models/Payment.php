@@ -17,9 +17,16 @@ class Payment extends Model
         'monto',
         'metodo_pago',
         'estado',
+        'codigo_qr',
+        'codigo_qr_generado_en',
         'fecha_pago',
         'usuario_id',
     ];
+
+    protected $casts = [
+        'codigo_qr_generado_en' => 'datetime',
+    ];
+
     public $timestamps = false;
 
     public function reservation() { return $this->belongsTo(Reservation::class, 'reservacion_id', 'id'); }

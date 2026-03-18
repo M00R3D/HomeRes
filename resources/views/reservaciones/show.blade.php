@@ -251,6 +251,23 @@
           <dt class="small">Actualizada</dt><dd>{{ $r->updated_at }}</dd>
         </dl>
       </div>
+
+      @if(!empty($paidPayment) && !empty($paidPayment->codigo_qr))
+        @php
+          $qrPayload = 'HOMERES|RES:' . ($r->id ?? '-') . '|PAGO:' . ($paidPayment->id ?? '-') . '|COD:' . ($paidPayment->codigo_qr ?? '');
+          $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' . rawurlencode($qrPayload);
+        @endphp
+        <div style="margin-top:14px;background:#fff;padding:14px;border-radius:10px;box-shadow:0 8px 28px rgba(2,6,23,0.06);">
+          <h3 style="margin:0 0 8px 0;">Código QR de llegada</h3>
+          <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+            <img src="{{ $qrUrl }}" alt="QR reservación pagada" style="width:220px;height:220px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;padding:8px;">
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:800;color:#0f172a;font-size:1rem;">{{ $paidPayment->codigo_qr }}</div>
+              <div class="small">Este código está ligado al pago #{{ $paidPayment->id }} y debe mostrarse al llegar a la propiedad.</div>
+            </div>
+          </div>
+        </div>
+      @endif
     </div>
 
   </div>

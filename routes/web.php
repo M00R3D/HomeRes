@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\StyleController;
 use App\Models\Reservation;
 use App\Models\User;
 use App\Models\Propiedad;
+use App\Models\Payment;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\Admin\ThemeController;
 Route::middleware('guest')->group(function () {
@@ -27,11 +28,32 @@ Route::middleware('auth')->group(function(){
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth')->name('logout');
 Route::get('/admin/logs', [LogController::class, 'index'])->middleware('auth')->name('admin.logs');
 Route::get('/dashboard', function () {
-    $reservaciones = Reservation::with(['user','propiedad'])->orderByDesc('created_at')->get();
+    $currentUser = auth()->user();
+
+    $reservacionesQ = Reservation::with(['user','propiedad'])->orderByDesc('created_at');
+    if (! $currentUser || (($currentUser->rol ?? '') !== 'admin')) {
+        $reservacionesQ->where('usuario_id', $currentUser?->id);
+    }
+    $reservaciones = $reservacionesQ->get();
+
     $usuarios = User::all();
     $propiedades = Propiedad::all();
-    $currentUser = auth()->user();
-    return view('dashboard', compact('reservaciones','usuarios','propiedades','currentUser'));
+
+    $paymentsQ = Payment::with(['reservation.user','reservation.propiedad'])
+        ->where('estado', 'pagado')
+        ->whereNotNull('codigo_qr')
+        ->orderByDesc('id');
+    if (! $currentUser || (($currentUser->rol ?? '') !== 'admin')) {
+        $paymentsQ->where(function ($q) use ($currentUser) {
+            $q->where('usuario_id', $currentUser?->id)
+              ->orWhereHas('reservation', function ($rq) use ($currentUser) {
+                  $rq->where('usuario_id', $currentUser?->id);
+              });
+        });
+    }
+    $dashboardPayments = $paymentsQ->take(8)->get();
+
+    return view('dashboard', compact('reservaciones','usuarios','propiedades','currentUser','dashboardPayments'));
 })->middleware('auth')->name('dashboard');
 Route::middleware('auth')->group(function () {
     Route::resource('users', UserController::class)->names('users');
@@ -42,6 +64,9 @@ Route::middleware('auth')->group(function () {
     Route::get('propiedades/create', [PropiedadController::class, 'create'])->name('propiedades.create');
     Route::resource('notificaciones', NotificationController::class)->names('notificaciones');
     Route::resource('pagos', \App\Http\Controllers\PaymentController::class)->names('pagos');
+    Route::get('/mis-pagos', [\App\Http\Controllers\PaymentController::class, 'myPayments'])->name('pagos.mine');
+    Route::get('/mis-codigos', [\App\Http\Controllers\PaymentController::class, 'myCodes'])->name('pagos.codes');
+    Route::get('/mis-codigos/{id}', [\App\Http\Controllers\PaymentController::class, 'showCode'])->name('pagos.codes.show');
     Route::post('pagos/procesar', [\App\Http\Controllers\PaymentController::class, 'procesarPago'])->name('pagos.procesar');
     Route::get('/reservaciones/{id}/pagar', [\App\Http\Controllers\PaymentController::class, 'form'])->name('pagos.form');
     Route::post('tarjetas/{id}/deposit', [\App\Http\Controllers\TarjetaSimuladaController::class,'deposit'])->name('tarjetas.deposit');

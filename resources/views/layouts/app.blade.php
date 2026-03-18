@@ -457,12 +457,14 @@
       <a class="nav-item" href="/reservaciones">Reservaciones</a>
       <a class="nav-item" href="/propiedades">Propiedades</a>
       <a class="nav-item" href="/notificaciones">Notificaciones</a>
+      <a class="nav-item" href="{{ route('pagos.mine') }}">{{ $effectiveIsAdmin ? 'Pagos (vista)' : 'Mis pagos' }}</a>
+      <a class="nav-item" href="{{ route('pagos.codes') }}">{{ $effectiveIsAdmin ? 'Códigos QR' : 'Mis códigos' }}</a>
       <a class="nav-item" href="{{ route('tarjetas.index') }}">Tarjetas</a>
       @if($effectiveIsAdmin)
         <a class="nav-item" href="/users">Usuarios</a>
         <a class="nav-item" href="{{ route('admin.logs') }}">Logs</a>
         <a class="nav-item" href="{{ route('images.index') }}">Imágenes</a>
-        <a class="nav-item" href="{{ route('pagos.index') }}">Pagos</a>
+        <a class="nav-item" href="{{ route('pagos.index') }}">Gestión pagos</a>
         <a class="nav-item" href="{{ route('admin.themes') }}">Apariencia</a>
       @endif
       <form method="POST" action="{{ route('logout') }}" class="nav-item logout-form" style="display:flex;">

@@ -11,11 +11,16 @@ use App\Models\User;
 use App\Models\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 class PaymentController extends Controller
 {
     public function index(Request $request)
     {
+        if (! $this->isAdmin(auth()->user())) {
+            return redirect()->route('pagos.mine');
+        }
+
         $q = Payment::query()->with(['reservation','tarjeta.assignedUser']);
         $payments = $q->orderByDesc('id')->paginate(15);
 
@@ -27,8 +32,87 @@ class PaymentController extends Controller
         return view('pagos.index', compact('payments','reservaciones','tarjetas'));
     }
 
+    public function myPayments(Request $request)
+    {
+        $user = auth()->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        $query = Payment::query()->with(['reservation.user','reservation.propiedad','tarjeta.assignedUser']);
+        $this->applyRolePaymentFilter($query, $user);
+        $payments = $query->orderByDesc('id')->paginate(20);
+
+        if ($request->wantsJson()) {
+            return response()->json($payments);
+        }
+
+        return view('pagos.mine', [
+            'payments' => $payments,
+            'currentUser' => $user,
+            'isAdmin' => $this->isAdmin($user),
+        ]);
+    }
+
+    public function myCodes(Request $request)
+    {
+        $user = auth()->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        $query = Payment::query()
+            ->with(['reservation.user','reservation.propiedad'])
+            ->where('estado', 'pagado')
+            ->whereNotNull('codigo_qr');
+        $this->applyRolePaymentFilter($query, $user);
+        $codes = $query->orderByDesc('id')->paginate(20);
+
+        if ($request->wantsJson()) {
+            return response()->json($codes);
+        }
+
+        return view('pagos.codes', [
+            'codes' => $codes,
+            'currentUser' => $user,
+            'isAdmin' => $this->isAdmin($user),
+        ]);
+    }
+
+    public function showCode(Request $request, $id)
+    {
+        $user = auth()->user();
+        if (! $user) {
+            abort(403);
+        }
+
+        $query = Payment::query()
+            ->with(['reservation.user','reservation.propiedad'])
+            ->where('estado', 'pagado')
+            ->whereNotNull('codigo_qr');
+        $this->applyRolePaymentFilter($query, $user);
+        $payment = $query->where('id', $id)->first();
+        if (! $payment) {
+            abort(404);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json($payment);
+        }
+
+        return view('pagos.code_show', [
+            'payment' => $payment,
+            'currentUser' => $user,
+            'isAdmin' => $this->isAdmin($user),
+        ]);
+    }
+
     public function store(Request $request)
     {
+        if (! $this->isAdmin(auth()->user())) {
+            abort(403);
+        }
+
         $request->validate([
             'reservacion_id' => 'nullable|exists:reservaciones,id',
             'tarjeta_id' => 'nullable|exists:tarjetas_simuladas,id',
@@ -40,6 +124,7 @@ class PaymentController extends Controller
 
         $data = $request->only(['reservacion_id','tarjeta_id','monto','metodo_pago','estado','fecha_pago']);
         $payment = Payment::create($data);
+        $this->ensurePaymentQrCode($payment);
 
         try { Log::entry('pago', 'Pago creado: #' . $payment->id, auth()->id(), 'reservacion', $payment->reservacion_id, route('pagos.show', $payment->id)); } catch (\Throwable $e) {}
 
@@ -49,8 +134,12 @@ class PaymentController extends Controller
 
     public function show(Request $request, $id)
     {
-        $p = Payment::with(['reservation','tarjeta'])->find($id);
+        $query = Payment::query()->with(['reservation','tarjeta']);
+        $this->applyRolePaymentFilter($query, auth()->user());
+        $p = $query->where('id', $id)->first();
         if (!$p) return $request->wantsJson() ? response()->json(['message'=>'No encontrado'],404) : abort(404);
+        $this->ensurePaymentQrCode($p);
+        $p->loadMissing(['reservation','tarjeta']);
         if ($request->wantsJson()) return response()->json($p);
         return view('pagos.show', ['payment' => $p]);
     }
@@ -87,6 +176,10 @@ class PaymentController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (! $this->isAdmin(auth()->user())) {
+            abort(403);
+        }
+
         $p = Payment::find($id);
         if (!$p) return $request->wantsJson() ? response()->json(['message'=>'No encontrado'],404) : abort(404);
 
@@ -100,6 +193,7 @@ class PaymentController extends Controller
         ]);
 
         $p->update($request->only(['reservacion_id','tarjeta_id','monto','metodo_pago','estado','fecha_pago']));
+        $this->ensurePaymentQrCode($p);
         try { Log::entry('pago', 'Pago actualizado: #' . $p->id, auth()->id(), 'reservacion', $p->reservacion_id, route('pagos.show', $p->id)); } catch (\Throwable $e) {}
         if ($request->wantsJson()) return response()->json($p);
         return redirect()->route('pagos.index')->with('success','Pago actualizado');
@@ -107,6 +201,10 @@ class PaymentController extends Controller
 
     public function destroy(Request $request, $id)
     {
+        if (! $this->isAdmin(auth()->user())) {
+            abort(403);
+        }
+
         $p = Payment::find($id);
         if (!$p) return $request->wantsJson() ? response()->json(['message'=>'No encontrado'],404) : abort(404);
         $p->delete();
@@ -211,6 +309,7 @@ class PaymentController extends Controller
                         'fecha_pago' => Carbon::now(),
                         'usuario_id' => $usuarioId,
                     ]);
+                    $this->ensurePaymentQrCode($p);
 
                     // Actualizar reservación
                     $r = Reservation::find($reservacionId);
@@ -238,6 +337,7 @@ class PaymentController extends Controller
                     'fecha_pago' => Carbon::now(),
                     'usuario_id' => $usuarioId,
                 ]);
+                $this->ensurePaymentQrCode($p);
 
                 $r = Reservation::find($reservacionId);
                 if ($r) {
@@ -281,5 +381,56 @@ class PaymentController extends Controller
             try { Log::entry('pago', 'Pago fallido: reservacion #' . $reservacionId . ' usuario #' . (auth()->id() ?? 'anon') . ' - ' . $msg, auth()->id(), 'reservacion', $reservacionId, route('reservaciones.show', $reservacionId)); } catch (\Throwable $e) {}
             return back()->withInput()->withErrors(['pagos' => $msg]);
         }
+    }
+
+    private function ensurePaymentQrCode(Payment $payment): void
+    {
+        if (strtolower((string) $payment->estado) !== 'pagado') {
+            return;
+        }
+
+        if (! empty($payment->codigo_qr)) {
+            return;
+        }
+
+        $reservationPart = 'R' . (int) ($payment->reservacion_id ?? 0);
+        $paymentPart = 'P' . (int) $payment->id;
+
+        for ($i = 0; $i < 5; $i++) {
+            $candidate = $reservationPart . '-' . $paymentPart . '-' . strtoupper(Str::random(8));
+            $exists = Payment::where('codigo_qr', $candidate)->exists();
+            if ($exists) {
+                continue;
+            }
+
+            $payment->codigo_qr = $candidate;
+            $payment->codigo_qr_generado_en = Carbon::now();
+            $payment->save();
+            return;
+        }
+    }
+
+    private function isAdmin($user): bool
+    {
+        return (bool) ($user && (($user->rol ?? '') === 'admin'));
+    }
+
+    private function applyRolePaymentFilter($query, $user): void
+    {
+        if (! $user) {
+            $query->whereRaw('1 = 0');
+            return;
+        }
+
+        if ($this->isAdmin($user)) {
+            return;
+        }
+
+        $query->where(function ($q) use ($user) {
+            $q->where('usuario_id', $user->id)
+              ->orWhereHas('reservation', function ($rq) use ($user) {
+                  $rq->where('usuario_id', $user->id);
+              });
+        });
     }
 }

@@ -7,6 +7,7 @@
   $isAdmin = ($isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin')) && $layoutPreviewMode !== 'user';
 @endphp
 @section('content')
+  @php $dashboardReservaciones = collect($reservaciones ?? []); @endphp
   <div class="page-header">
     <h1>Reservaciones</h1>
     @if ($isAdmin)
@@ -35,7 +36,7 @@
           </tr>
         </thead>
         <tbody>
-          @forelse($reservaciones ?? [] as $r)
+          @forelse($dashboardReservaciones as $r)
             <tr class="reserv-row @if(($r->estado ?? '') === 'pendiente') pending @endif @if(($r->estado ?? '') === 'cancelada') cancelled @endif"
                 data-checkin="{{ $r->check_in }}" data-checkout="{{ $r->check_out }}" data-id="{{ $r->id }}">
               <td class="estado {{ \Illuminate\Support\Str::slug($r->estado ?? 'pendiente') }}">{{ $r->estado ?? 'pendiente' }}</td>
@@ -63,6 +64,50 @@
       </table>
     </div>
   </div>
+
+  @php
+    $dashPayments = $dashboardPayments ?? collect();
+  @endphp
+
+  @if($dashPayments->isNotEmpty())
+    <div style="margin-top:16px;">
+      <h2 style="margin:0 0 10px 0;">{{ $isAdmin ? 'Pagos y códigos (todos)' : 'Mis pagos y códigos' }}</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(460px,1fr));gap:14px;">
+        @foreach($dashPayments as $p)
+          @php
+            $rawImg = $p->reservation->propiedad->ruta_img ?? null;
+            $imgUrl = null;
+            if (is_string($rawImg) && preg_match('/\.(jpg|jpeg|png|webp|gif)$/i', $rawImg)) {
+              $imgUrl = asset(ltrim($rawImg, '/\\'));
+            }
+            $qrPayload = 'HOMERES|RES:' . ($p->reservacion_id ?? '-') . '|PAGO:' . ($p->id ?? '-') . '|COD:' . ($p->codigo_qr ?? '');
+            $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' . rawurlencode($qrPayload);
+          @endphp
+          <div style="background:#fff;border-radius:12px;box-shadow:0 8px 24px rgba(2,6,23,0.06);padding:12px;display:grid;grid-template-columns:1fr 220px;gap:12px;align-items:start;">
+            <div>
+              <div style="font-weight:800;margin-bottom:6px;">Pago #{{ $p->id }} · Reservación #{{ $p->reservacion_id }}</div>
+              <div style="color:#374151;margin-bottom:4px;"><strong>Cliente:</strong> {{ $p->reservation->user->nombre ?? '-' }} {{ $p->reservation->user->apellido ?? '' }}</div>
+              <div style="color:#374151;margin-bottom:4px;"><strong>Monto:</strong> ${{ number_format($p->monto ?? 0,2,',','.') }}</div>
+              <div style="color:#374151;margin-bottom:4px;"><strong>Método:</strong> {{ $p->metodo_pago ?? '-' }}</div>
+              <div style="color:#374151;margin-bottom:8px;"><strong>Estado:</strong> {{ ucfirst($p->estado ?? '-') }}</div>
+              @if($imgUrl)
+                <img src="{{ $imgUrl }}" alt="preview propiedad" style="width:100%;max-width:280px;height:120px;object-fit:cover;border-radius:10px;border:1px solid #e5e7eb;">
+              @else
+                <div style="width:100%;max-width:280px;height:120px;display:flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid #e5e7eb;background:#f8fafc;color:#94a3b8;">Sin preview</div>
+              @endif
+            </div>
+
+            <div style="text-align:center;">
+              <img src="{{ $qrUrl }}" alt="QR pago {{ $p->id }}" style="width:200px;height:200px;border:1px solid #e5e7eb;border-radius:10px;padding:8px;background:#fff;">
+              <div style="margin-top:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:800;font-size:12px;word-break:break-all;">{{ $p->codigo_qr }}</div>
+              <button type="button" class="btn" style="margin-top:8px;" data-qr-open data-qr-src="{{ $qrUrl }}" data-qr-code="{{ $p->codigo_qr }}">Ver código grande</button>
+              <a href="{{ route('pagos.codes.show', $p->id) }}" class="link-button" style="display:inline-block;margin-top:6px;">Detalle de código</a>
+            </div>
+          </div>
+        @endforeach
+      </div>
+    </div>
+  @endif
 
   <div id="modal-new" class="modal" aria-hidden="true">
     <div class="modal-backdrop" data-close></div>
@@ -324,6 +369,39 @@
             wrapper.appendChild(firstEl); wrapper.appendChild(dots); wrapper.appendChild(lastEl); wrapper.appendChild(info); container.appendChild(wrapper);
           }
         }
+      })();
+    </script>
+
+    <div id="qr-modal" class="modal" aria-hidden="true" style="display:none;position:fixed;inset:0;z-index:21000;">
+      <div class="modal-backdrop" data-qr-close></div>
+      <div class="modal-panel" style="max-width:520px;position:relative;">
+        <button type="button" data-qr-close style="position:absolute;right:10px;top:10px;border:0;background:transparent;font-size:18px;">✕</button>
+        <h3 style="margin-top:0;">Código QR (check-in)</h3>
+        <div style="display:flex;justify-content:center;">
+          <img id="qr-modal-img" src="" alt="QR grande" style="width:420px;height:420px;max-width:100%;max-height:70vh;border:1px solid #e5e7eb;border-radius:12px;padding:10px;background:#fff;">
+        </div>
+        <div id="qr-modal-code" style="margin-top:10px;text-align:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:800;"></div>
+      </div>
+    </div>
+
+    <script>
+      (function(){
+        const modal = document.getElementById('qr-modal');
+        const img = document.getElementById('qr-modal-img');
+        const code = document.getElementById('qr-modal-code');
+        document.querySelectorAll('[data-qr-open]').forEach((btn) => {
+          btn.addEventListener('click', function(){
+            if(!modal || !img || !code) return;
+            img.src = btn.getAttribute('data-qr-src') || '';
+            code.textContent = btn.getAttribute('data-qr-code') || '';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+          });
+        });
+        document.querySelectorAll('[data-qr-close]').forEach((btn) => {
+          btn.addEventListener('click', function(){ if(modal){ modal.style.display = 'none'; } });
+        });
       })();
     </script>
 
