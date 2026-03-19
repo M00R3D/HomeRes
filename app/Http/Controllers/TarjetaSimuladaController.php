@@ -109,6 +109,11 @@ class TarjetaSimuladaController extends Controller
 
     public function deposit(Request $request, $id)
     {
+        $actor = $request->user();
+        if (! $actor || ($actor->rol ?? '') !== 'admin') {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
         $request->validate(['monto' => 'required|numeric|min:0.01']);
         $m = floatval($request->input('monto'));
         return $this->changeBalance($id, $m, 'Ingreso de saldo');
@@ -116,6 +121,11 @@ class TarjetaSimuladaController extends Controller
 
     public function withdraw(Request $request, $id)
     {
+        $actor = $request->user();
+        if (! $actor || ($actor->rol ?? '') !== 'admin') {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
         $request->validate(['monto' => 'required|numeric|min:0.01']);
         $m = floatval($request->input('monto'));
         return $this->changeBalance($id, -$m, 'Retiro de saldo');

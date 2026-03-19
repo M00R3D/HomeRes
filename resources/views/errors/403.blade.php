@@ -19,7 +19,7 @@
   <div class="box">
     <div class="code">403</div>
     <h1>Acceso denegado</h1>
-    <p>No tienes permisos para realizar esta acción. Si crees que esto es un error, contacta al administrador.</p>
+    <p>{{ $message ?? 'No tienes permisos para realizar esta accion. Si crees que esto es un error, contacta al administrador.' }}</p>
     <a class="btn" href="{{ url()->previous() ?: url('/') }}">Volver</a>
   </div>
 </body>

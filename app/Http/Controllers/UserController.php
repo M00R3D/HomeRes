@@ -50,6 +50,11 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
+        $actor = $request->user();
+        if (! $actor || ($actor->rol ?? '') !== 'admin') {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
         $request->validate([
             'nombre' => 'required|string|max:100',
             'apellido' => 'nullable|string|max:100',
@@ -151,6 +156,11 @@ class UserController extends Controller
 
     public function destroy(Request $request, $id)
     {
+        $actor = $request->user();
+        if (! $actor || ($actor->rol ?? '') !== 'admin') {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
         $u = User::find($id);
         if (!$u) {
             if ($request->wantsJson()) return response()->json(['message' => 'Usuario no encontrado'], 404);
@@ -199,6 +209,11 @@ class UserController extends Controller
 
     public function changeRol(Request $request, $id)
     {
+        $actor = $request->user();
+        if (! $actor || ($actor->rol ?? '') !== 'admin') {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
         $u = User::find($id);
         if (!$u) return response()->json(['message' => 'Usuario no encontrado'], 404);
 

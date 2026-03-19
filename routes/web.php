@@ -33,18 +33,31 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // ── Admin panel ──────────────────────────────────────────────────────────
-    Route::get('/admin/logs',            [LogController::class,  'index'])->name('admin.logs');
-    Route::get('/admin/themes',          [ThemeController::class,'index'])->name('admin.themes');
-    Route::post('/admin/themes/save',    [ThemeController::class,'save'])->name('admin.themes.save');
-    Route::post('/admin/themes/apply',   [ThemeController::class,'applyPreset'])->name('admin.themes.apply');
+    Route::middleware('admin')->group(function () {
+        Route::get('/admin/logs',            [LogController::class,  'index'])->name('admin.logs');
+        Route::get('/admin/themes',          [ThemeController::class,'index'])->name('admin.themes');
+        Route::post('/admin/themes/save',    [ThemeController::class,'save'])->name('admin.themes.save');
+        Route::post('/admin/themes/apply',   [ThemeController::class,'applyPreset'])->name('admin.themes.apply');
+    });
 
     // ── Users ─────────────────────────────────────────────────────────────────
-    Route::resource('users', UserController::class)->names('users');
-    Route::post('/users/{id}/toggle-bloqueo', [UserController::class,'toggleBloqueo'])->name('users.toggleBloqueo');
-    Route::post('/users/{id}/toggle-ban',     [UserController::class,'toggleBan'])->name('users.toggleBan');
+    Route::middleware('admin')->group(function () {
+        Route::resource('users', UserController::class)->names('users');
+        Route::post('/users/{id}/toggle-bloqueo', [UserController::class,'toggleBloqueo'])->name('users.toggleBloqueo');
+        Route::post('/users/{id}/toggle-ban',     [UserController::class,'toggleBan'])->name('users.toggleBan');
+    });
 
-    // ── Properties ───────────────────────────────────────────────────────────
-    Route::resource('propiedades', PropiedadController::class)->names('propiedades');
+    // ── Properties (non-admin: browse/reserve only) ────────────────────────
+    Route::get('/propiedades',                   [PropiedadController::class,'index'])->name('propiedades.index');
+    Route::get('/propiedades/{propiedade}',      [PropiedadController::class,'show'])->name('propiedades.show');
+
+    Route::middleware('admin')->group(function () {
+        Route::get('/propiedades/create',            [PropiedadController::class,'create'])->name('propiedades.create');
+        Route::post('/propiedades',                  [PropiedadController::class,'store'])->name('propiedades.store');
+        Route::get('/propiedades/{propiedade}/edit', [PropiedadController::class,'edit'])->name('propiedades.edit');
+        Route::match(['put','patch'], '/propiedades/{propiedade}', [PropiedadController::class,'update'])->name('propiedades.update');
+        Route::delete('/propiedades/{propiedade}',   [PropiedadController::class,'destroy'])->name('propiedades.destroy');
+    });
 
     // ── Reservations ─────────────────────────────────────────────────────────
     Route::get('/propiedades/{id}/reservar',       [ReservationController::class,'createForPropiedad'])->name('reservaciones.create_for_propiedad');
@@ -64,11 +77,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/mis-codigos',           [PaymentController::class,'myCodes'])->name('pagos.codes');
     Route::get('/mis-codigos/{id}',      [PaymentController::class,'showCode'])->name('pagos.codes.show');
     Route::get('/reservaciones/{id}/pagar', [PaymentController::class,'form'])->name('pagos.form');
-    Route::resource('pagos', PaymentController::class)->names('pagos');
+    Route::middleware('admin')->group(function () {
+        Route::resource('pagos', PaymentController::class)->names('pagos');
+    });
 
     // ── Tarjetas (specific routes before resource) ────────────────────────────
-    Route::post('/tarjetas/{id}/deposit',    [TarjetaSimuladaController::class,'deposit'])->name('tarjetas.deposit');
-    Route::post('/tarjetas/{id}/withdraw',   [TarjetaSimuladaController::class,'withdraw'])->name('tarjetas.withdraw');
+    Route::post('/tarjetas/{id}/deposit',    [TarjetaSimuladaController::class,'deposit'])->middleware('admin')->name('tarjetas.deposit');
+    Route::post('/tarjetas/{id}/withdraw',   [TarjetaSimuladaController::class,'withdraw'])->middleware('admin')->name('tarjetas.withdraw');
     Route::post('/tarjetas/{id}/assign',     [TarjetaSimuladaController::class,'assign'])->name('tarjetas.assign');
     Route::get('/tarjetas/check',            [TarjetaSimuladaController::class,'check'])->name('tarjetas.check');
     Route::post('/tarjetas/create-random',   [TarjetaSimuladaController::class,'createRandom'])->name('tarjetas.create_random');
@@ -87,14 +102,20 @@ Route::middleware('auth')->group(function () {
     Route::post('/profile/notifications/preferences', [NotificationController::class,'savePreferences'])->name('notifications.preferences.save');
 
     // ── Homepage ──────────────────────────────────────────────────────────────
-    Route::resource('homepage', HomepageController::class)
-        ->only(['index','store','update','show','destroy'])
-        ->names('homepage');
+    Route::get('/homepage', [HomepageController::class, 'index'])->name('homepage.index');
+    Route::middleware('admin')->group(function () {
+        Route::post('/homepage',               [HomepageController::class, 'store'])->name('homepage.store');
+        Route::get('/homepage/{homepage}',     [HomepageController::class, 'show'])->name('homepage.show');
+        Route::match(['put','patch'], '/homepage/{homepage}', [HomepageController::class, 'update'])->name('homepage.update');
+        Route::delete('/homepage/{homepage}',  [HomepageController::class, 'destroy'])->name('homepage.destroy');
+    });
 
-    // ── Images ────────────────────────────────────────────────────────────────
-    Route::get('/imagenes',        [ImageController::class,'index'])->name('images.index');
-    Route::get('/imagenes/dirs',   [ImageController::class,'dirs'])->name('images.dirs');
-    Route::post('/imagenes/upload',[ImageController::class,'upload'])->name('images.upload');
-    Route::get('/imagenes/list',   [ImageController::class,'list'])->name('images.list');
+    // ── Images (admin-only) ──────────────────────────────────────────────────
+    Route::middleware('admin')->group(function () {
+        Route::get('/imagenes',         [ImageController::class,'index'])->name('images.index');
+        Route::get('/imagenes/dirs',    [ImageController::class,'dirs'])->name('images.dirs');
+        Route::post('/imagenes/upload', [ImageController::class,'upload'])->name('images.upload');
+        Route::get('/imagenes/list',    [ImageController::class,'list'])->name('images.list');
+    });
 });
 
