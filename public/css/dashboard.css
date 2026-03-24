@@ -521,6 +521,14 @@ label.field .label-text { margin-bottom:8px; }
 /* Keep `.topbar-right` in the flex layout (not absolute). This prevents
   it from shifting when the sidebar gains the `sidebar-collapsed` class. */
 .topbar-right{ position: static !important; right: auto !important; top: auto !important; display:flex; gap:10px; align-items:center; margin-left:auto; }
+/* When the sidebar is on the right, add a right margin so topbar controls
+   don't overlap the sidebar. Match the sidebar width (260px) and keep a
+   small gap; reduce margin when the sidebar is collapsed or on small screens. */
+body.sidebar-right .topbar-right { margin-right: calc(100px + 12px); }
+body.sidebar-right.sidebar-collapsed .topbar-right { margin-right:calc(30px +12px)}
+@media (max-width:900px){
+  body.sidebar-right .topbar-right { margin-right: 46px; }
+}
 .notification-bell{ margin-right:0; }
 .notification-toast{ min-width:280px; max-width:360px; }
 
