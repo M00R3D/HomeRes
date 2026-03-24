@@ -17,8 +17,30 @@
 .pr-container{max-width:1100px;margin:18px auto;padding:12px;}
 .pr-grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap:16px; }
 .pr-card{ background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(2,6,23,0.06); overflow:hidden; display:flex;flex-direction:column; }
-.pr-thumb{ width:100%;height:160px; background:#f3f4f6; display:flex;align-items:center;justify-content:center; overflow:hidden; }
-.pr-thumb img{ width:100%;height:100%;object-fit:cover;display:block; }
+.pr-thumb{ width:100%;height:190px; background:#f3f4f6; display:flex;align-items:center;justify-content:center; overflow:hidden; position:relative; }
+.pr-thumb.pr-thumb-admin{ height:72px; border-radius:10px; }
+.pr-carousel{ position:relative; width:100%; height:100%; overflow:hidden; border-radius:inherit; --mx:50%; --my:50%; }
+.pr-track{ display:flex; width:100%; height:100%; transition:transform .7s cubic-bezier(.22,.61,.36,1); }
+.pr-slide{ flex:0 0 100%; height:100%; position:relative; overflow:hidden; }
+.pr-slide img{ width:100%; height:100%; object-fit:cover; display:block; transform:scale(1.03); transition:transform .8s ease, filter .45s ease; filter:saturate(1.02) contrast(1.02); }
+.pr-slide::before{ content:''; position:absolute; inset:0; pointer-events:none; background:radial-gradient(circle at var(--mx) var(--my), rgba(255,255,255,0.22), rgba(255,255,255,0) 42%); opacity:0; transition:opacity .28s ease; }
+.pr-slide::after{ content:''; position:absolute; inset:auto 0 0 0; height:42%; background:linear-gradient(to top, rgba(2,6,23,.42), rgba(2,6,23,0)); pointer-events:none; }
+.pr-carousel:hover .pr-slide::before{ opacity:1; }
+.pr-carousel:hover .pr-slide img{ transform:scale(1.09); filter:saturate(1.12) contrast(1.08); }
+.pr-carousel.is-paused .pr-slide img{ transition-duration:.35s; }
+.pr-nav{ position:absolute; top:50%; transform:translateY(-50%); width:32px; height:32px; border-radius:999px; border:0; background:rgba(15,23,42,.56); color:#fff; font-weight:800; cursor:pointer; opacity:0; transition:opacity .2s ease, transform .2s ease, background .2s ease; z-index:2; }
+.pr-nav:hover{ background:rgba(2,6,23,.82); }
+.pr-nav.prev{ left:8px; }
+.pr-nav.next{ right:8px; }
+.pr-carousel:hover .pr-nav{ opacity:1; }
+.pr-carousel:hover .pr-nav.prev{ transform:translateY(-50%) translateX(0); }
+.pr-carousel:hover .pr-nav.next{ transform:translateY(-50%) translateX(0); }
+.pr-dots{ position:absolute; left:50%; bottom:8px; transform:translateX(-50%); display:flex; gap:6px; z-index:2; }
+.pr-dot{ width:7px; height:7px; border-radius:999px; border:0; background:rgba(255,255,255,.55); cursor:pointer; padding:0; }
+.pr-dot.active{ width:20px; background:#fff; }
+.pr-badge{ position:absolute; left:8px; top:8px; z-index:2; background:rgba(2,6,23,.6); color:#fff; font-size:.72rem; font-weight:700; border-radius:999px; padding:3px 8px; }
+.pr-zoom-hint{ position:absolute; right:8px; top:8px; z-index:2; color:#fff; background:rgba(2,6,23,.45); padding:3px 8px; border-radius:999px; font-size:.7rem; opacity:0; transition:opacity .25s ease; }
+.pr-carousel:hover .pr-zoom-hint{ opacity:1; }
 .pr-body{ padding:12px; display:flex;flex-direction:column; gap:8px; flex:1; }
 .pr-title{ font-weight:800; color:#111827; }
 .pr-meta{ color:#6b7280; font-size:0.95rem; }
@@ -26,9 +48,6 @@
 .pr-btn{ padding:8px 10px;border-radius:8px;border:0;font-weight:700;cursor:pointer; }
 .pr-btn.edit{ background:linear-gradient(90deg,#06b6d4,#6366f1); color:#fff; }
 .pr-btn.delete{ background:linear-gradient(90deg,#ef4444,#f97316); color:#fff; }
-.pr-comments{ border-top:1px solid #f3f4f6; padding:10px; background:#fbfdff; font-size:0.95rem; }
-.pr-comment{ margin-bottom:8px; }
-.pr-comment .by{ color:#6b7280; font-weight:700; font-size:0.9rem; }
 .list-view .table-responsive { overflow:auto; }
 .muted{ color:#6b7280; }
 .action-btn{ padding:8px 10px;border-radius:8px;border:0;font-weight:700;cursor:pointer; }
@@ -38,6 +57,10 @@
 .field { display:block;margin-bottom:10px; }
 .label-text{ display:block;font-weight:700;margin-bottom:6px; }
 .service-chip{ background:#f3f4f6;padding:6px 8px;border-radius:999px;display:inline-flex;gap:8px;align-items:center;font-weight:600;color:#111; }
+@media (max-width: 768px){
+  .pr-thumb{ height:176px; }
+  .pr-nav{ opacity:1; width:30px; height:30px; }
+}
 </style>
 
 <div class="pr-container">
@@ -80,7 +103,7 @@
             <tr>
               <td style="width:120px;">
                 @php
-                  $thumbUrl = null;
+                  $gallery = [];
                   if (!empty($prop->ruta_img)) {
                     $ruta = ltrim($prop->ruta_img, '/\\');
                     $full = public_path($ruta);
@@ -88,18 +111,30 @@
                       $files = @scandir($full) ?: [];
                       foreach ($files as $f) {
                         $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
-                        if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) { $thumbUrl = asset($ruta . '/' . $f); break; }
+                        if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) { $gallery[] = asset($ruta . '/' . $f); }
                       }
                     } elseif (is_file($full)) {
-                      $thumbUrl = asset($ruta);
-                    } else {
-                      // if ruta looks like a file path with extension but file missing, leave thumb null
-                      if (pathinfo($ruta, PATHINFO_EXTENSION)) { $thumbUrl = null; }
+                      $gallery[] = asset($ruta);
                     }
                   }
                 @endphp
-                @if($thumbUrl)
-                  <img src="{{ $thumbUrl }}" style="width:100px;height:64px;object-fit:cover;border-radius:8px;">
+                @if(!empty($gallery))
+                  <div class="pr-thumb pr-thumb-admin">
+                    <div class="pr-carousel" data-pr-carousel data-interval="3800">
+                      <div class="pr-track" data-pr-track>
+                        @foreach($gallery as $gi => $g)
+                          <div class="pr-slide" data-pr-slide>
+                            <img src="{{ $g }}" alt="{{ $prop->nombre }} {{ $gi + 1 }}">
+                          </div>
+                        @endforeach
+                      </div>
+                      @if(count($gallery) > 1)
+                        <button type="button" class="pr-nav prev" data-pr-prev aria-label="Anterior">‹</button>
+                        <button type="button" class="pr-nav next" data-pr-next aria-label="Siguiente">›</button>
+                        <div class="pr-dots" data-pr-dots></div>
+                      @endif
+                    </div>
+                  </div>
                 @else
                   <div style="width:100px;height:64px;background:#f3f4f6;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;">Sin imagen</div>
                 @endif
@@ -133,7 +168,7 @@
     <div class="pr-grid" role="list">
       @forelse($propiedades ?? [] as $prop)
         @php
-          $img = null;
+          $gallery = [];
           if (!empty($prop->ruta_img)) {
             $ruta = ltrim($prop->ruta_img, '/\\');
             $full = public_path($ruta);
@@ -141,23 +176,33 @@
               $files = @scandir($full) ?: [];
               foreach ($files as $f) {
                 $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
-                if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) { $img = asset($ruta . '/' . $f); break; }
+                if (in_array($ext, ['jpg','jpeg','png','webp','gif'])) { $gallery[] = asset($ruta . '/' . $f); }
               }
             } elseif (is_file($full)) {
-              $img = asset($ruta);
+              $gallery[] = asset($ruta);
             }
           }
-          $comments = Comentario::with('user')
-                      ->whereHas('reservation', function($q) use ($prop) { $q->where('propiedad_id', $prop->id); })
-                      ->orderByDesc('fecha_creacion')
-                      ->limit(3)
-                      ->get();
         @endphp
 
         <article class="pr-card" role="listitem" aria-labelledby="prop-{{ $prop->id }}">
           <div class="pr-thumb" aria-hidden="true">
-            @if($img)
-              <img src="{{ $img }}" alt="{{ $prop->nombre }}">
+            @if(!empty($gallery))
+              <div class="pr-carousel" data-pr-carousel data-interval="4200">
+                <div class="pr-track" data-pr-track>
+                  @foreach($gallery as $gi => $g)
+                    <div class="pr-slide" data-pr-slide>
+                      <img src="{{ $g }}" alt="{{ $prop->nombre }} {{ $gi + 1 }}">
+                    </div>
+                  @endforeach
+                </div>
+                <div class="pr-badge">{{ count($gallery) }} fotos</div>
+                <div class="pr-zoom-hint">hover preview</div>
+                @if(count($gallery) > 1)
+                  <button type="button" class="pr-nav prev" data-pr-prev aria-label="Anterior">‹</button>
+                  <button type="button" class="pr-nav next" data-pr-next aria-label="Siguiente">›</button>
+                  <div class="pr-dots" data-pr-dots></div>
+                @endif
+              </div>
             @else
               <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#9ca3af;">Sin imagen</div>
             @endif
@@ -175,19 +220,6 @@
               <a href="{{ route('reservaciones.create_for_propiedad', $prop->id) }}" class="pr-btn" style="background:linear-gradient(90deg,#06b6d4,#3b82f6);color:#fff;border-radius:8px;text-decoration:none;">Solicitar reserva</a>
               <div class="muted">{{ ucfirst($prop->estado) }}</div>
             </div>
-          </div>
-
-          <div class="pr-comments" aria-label="Comentarios propiedad {{ $prop->nombre }}">
-            @if($comments->isEmpty())
-              <div class="muted">Sin comentarios recientes.</div>
-            @else
-              @foreach($comments as $c)
-                <div class="pr-comment">
-                  <div class="by">{{ $c->user->nombre ?? 'Usuario' }} · <span class="muted" style="font-weight:600;font-size:0.85rem;">{{ \Carbon\Carbon::parse($c->fecha_creacion)->format('d M Y') }}</span></div>
-                  <div style="color:#374151;font-size:0.95rem;">{{ Str::limit($c->comentario, 120) }}</div>
-                </div>
-              @endforeach
-            @endif
           </div>
         </article>
       @empty
@@ -583,6 +615,70 @@ document.addEventListener('DOMContentLoaded', function(){
   });
   document.getElementById('confirm-delete-cancel')?.addEventListener('click', function(){ pendingDeleteForm = null; hide(document.getElementById('modal-confirm-delete')); });
   document.getElementById('confirm-delete-ok')?.addEventListener('click', function(){ if(pendingDeleteForm){ pendingDeleteForm.submit(); } pendingDeleteForm = null; hide(document.getElementById('modal-confirm-delete')); });
+
+  // Animated carousels for property previews (admin + user)
+  document.querySelectorAll('[data-pr-carousel]').forEach(function(car){
+    const track = car.querySelector('[data-pr-track]');
+    const slides = Array.from(car.querySelectorAll('[data-pr-slide]'));
+    const btnPrev = car.querySelector('[data-pr-prev]');
+    const btnNext = car.querySelector('[data-pr-next]');
+    const dotsWrap = car.querySelector('[data-pr-dots]');
+    if(!track || slides.length <= 1){
+      if (btnPrev) btnPrev.style.display = 'none';
+      if (btnNext) btnNext.style.display = 'none';
+      if (dotsWrap) dotsWrap.style.display = 'none';
+      return;
+    }
+
+    let idx = 0;
+    let timer = null;
+    const interval = Number(car.getAttribute('data-interval') || 4200);
+    const dots = [];
+
+    function render(){
+      track.style.transform = 'translateX(' + (-idx * 100) + '%)';
+      dots.forEach((d,i)=> d.classList.toggle('active', i === idx));
+    }
+    function go(next){
+      idx = (next + slides.length) % slides.length;
+      render();
+    }
+    function start(){
+      stop();
+      timer = setInterval(()=> go(idx + 1), interval);
+    }
+    function stop(){ if(timer){ clearInterval(timer); timer = null; } }
+
+    if (dotsWrap){
+      slides.forEach(function(_, i){
+        const d = document.createElement('button');
+        d.type = 'button';
+        d.className = 'pr-dot' + (i === 0 ? ' active' : '');
+        d.setAttribute('aria-label', 'Ir a imagen ' + (i + 1));
+        d.addEventListener('click', function(){ go(i); start(); });
+        dotsWrap.appendChild(d);
+        dots.push(d);
+      });
+    }
+
+    btnPrev?.addEventListener('click', function(e){ e.preventDefault(); go(idx - 1); start(); });
+    btnNext?.addEventListener('click', function(e){ e.preventDefault(); go(idx + 1); start(); });
+
+    car.addEventListener('mouseenter', function(){ car.classList.add('is-paused'); stop(); });
+    car.addEventListener('mouseleave', function(){ car.classList.remove('is-paused'); start(); });
+    car.addEventListener('focusin', stop);
+    car.addEventListener('focusout', start);
+
+    car.addEventListener('mousemove', function(e){
+      const r = car.getBoundingClientRect();
+      const x = ((e.clientX - r.left) / r.width) * 100;
+      const y = ((e.clientY - r.top) / r.height) * 100;
+      car.style.setProperty('--mx', x.toFixed(2) + '%');
+      car.style.setProperty('--my', y.toFixed(2) + '%');
+    });
+
+    start();
+  });
 
 });
 </script>
