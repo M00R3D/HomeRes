@@ -13,8 +13,9 @@ class UpdatePropiedadRequest extends FormRequest
 
     public function rules(): array
     {
-        // Works with both Route::resource ({propiedad}) and explicit {id} routes
-        $id = $this->route('propiedad') ?? $this->route('id');
+        // Works with both Route::resource ({propiedade}) and explicit {id} routes
+        $param = $this->route('propiedade') ?? $this->route('propiedad') ?? $this->route('id');
+        $id = ($param instanceof \App\Models\Propiedad) ? $param->id : $param;
 
         return [
             'tipo'         => 'required|in:cabaña,casa,departamento',
