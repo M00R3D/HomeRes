@@ -114,6 +114,16 @@ document.addEventListener('DOMContentLoaded', function(){
   const browserCurrentPath = document.getElementById('browser-current-path');
   const browserSelectionVal = document.getElementById('browser-selection-val');
   const browserCopyBtn = document.getElementById('browser-copy');
+  const _protectedRoots = new Set(['build', 'css', 'js', 'logos']);
+
+  function _rootFromPath(path){
+    const p = String(path || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    return p ? p.split('/')[0].toLowerCase() : '';
+  }
+
+  function _isProtectedPath(path){
+    return _protectedRoots.has(_rootFromPath(path));
+  }
 
   let currentBrowserFolder = '';
   let browserSelected = null;
@@ -140,7 +150,7 @@ document.addEventListener('DOMContentLoaded', function(){
         el.setAttribute('data-folder', f.name);
         el.style.cursor = 'pointer'; el.style.position = 'relative';
         el.addEventListener('click', function(){ loadFiles(f.name); });
-        if (isAdmin) {
+        if (isAdmin && !_isProtectedPath(f.name)) {
           const xb = document.createElement('button');
           xb.textContent='×'; xb.title='Eliminar carpeta';
           xb.style='position:absolute;top:3px;right:3px;width:20px;height:20px;line-height:1;border-radius:50%;border:0;background:rgba(239,68,68,0.85);color:#fff;cursor:pointer;font-size:14px;padding:0;display:flex;align-items:center;justify-content:center;';
@@ -164,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function(){
         data.dirs.forEach(sd=>{
           const fwrap = document.createElement('div'); fwrap.style='position:relative;display:flex;align-items:center;justify-content:center;height:100px;border-radius:8px;background:#fff;border:1px dashed #e6eef6;cursor:pointer;'; fwrap.textContent = sd;
           fwrap.addEventListener('click', ()=> loadFiles(folder + '/' + sd));
-          if (isAdmin) {
+          if (isAdmin && !_isProtectedPath(folder + '/' + sd)) {
             const xb = document.createElement('button');
             xb.textContent='×'; xb.title='Eliminar carpeta';
             xb.style='position:absolute;top:3px;right:3px;width:20px;height:20px;line-height:1;border-radius:50%;border:0;background:rgba(239,68,68,0.85);color:#fff;cursor:pointer;font-size:14px;padding:0;display:flex;align-items:center;justify-content:center;';
@@ -180,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function(){
         img.addEventListener('click', function(){ browserSelected = folder + '/' + fname; browserSelectionVal.textContent = browserSelected; });
         img.addEventListener('error', function(){ const err = document.createElement('div'); err.style='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(239,68,68,0.06);color:#991b1b;font-weight:700;'; err.textContent='Archivo no encontrado'; if (!wrap.querySelector('.err')){ err.className='err'; wrap.appendChild(err);} });
         wrap.appendChild(img);
-        if (isAdmin) {
+        if (isAdmin && !_isProtectedPath(folder + '/' + fname)) {
           const xb = document.createElement('button');
           xb.textContent='×'; xb.title='Eliminar imagen';
           xb.style='position:absolute;top:3px;right:3px;width:22px;height:22px;line-height:1;border-radius:50%;border:0;background:rgba(239,68,68,0.85);color:#fff;cursor:pointer;font-size:15px;padding:0;display:flex;align-items:center;justify-content:center;';
@@ -209,6 +219,10 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   async function _deleteFileReq(path, domEl){
+    if (_isProtectedPath(path)) {
+      _showDelStatus('No se pueden borrar archivos en carpetas protegidas', false);
+      return;
+    }
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     try {
       const resp = await fetch(_deleteFileUrl, { method:'DELETE', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token,'Accept':'application/json'}, body:JSON.stringify({path}), credentials:'same-origin' });
@@ -222,6 +236,10 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   async function _deleteFolderReq(path, domEl){
+    if (_isProtectedPath(path)) {
+      _showDelStatus('No se puede borrar una carpeta protegida', false);
+      return;
+    }
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     try {
       const resp = await fetch(_deleteFolderUrl, { method:'DELETE', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token,'Accept':'application/json'}, body:JSON.stringify({path}), credentials:'same-origin' });
@@ -240,6 +258,7 @@ document.addEventListener('DOMContentLoaded', function(){
   if (_browserDeleteFileBtn) {
     _browserDeleteFileBtn.addEventListener('click', async function(){
       if (!browserSelected){ alert('Selecciona un archivo primero'); return; }
+      if (_isProtectedPath(browserSelected)) { _showDelStatus('Archivo en carpeta protegida', false); return; }
       if (!confirm('¿Eliminar "' + browserSelected + '"?')) return;
       await _deleteFileReq(browserSelected, null);
       if (currentBrowserFolder) await loadFiles(currentBrowserFolder);

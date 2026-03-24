@@ -234,6 +234,10 @@ class ImageController extends Controller
         }
         if (empty($cleanParts)) return response()->json(['message' => 'Ruta inválida'], 422);
 
+        if ($this->isProtectedRoot($cleanParts[0] ?? null)) {
+            return response()->json(['message' => 'No se pueden eliminar archivos en carpetas protegidas'], 403);
+        }
+
         $ext = strtolower(pathinfo(end($cleanParts), PATHINFO_EXTENSION));
         if (!in_array($ext, ['jpg','jpeg','png','webp','gif','svg'], true)) {
             return response()->json(['message' => 'Tipo de archivo no permitido'], 422);
@@ -267,8 +271,7 @@ class ImageController extends Controller
         }
         if (empty($cleanParts)) return response()->json(['message' => 'Ruta inválida'], 422);
 
-        // Protect compiled asset folder from accidental deletion
-        if (count($cleanParts) === 1 && in_array($cleanParts[0], ['build'], true)) {
+        if ($this->isProtectedRoot($cleanParts[0] ?? null)) {
             return response()->json(['message' => 'No se puede eliminar esta carpeta del sistema'], 403);
         }
 
@@ -296,5 +299,11 @@ class ImageController extends Controller
             is_dir($path) ? $this->rrmdir($path) : @unlink($path);
         }
         @rmdir($dir);
+    }
+
+    private function isProtectedRoot(?string $root): bool
+    {
+        if ($root === null || $root === '') return true;
+        return in_array(strtolower($root), ['build', 'css', 'js', 'logos'], true);
     }
 }
