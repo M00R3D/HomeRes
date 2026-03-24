@@ -415,7 +415,9 @@
 
                       <a href="/notificaciones?reservacion_id={{ $r->id }}" class="action-btn view">Notificaciones</a>
 
-                      <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar</a>
+                      @if(in_array(($r->estado ?? ''), ['pendiente','confirmada']) && !($r->isExpired() ?? false) && !($r->isPaid() ?? false))
+                        <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar</a>
+                      @endif
 
                       <a href="{{ route('reservaciones.edit', $r->id) }}" class="action-btn primary">Editar</a>
 
@@ -431,7 +433,7 @@
 
                       <a href="/notificaciones?reservacion_id={{ $r->id }}" class="action-btn view">Notificaciones</a>
 
-                      @if(in_array($r->estado, ['pendiente','confirmada']) && (($r->estado_pago ?? '') !== 'pagado'))
+                      @if(in_array($r->estado, ['pendiente','confirmada']) && !($r->isExpired() ?? false) && !($r->isPaid() ?? false))
                         <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar</a>
 
                         <form method="POST" action="{{ route('reservaciones.changeEstado', $r->id) }}" class="request-cancel-form" style="display:inline;">

@@ -49,7 +49,7 @@
                   <button class="open-schedule link-button">Ver cronograma</button>
                 @endif
                 @if ($isAdmin)
-                  @if(in_array(($r->estado ?? ''), ['pendiente','confirmada']) && (($r->estado_pago ?? '') !== 'pagado'))
+                  @if(in_array(($r->estado ?? ''), ['pendiente','confirmada']) && !($r->isExpired() ?? false) && !($r->isPaid() ?? false))
                     <a href="{{ route('pagos.form', $r->id) }}" class="open-schedule link-button">Pagar</a>
                   @endif
                   <a href="{{ route('reservaciones.edit', $r->id) }}" class="open-schedule link-button">Editar</a>

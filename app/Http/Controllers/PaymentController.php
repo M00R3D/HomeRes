@@ -156,6 +156,14 @@ class PaymentController extends Controller
         $current = auth()->user();
         $isAdmin = $current && (($current->rol ?? '') === 'admin');
 
+        // Prevent showing the payment form for expired or already-paid reservations
+        if ($reservacion->isExpired() || $reservacion->isPaid()) {
+            if ($request->wantsJson()) {
+                return response()->json(['message' => 'Reservación no disponible para pago'], 403);
+            }
+            return redirect()->route('reservaciones.show', $reservacion->id)->with('success', 'La reservación no está disponible para pago (expirada o ya pagada).');
+        }
+
         // Non-admin users: only allow paying with their assigned card. If they have none, redirect to tarjetas index.
         if (!$isAdmin) {
             if (!$current) return redirect()->route('login');
