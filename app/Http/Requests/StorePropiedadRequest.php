@@ -17,12 +17,12 @@ class StorePropiedadRequest extends FormRequest
             'tipo'         => 'required|in:cabaña,casa,departamento',
             'codigo'       => 'required|string|max:50|unique:propiedades,codigo',
             'nombre'       => 'required|string|max:255',
-            'descripcion'  => 'nullable|string',
+            'descripcion'  => 'required|string',
             'capacidad'    => 'required|integer|min:1',
             'precio_noche' => 'required|numeric|min:0',
-            'ubicacion'    => 'nullable|string|max:255',
+            'ubicacion'    => 'required|string|max:255',
             'servicios'    => 'nullable|string',
-            'estado'       => 'nullable|in:disponible,ocupada,mantenimiento',
+            'estado'       => 'required|in:disponible,ocupada,mantenimiento',
             'ruta_img'     => 'nullable|string|max:500',
         ];
     }

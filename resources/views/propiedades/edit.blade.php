@@ -29,11 +29,11 @@
 
     <div style="display:grid;grid-template-columns:1fr 360px;gap:12px;">
       <div>
-        <label class="small">Nombre</label>
-        <input name="nombre" value="{{ old('nombre', $propiedad->nombre) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+        <label class="small">Nombre <span style="color:#ef4444">*</span></label>
+        <input name="nombre" required value="{{ old('nombre', $propiedad->nombre) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
 
-        <label class="small" style="margin-top:8px;display:block;">Código</label>
-        <input name="codigo" value="{{ old('codigo', $propiedad->codigo) }}" style="width:200px;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+        <label class="small" style="margin-top:8px;display:block;">Código <span style="color:#ef4444">*</span></label>
+        <input name="codigo" required value="{{ old('codigo', $propiedad->codigo) }}" style="width:200px;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
 
         <label class="small" style="margin-top:8px;display:block;">Tipo</label>
         <select name="tipo" style="padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
@@ -42,25 +42,30 @@
           <option value="departamento" {{ $propiedad->tipo==='departamento' ? 'selected' : '' }}>Departamento</option>
         </select>
 
-        <label class="small" style="margin-top:8px;display:block;">Descripción</label>
-        <textarea name="descripcion" rows="5" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">{{ old('descripcion', $propiedad->descripcion) }}</textarea>
+        <label class="small" style="margin-top:8px;display:block;">Descripción <span style="color:#ef4444">*</span></label>
+        <textarea name="descripcion" required rows="5" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">{{ old('descripcion', $propiedad->descripcion) }}</textarea>
 
         <div style="display:flex;gap:8px;margin-top:8px;">
           <div style="flex:1">
-            <label class="small">Capacidad</label>
-            <input type="number" name="capacidad" min="1" value="{{ old('capacidad', $propiedad->capacidad) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+            <label class="small">Capacidad <span style="color:#ef4444">*</span></label>
+            <input type="number" name="capacidad" required min="1" value="{{ old('capacidad', $propiedad->capacidad) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
           </div>
           <div style="flex:1">
-            <label class="small">Precio noche</label>
-            <input type="number" name="precio_noche" step="0.01" value="{{ old('precio_noche', $propiedad->precio_noche) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+            <label class="small">Precio noche <span style="color:#ef4444">*</span></label>
+            <input type="number" name="precio_noche" required step="0.01" min="0" value="{{ old('precio_noche', $propiedad->precio_noche) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
           </div>
         </div>
 
-        <label class="small" style="margin-top:8px;display:block;">Ubicación</label>
-        <input name="ubicacion" value="{{ old('ubicacion', $propiedad->ubicacion) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+        <label class="small" style="margin-top:8px;display:block;">Ubicación <span style="color:#ef4444">*</span></label>
+        <input name="ubicacion" required value="{{ old('ubicacion', $propiedad->ubicacion) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
 
-        <label class="small" style="margin-top:8px;display:block;">Servicios (separados por coma)</label>
-        <input name="servicios" value="{{ old('servicios', $propiedad->servicios) }}" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+        <label class="small" style="margin-top:8px;display:block;">Servicios</label>
+        <div id="servicios-tags" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid #e5e7eb;border-radius:8px;min-height:38px;background:#fff;"></div>
+        <div style="display:flex;gap:6px;margin-top:4px;">
+          <input id="servicio-input" type="text" placeholder="Agregar servicio..." style="flex:1;padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
+          <button type="button" id="servicio-add-btn" style="padding:8px 14px;border-radius:8px;border:0;background:#06b6d4;color:#fff;cursor:pointer;">+ Agregar</button>
+        </div>
+        <input type="hidden" name="servicios" id="servicios-hidden" value="{{ old('servicios', $propiedad->servicios) }}">
 
         <label class="small" style="margin-top:8px;display:block;">Estado</label>
         <select name="estado" style="padding:8px;border-radius:8px;border:1px solid #e5e7eb;">
@@ -339,6 +344,38 @@ document.addEventListener('DOMContentLoaded', function(){
     chooseFolderBtn.addEventListener('click', function(){ var val = folderInput.value || currentFolder; if (!val) { alert('Selecciona o ingresa una carpeta'); return; } if (input) input.value = val; if (display) display.textContent = val; modal.style.display='none'; });
     chooseFileBtn.addEventListener('click', function(){ if (!selectedFile) { alert('Selecciona una imagen'); return; } if (input) input.value = selectedFile; if (display) display.textContent = selectedFile; modal.style.display='none'; });
   }
+
+  // Servicios tags
+  (function(){
+    var tagsContainer = document.getElementById('servicios-tags');
+    var tagInput = document.getElementById('servicio-input');
+    var addBtn = document.getElementById('servicio-add-btn');
+    var hiddenInput = document.getElementById('servicios-hidden');
+    if (!tagsContainer || !tagInput || !addBtn || !hiddenInput) return;
+    var tags = [];
+    var existing = hiddenInput.value.trim();
+    if (existing) { tags = existing.split(',').map(function(s){ return s.trim(); }).filter(Boolean); renderTags(); }
+    function renderTags() {
+      tagsContainer.innerHTML = '';
+      tags.forEach(function(tag, i) {
+        var chip = document.createElement('span');
+        chip.style = 'display:inline-flex;align-items:center;gap:4px;background:#e0f2fe;color:#0369a1;padding:4px 10px;border-radius:999px;font-size:0.875rem;';
+        var txt = document.createTextNode(tag); chip.appendChild(txt);
+        var x = document.createElement('button');
+        x.type = 'button'; x.textContent = '×'; x.style = 'border:0;background:none;cursor:pointer;color:#0369a1;font-size:1.1rem;line-height:1;padding:0 0 0 4px;';
+        (function(idx){ x.addEventListener('click', function(){ tags.splice(idx, 1); renderTags(); updateHidden(); }); })(i);
+        chip.appendChild(x); tagsContainer.appendChild(chip);
+      });
+    }
+    function updateHidden() { hiddenInput.value = tags.join(','); }
+    function addTag() {
+      var val = tagInput.value.trim(); if (!val) return;
+      val.split(',').map(function(s){ return s.trim(); }).filter(Boolean).forEach(function(s){ if (tags.indexOf(s) === -1) tags.push(s); });
+      tagInput.value = ''; renderTags(); updateHidden();
+    }
+    addBtn.addEventListener('click', addTag);
+    tagInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); addTag(); } });
+  })();
 });
 </script>
 @endsection
