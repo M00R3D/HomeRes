@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Iniciar sesión</title>
+  <link rel="stylesheet" href="http://127.0.0.1:8000/css/auth.css">
+    <style>
+    :root {
+      --bg: #ffffff;
+      --card: #ffffff;
+      --accent: #2563eb;
+      --accent-contrast: #ffffff;
+      --muted: #6b6b6b;
+    }
+        .btn:not(.alt) {
+      background: linear-gradient(90deg, #2563eb, #06b6d4);
+      color: #ffffff;
+    }
+      </style>
+</head>
+<body>
+  <main class="auth-page">
+    <div class="card">
+      <h1 class="title">Iniciar sesión</h1>
+
+      
+      
+      <form method="POST" action="http://127.0.0.1:8000/login" class="form">
+        <input type="hidden" name="_token" value="ze4Omd3p1BjlkjwjNtEcwWDBmNauMyJfncpk1LyS" autocomplete="off">        <label class="field">
+          <span class="label-text">Correo electrónico</span>
+          <input type="email" name="email" value="" required autocomplete="off" />
+        </label>
+
+        <label class="field">
+          <span class="label-text">Contraseña</span>
+          <input type="password" name="password" required />
+        </label>
+
+        <label class="remember">
+          <input type="checkbox" name="remember" />
+          <span>Recordarme</span>
+        </label>
+
+        <button class="btn" type="submit">Iniciar sesión</button>
+
+        <p class="links">
+          <a href="#" id="open-register">¿No tienes cuenta? Regístrate</a> ·
+        </p>
+      </form>
+    </div>
+  </main>
+
+  <div id="modal-register" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" id="close-register"></div>
+    <div class="modal-panel">
+      <button class="modal-close" id="modal-close">&times;</button>
+      <h2>Registro</h2>
+
+      <form method="POST" action="http://127.0.0.1:8000/register" class="form">
+        <input type="hidden" name="_token" value="ze4Omd3p1BjlkjwjNtEcwWDBmNauMyJfncpk1LyS" autocomplete="off">        <label class="field">
+          <span class="label-text">Nombre</span>
+          <input type="text" name="nombre" required />
+        </label>
+
+        <label class="field">
+          <span class="label-text">Apellido</span>
+          <input type="text" name="apellido" />
+        </label>
+
+        <label class="field">
+          <span class="label-text">Correo electrónico</span>
+          <input type="email" name="email" required />
+        </label>
+
+        <label class="field">
+          <span class="label-text">Contraseña</span>
+          <input type="password" name="password" required />
+        </label>
+
+        <label class="field">
+          <span class="label-text">Confirmar contraseña</span>
+          <input type="password" name="password_confirmation" required />
+        </label>
+
+        <div class="modal-actions">
+          <button class="btn" type="submit">Registrarse</button>
+          <button type="button" class="btn alt" id="cancel-register">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const open = document.getElementById('open-register');
+      const modal = document.getElementById('modal-register');
+      const closeBtns = [document.getElementById('modal-close'), document.getElementById('close-register'), document.getElementById('cancel-register')];
+
+      function show() { modal.setAttribute('aria-hidden', 'false'); modal.classList.add('open'); }
+      function hide() { modal.setAttribute('aria-hidden', 'true'); modal.classList.remove('open'); }
+
+      open && open.addEventListener('click', function (e) { e.preventDefault(); show(); });
+      closeBtns.forEach(b => b && b.addEventListener('click', hide));
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+    })();
+  </script>
+  <script>
+    // Show persistent session error (set by interceptor) and handle login via fetch to avoid full 419 page
+    document.addEventListener('DOMContentLoaded', function(){
+      try {
+        const msg = localStorage.getItem('session_error');
+        if (msg) {
+          localStorage.removeItem('session_error');
+          const alert = document.createElement('div');
+          alert.className = 'alert error';
+          alert.textContent = msg;
+          const card = document.querySelector('.card');
+          if (card) card.insertBefore(alert, card.firstChild);
+          else document.body.insertAdjacentElement('afterbegin', alert);
+        }
+      } catch (e) {}
+
+      const form = document.querySelector('form.form');
+      if (!form) return;
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const fd = new FormData(form);
+        try {
+          const res = await fetch(form.action, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            body: fd,
+            credentials: 'same-origin'
+          });
+
+          if (res.status === 419) {
+            try { localStorage.setItem('session_error', 'Tu sesión expiró. Por favor inicia sesión de nuevo.'); } catch (e) {}
+            window.location = '/login';
+            return;
+          }
+
+          if (res.status === 403) {
+            const ct = (res.headers.get('content-type') || '').toLowerCase();
+            if (ct.includes('text/html')) {
+              const html = await res.text();
+              document.open();
+              document.write(html);
+              document.close();
+              return;
+            }
+          }
+
+          if (!res.ok) {
+            let data = null;
+            try { data = await res.json(); } catch (er) {}
+            const msg = (data && (data.message || (data.errors && Object.values(data.errors).flat()[0]))) || 'Error al iniciar sesión. Intenta nuevamente.';
+            try { localStorage.setItem('session_error', msg); } catch (e) {}
+            window.location.reload();
+            return;
+          }
+
+          // success: follow redirect if any, else reload
+          if (res.redirected) window.location = res.url;
+          else window.location.reload();
+
+        } catch (err) {
+          try { localStorage.setItem('session_error', 'Error de conexión. Intenta de nuevo.'); } catch (e) {}
+          window.location.reload();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
