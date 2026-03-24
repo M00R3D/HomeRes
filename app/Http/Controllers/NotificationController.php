@@ -9,12 +9,13 @@ use App\Models\AuditLog;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cache;
 
 class NotificationController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth');
+        $this->middleware('auth')->except(['count', 'dropdown']);
     }
 
     // Web page: list notifications (paginated)
@@ -43,39 +44,59 @@ class NotificationController extends Controller
     public function count(Request $request)
     {
         $user = Auth::user();
-        $count = DatabaseNotification::where('notifiable_type', get_class($user))
-            ->where('notifiable_id', $user->id)
-            ->whereNull('read_at')
-            ->count();
-        // include current user's notification preferences so frontend can decide what to show
-        $prefs = DB::table('notification_preferences')->where('user_id', $user->id)->first();
-        $channel_inapp = $prefs ? (bool) ($prefs->channel_inapp ?? false) : true;
-        $receive_push = $prefs ? (bool) ($prefs->receive_push ?? false) : true;
-        return response()->json(['unread_count' => $count, 'prefs' => ['channel_inapp' => $channel_inapp, 'receive_push' => $receive_push]]);
+        if (! $user) {
+            return response()->json(['unread_count' => 0, 'prefs' => ['channel_inapp' => false, 'receive_push' => false]], 200);
+        }
+
+        try {
+            $cacheKey = 'notif_count_' . (int) $user->id;
+            $count = Cache::remember($cacheKey, now()->addSeconds(5), function () use ($user) {
+                return DatabaseNotification::where('notifiable_type', get_class($user))
+                    ->where('notifiable_id', $user->id)
+                    ->whereNull('read_at')
+                    ->count();
+            });
+
+            // include current user's notification preferences so frontend can decide what to show
+            $prefs = DB::table('notification_preferences')->where('user_id', $user->id)->first();
+            $channel_inapp = $prefs ? (bool) ($prefs->channel_inapp ?? false) : true;
+            $receive_push = $prefs ? (bool) ($prefs->receive_push ?? false) : true;
+
+            return response()->json(['unread_count' => (int) $count, 'prefs' => ['channel_inapp' => $channel_inapp, 'receive_push' => $receive_push]]);
+        } catch (\Throwable $e) {
+            return response()->json(['unread_count' => 0, 'prefs' => ['channel_inapp' => true, 'receive_push' => true]], 200);
+        }
     }
 
     // Dropdown: latest N notifications as JSON
     public function dropdown(Request $request)
     {
         $user = Auth::user();
+        if (! $user) {
+            return response()->json(['notifications' => []], 200);
+        }
         $limit = min(50, (int) $request->get('limit', 10));
-        $items = DatabaseNotification::where('notifiable_type', get_class($user))
-            ->where('notifiable_id', $user->id)
-            ->orderByDesc('created_at')
-            ->limit($limit)
-            ->get()
-            ->map(function($n){
-                return [
-                    'id' => $n->id,
-                    'type' => $n->type,
-                    'data' => $n->data,
-                    'link' => $n->data['link'] ?? ($n->data['url'] ?? ($n->link ?? null)),
-                    'read_at' => $n->read_at,
-                    'created_at' => $n->created_at->toDateTimeString(),
-                ];
-            });
+        try {
+            $items = DatabaseNotification::where('notifiable_type', get_class($user))
+                ->where('notifiable_id', $user->id)
+                ->orderByDesc('created_at')
+                ->limit($limit)
+                ->get()
+                ->map(function($n){
+                    return [
+                        'id' => $n->id,
+                        'type' => $n->type,
+                        'data' => $n->data,
+                        'link' => $n->data['link'] ?? ($n->data['url'] ?? ($n->link ?? null)),
+                        'read_at' => $n->read_at,
+                        'created_at' => $n->created_at->toDateTimeString(),
+                    ];
+                });
 
-        return response()->json(['notifications' => $items]);
+            return response()->json(['notifications' => $items]);
+        } catch (\Throwable $e) {
+            return response()->json(['notifications' => []], 200);
+        }
     }
 
     public function markAsRead(Request $request, $id)

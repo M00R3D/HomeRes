@@ -50,6 +50,9 @@ Route::middleware('auth')->group(function () {
     // ── Properties (non-admin: browse/reserve only) ────────────────────────
     Route::get('/propiedades',                   [PropiedadController::class,'index'])->name('propiedades.index');
 
+    // Simple info endpoint used by some front-end widgets: /propiedades/info?id=123
+    Route::get('/propiedades/info',               [PropiedadController::class,'info'])->name('propiedades.info');
+
     // Static admin routes MUST come before {propiedade} wildcard to avoid being captured
     Route::middleware('admin')->group(function () {
         Route::get('/propiedades/create',            [PropiedadController::class,'create'])->name('propiedades.create');

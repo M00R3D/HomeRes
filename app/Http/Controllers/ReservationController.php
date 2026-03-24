@@ -43,10 +43,18 @@ class ReservationController extends Controller
             ->where('estado', '!=', 'cancelada')
             ->get(['check_in','check_out']);
         $blocked = [];
+        $today = Carbon::today()->startOfDay();
         foreach ($reservas as $r) {
+            try {
+                $from = Carbon::parse($r->check_in)->startOfDay();
+                $to = Carbon::parse($r->check_out)->startOfDay();
+            } catch (\Throwable $e) {
+                continue;
+            }
+            if ($to->lt($today)) continue; // skip past ranges
             $blocked[] = [
-                'from' => (string) $r->check_in,
-                'to'   => (string) $r->check_out,
+                'from' => $from->toDateString(),
+                'to'   => $to->toDateString(),
             ];
         }
         return view('propiedades.reservar', ['propiedad' => $prop, 'blockedRanges' => $blocked]);
@@ -58,8 +66,16 @@ class ReservationController extends Controller
             ->where('estado', '!=', 'cancelada')
             ->get(['check_in','check_out']);
         $blocked = [];
+        $today = Carbon::today()->startOfDay();
         foreach ($reservas as $r) {
-            $blocked[] = ['from' => (string)$r->check_in, 'to' => (string)$r->check_out];
+            try {
+                $from = Carbon::parse($r->check_in)->startOfDay();
+                $to = Carbon::parse($r->check_out)->startOfDay();
+            } catch (\Throwable $e) {
+                continue;
+            }
+            if ($to->lt($today)) continue;
+            $blocked[] = ['from' => $from->toDateString(), 'to' => $to->toDateString()];
         }
         return response()->json(['blocked' => $blocked]);
     }

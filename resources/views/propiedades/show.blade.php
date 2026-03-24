@@ -28,6 +28,9 @@
 .pd-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .pd-thumb:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(2,6,23,.16)}
 .pd-thumb.active{outline-color:#06b6d4}
+.pd-reserve-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;height:48px;padding:0 16px;border-radius:12px;text-decoration:none;color:#fff;font-weight:800;letter-spacing:.2px;background:linear-gradient(90deg,#06b6d4,#3b82f6);box-shadow:0 12px 28px rgba(59,130,246,.26);transition:transform .18s ease, box-shadow .22s ease, filter .2s ease}
+.pd-reserve-btn:hover{transform:translateY(-2px);filter:saturate(1.08);box-shadow:0 18px 34px rgba(59,130,246,.34)}
+.pd-reserve-btn:focus-visible{outline:3px solid rgba(14,165,233,.32);outline-offset:2px}
 @media (max-width: 820px){
   .pd-slide{height:280px}
   .pd-nav{width:34px;height:34px}
@@ -109,6 +112,11 @@
           <dd><span class="pr-estado {{ $propiedad->estado }}">{{ $propiedad->estado }}</span></dd>
           <dt class="small">Descripción</dt><dd style="white-space:pre-wrap;">{{ $propiedad->descripcion ?? '-' }}</dd>
         </dl>
+        <div style="margin-top:14px;">
+          <a href="{{ route('reservaciones.create_for_propiedad', $propiedad->id) }}" class="pd-reserve-btn" aria-label="Solicitar reserva de {{ $propiedad->nombre }}">
+            <span>Solicitar reserva</span>
+          </a>
+        </div>
       </div>
     </div>
   </div>

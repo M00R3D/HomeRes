@@ -26,6 +26,46 @@ class PropiedadController extends Controller
         ]);
     }
 
+    /**
+     * Return minimal JSON info about a propiedad.
+     * Accepts query parameter `id` or `codigo`.
+     */
+    public function info(Request $request)
+    {
+        $id = $request->query('id');
+        $codigo = $request->query('codigo');
+
+        if (empty($id) && empty($codigo)) {
+            return response()->json(['error' => 'missing id or codigo'], 400);
+        }
+
+        $propiedad = null;
+        try {
+            if (!empty($id)) {
+                $propiedad = Propiedad::find($id);
+            } elseif (!empty($codigo)) {
+                $propiedad = Propiedad::where('codigo', $codigo)->first();
+            }
+        } catch (\Throwable $e) {
+            return response()->json(['error' => 'db error'], 500);
+        }
+
+        if (!$propiedad) {
+            return response()->json(['error' => 'not found'], 404);
+        }
+
+        return response()->json([
+            'id' => $propiedad->id,
+            'codigo' => $propiedad->codigo,
+            'nombre' => $propiedad->nombre,
+            'precio_noche' => $propiedad->precio_noche,
+            'capacidad' => $propiedad->capacidad,
+            'ubicacion' => $propiedad->ubicacion,
+            'ruta_img' => $propiedad->ruta_img,
+            'estado' => $propiedad->estado,
+        ]);
+    }
+
     public function store(StorePropiedadRequest $request)
     {
         $propiedad = Propiedad::create($request->validated());

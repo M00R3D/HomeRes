@@ -84,11 +84,12 @@ document.addEventListener('DOMContentLoaded', function(){
   async function fetchCount(){
     try{
       const res = await fetch('/notifications/count', {headers:{'X-Requested-With':'XMLHttpRequest'}});
-      if(!res.ok) return;
+      if(!res.ok) return false;
       const json = await res.json();
       const n = json.unread_count || 0;
       if(n>0){ badge.style.display='inline-block'; badge.textContent = n; } else { badge.style.display='none'; }
-    }catch(e){}
+      return true;
+    }catch(e){ return false; }
   }
 
   // Polling to detect new notifications (simple fallback if broadcasting not configured)
@@ -98,7 +99,11 @@ document.addEventListener('DOMContentLoaded', function(){
   async function pollForNew(){
     try{
       const res = await fetch('/notifications/count', {headers:{'X-Requested-With':'XMLHttpRequest'}});
-      if(!res.ok) return;
+      if(!res.ok){
+        // stop noisy polling on unauthorized/error responses
+        stopPolling();
+        return;
+      }
       const json = await res.json();
       const n = json.unread_count || 0;
       if(json.prefs){
@@ -125,8 +130,12 @@ document.addEventListener('DOMContentLoaded', function(){
       }
       lastCount = n;
       if(n>0){ badge.style.display='inline-block'; badge.textContent = n; } else { badge.style.display='none'; }
-    }catch(e){}
+    }catch(e){ stopPolling(); }
   }
+
+  let pollTimer = null;
+  function startPolling(){ if (!pollTimer) pollTimer = setInterval(pollForNew, 15000); }
+  function stopPolling(){ if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
 
   function showToast(n){
     const data = n.data || {};
@@ -313,7 +322,7 @@ document.addEventListener('DOMContentLoaded', function(){
   }
   // start poll every 5s
   pollForNew();
-  setInterval(pollForNew, 5000);
+  startPolling();
   // attach action hints on initial load (for pagos index buttons etc.)
   attachActionHints();
 });

@@ -3,17 +3,29 @@
 @section('title','Solicitar reservación - ' . ($propiedad->nombre ?? ''))
 
 @section('content')
-@php use Carbon\Carbon; use App\Models\Comentario; @endphp
+@php use Carbon\Carbon; @endphp
 
 <link rel="stylesheet" href="{{ asset('css/propiedades.css') }}">
 
 @php
-  $comentarios = Comentario::with('user')
-      ->whereHas('reservation', function($q) use ($propiedad) {
-          $q->where('propiedad_id', $propiedad->id);
-      })
-      ->orderByDesc('fecha_creacion')
-      ->get();
+  // Build gallery array from ruta_img which can be: a folder path, a comma-separated list, or a single file
+  $gallery = [];
+  $base = $propiedad->ruta_img ?? '';
+  if (!empty($base)) {
+    $dirPath = public_path($base);
+    if (is_dir($dirPath)) {
+      $files = array_merge(glob($dirPath.'/*.jpg')?:[], glob($dirPath.'/*.jpeg')?:[], glob($dirPath.'/*.png')?:[], glob($dirPath.'/*.webp')?:[], glob($dirPath.'/*.gif')?:[]);
+      foreach($files as $f) {
+        $gallery[] = str_replace(str_replace('\\','/', public_path()) . '/', '', str_replace('\\','/', $f));
+      }
+    } elseif (strpos($base, ',') !== false) {
+      foreach(explode(',', $base) as $b) { $b = trim($b); if ($b) $gallery[] = $b; }
+    } else {
+      $gallery[] = $base;
+    }
+  }
+  $gallery = collect($gallery)->filter()->values()->all();
+  $today = Carbon::today();
 @endphp
 
 <style>
@@ -51,8 +63,28 @@
 
         <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-top:12px;">
           <div style="flex:0 0 360px;">
-            @if(!empty($propiedad->ruta_img))
-              <img id="prop-img" src="{{ asset($propiedad->ruta_img) }}" alt="{{ $propiedad->nombre }}" style="width:100%;height:260px;object-fit:cover;border-radius:10px;box-shadow:0 12px 30px rgba(2,6,23,0.06);background:#f3f4f6;">
+            @if(!empty($gallery) && count($gallery) > 0)
+              <div id="rs-carousel" style="position:relative;border-radius:10px;overflow:hidden;box-shadow:0 12px 30px rgba(2,6,23,0.06);background:#f3f4f6;">
+                <div id="rs-track" style="display:flex;transition:transform .6s cubic-bezier(.22,.61,.36,1);width:100%;">
+                  @foreach($gallery as $g)
+                    <div class="rs-slide" style="flex:0 0 100%;max-width:100%;">
+                      <img src="{{ asset($g) }}" alt="{{ $propiedad->nombre }}" style="width:100%;height:260px;object-fit:cover;display:block">
+                    </div>
+                  @endforeach
+                </div>
+                <button id="rs-prev" aria-label="Anterior" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.36);color:#fff;border:0;padding:8px 10px;border-radius:8px;cursor:pointer">‹</button>
+                <button id="rs-next" aria-label="Siguiente" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.36);color:#fff;border:0;padding:8px 10px;border-radius:8px;cursor:pointer">›</button>
+                <div id="rs-dots" style="position:absolute;left:50%;transform:translateX(-50%);bottom:8px;display:flex;gap:6px;"></div>
+              </div>
+              @if(count($gallery) > 1)
+                <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+                  @foreach($gallery as $i => $g)
+                    <button type="button" class="thumb-btn" data-index="{{ $i }}" data-src="{{ asset($g) }}" style="border:0;padding:0;background:transparent;cursor:pointer;border-radius:8px;overflow:hidden;box-shadow:0 6px 14px rgba(2,6,23,0.06);">
+                      <img src="{{ asset($g) }}" alt="thumb {{ $i+1 }}" style="width:72px;height:48px;object-fit:cover;display:block">
+                    </button>
+                  @endforeach
+                </div>
+              @endif
             @else
               <div id="prop-img" style="width:100%;height:260px;display:flex;align-items:center;justify-content:center;background:#f3f4f6;border-radius:10px;color:#9ca3af;">Sin imagen</div>
             @endif
@@ -95,35 +127,18 @@
 
             <div id="blocked-list" style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
               @foreach($blockedRanges as $r)
-                <div style="background:#fff;padding:8px;border-radius:8px;border:1px solid #eef2f7;">
-                  {{ \Carbon\Carbon::parse($r['from'])->format('d M Y') }} → {{ \Carbon\Carbon::parse($r['to'])->format('d M Y') }}
-                </div>
+                @php $toDate = \Carbon\Carbon::parse($r['to']); @endphp
+                @if($toDate->greaterThanOrEqualTo($today))
+                  <div style="background:#fff;padding:8px;border-radius:8px;border:1px solid #eef2f7;">
+                    {{ \Carbon\Carbon::parse($r['from'])->format('d M Y') }} → {{ $toDate->format('d M Y') }}
+                  </div>
+                @endif
               @endforeach
             </div>
           </div>
         </div>
       </div>
-      <div style="margin-top:14px;">
-        <h3 style="margin-bottom:8px;">Comentarios ({{ $comentarios->count() }})</h3>
-        @if($comentarios->isEmpty())
-          <div class="small-muted">No hay comentarios públicos para esta propiedad.</div>
-        @else
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            @foreach($comentarios as $c)
-              <div class="comment">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                  <div style="font-weight:700;">{{ $c->user->nombre ?? 'Usuario' }} {{ $c->user->apellido ?? '' }}</div>
-                  <div class="small-muted">{{ \Carbon\Carbon::parse($c->fecha_creacion ?? now())->format('d M Y') }}</div>
-                </div>
-                <div style="margin-top:8px;color:#374151;">
-                  <div style="font-weight:700;margin-bottom:6px;">Calificación: {{ $c->calificacion ?? '-' }}/5</div>
-                  <div style="white-space:pre-wrap;">{{ $c->comentario }}</div>
-                </div>
-              </div>
-            @endforeach
-          </div>
-        @endif
-      </div>
+            
     </div>
     <div>
       <div style="background:#fff;padding:16px;border-radius:10px;box-shadow:0 8px 24px rgba(2,6,23,0.06);min-width:280px;">
@@ -188,6 +203,10 @@
 document.addEventListener('DOMContentLoaded', function(){
   let rawBlocked = @json($blockedRanges ?? []);
   if (!Array.isArray(rawBlocked)) rawBlocked = rawBlocked ? Object.values(rawBlocked) : [];
+  // keep only future/ongoing ranges (to >= today)
+  rawBlocked = (rawBlocked || []).filter(r => {
+    try { const t = new Date(String(r.to).slice(0,10) + 'T00:00:00'); t.setHours(0,0,0,0); return t.getTime() >= (new Date()).setHours(0,0,0,0); } catch(e) { return false; }
+  });
   const blockedRanges = rawBlocked
     .map(r => {
       if (!r || !r.from || !r.to) return null;
@@ -199,6 +218,7 @@ document.addEventListener('DOMContentLoaded', function(){
     .filter(Boolean);
 
   const pricePerNight = Number({{ json_encode((float)$propiedad->precio_noche) }}) || 0;
+  const maxPersons = Number({{ json_encode((int)($propiedad->capacidad ?? 1)) }}) || 1;
 
   const checkInEl = document.getElementById('check-in');
   const checkOutEl = document.getElementById('check-out');
@@ -209,7 +229,7 @@ document.addEventListener('DOMContentLoaded', function(){
   const numEl = document.getElementById('num-personas');
   const personCount = document.getElementById('person-count');
   const personLabel = document.getElementById('person-label');
-  document.getElementById('person-incr')?.addEventListener('click', ()=> { numEl.value = Math.min(20, Number(numEl.value||1)+1); updatePersonUI(); });
+  document.getElementById('person-incr')?.addEventListener('click', ()=> { numEl.value = Math.min(maxPersons, Number(numEl.value||1)+1); updatePersonUI(); });
   document.getElementById('person-decr')?.addEventListener('click', ()=> { numEl.value = Math.max(1, Number(numEl.value||1)-1); updatePersonUI(); });
   function updatePersonUI(){ const v = Number(numEl.value||1); personCount.textContent = v; personLabel.textContent = v + (v===1 ? ' persona' : ' personas'); }
   updatePersonUI();
@@ -223,6 +243,7 @@ document.addEventListener('DOMContentLoaded', function(){
   const prevRight = document.getElementById('prev-right');
   const nextRight = document.getElementById('next-right');
 
+  const todayDate = new Date(); todayDate.setHours(0,0,0,0);
   let viewDateLeft = new Date(); viewDateLeft.setDate(1);
   let viewDateRight = new Date(viewDateLeft.getFullYear(), viewDateLeft.getMonth() + 1, 1);
   let selStart = null, selEnd = null;
@@ -234,6 +255,8 @@ document.addEventListener('DOMContentLoaded', function(){
     const t = dayStartTs(date);
     return blockedRanges.some(b => (t >= b.fromTs) && (t < b.toTs));
   }
+
+  function isPast(date){ if (!date) return false; const d = new Date(date); d.setHours(0,0,0,0); return d.getTime() < todayDate.getTime(); }
 
   function rangeOverlapsBlocked(start, end){
     if (!start || !end) return false;
@@ -269,11 +292,12 @@ document.addEventListener('DOMContentLoaded', function(){
       const el = document.createElement('div');
       el.className = 'cal-day';
       el.textContent = d;
-
-      if (isDateBlocked(cur)) {
+      if (isPast(cur)) {
+        el.classList.add('disabled');
+        el.addEventListener('click', ()=> { /* disabled past */ });
+      } else if (isDateBlocked(cur)) {
         el.classList.add('blocked');
         el.addEventListener('click', ()=> { clearSelectionAndInputs(); });
-      } else {
       }
       const today = new Date(); today.setHours(0,0,0,0);
       if (cur.getTime() === today.getTime()) el.classList.add('today');
@@ -295,7 +319,7 @@ document.addEventListener('DOMContentLoaded', function(){
         if (Number.isNaN(n)) return;
         const baseMonth = new Date(viewDateLeft.getFullYear(), viewDateLeft.getMonth(), 1);
         const nodeDate = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), n);
-        if (!isDateBlocked(nodeDate)) {
+        if (!isPast(nodeDate) && !isDateBlocked(nodeDate)) {
           nd.onclick = ()=> onDayClickedLeft(nodeDate);
         } else {
           nd.onclick = ()=> clearSelectionAndInputs();
@@ -312,7 +336,7 @@ document.addEventListener('DOMContentLoaded', function(){
         if (Number.isNaN(n)) return;
         const baseMonth = new Date(viewDateRight.getFullYear(), viewDateRight.getMonth(), 1);
         const nodeDate = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), n);
-        if (!isDateBlocked(nodeDate)) {
+        if (!isPast(nodeDate) && !isDateBlocked(nodeDate)) {
           nd.onclick = ()=> onDayClickedRight(nodeDate);
         } else {
           nd.onclick = ()=> { clearSelectionAndInputs(); };
@@ -478,7 +502,32 @@ document.addEventListener('DOMContentLoaded', function(){
       alert('Las fechas seleccionadas se solapan con una reserva existente. Elige otras fechas.');
       return;
     }
+    const num = Number(numEl.value || 1);
+    if (num > maxPersons) { e.preventDefault(); alert('La cantidad de personas excede la capacidad máxima de la propiedad.'); return; }
   });
+  // lightweight carousel initialization (autoplay, prev/next, dots, thumbnail sync)
+  (function initCarousel(){
+    const rsTrack = document.getElementById('rs-track');
+    if (!rsTrack) return;
+    const slides = Array.from(rsTrack.querySelectorAll('.rs-slide'));
+    if (!slides.length) return;
+    const prevBtn = document.getElementById('rs-prev');
+    const nextBtn = document.getElementById('rs-next');
+    const dotsWrap = document.getElementById('rs-dots');
+    let idx = 0;
+    function go(i){ idx = ((i % slides.length) + slides.length) % slides.length; rsTrack.style.transform = `translateX(-${idx*100}%)`; updateDots(); }
+    function updateDots(){ if(!dotsWrap) return; dotsWrap.innerHTML=''; slides.forEach((s,i)=>{ const b = document.createElement('button'); b.type='button'; b.style.width='10px'; b.style.height='10px'; b.style.borderRadius='999px'; b.style.border='0'; b.style.margin='0 4px'; b.style.background = i===idx? '#111' : 'rgba(255,255,255,0.5)'; b.addEventListener('click', ()=> { go(i); pauseAuto(); }); dotsWrap.appendChild(b); }); }
+    prevBtn?.addEventListener('click', ()=> { go(idx-1); pauseAuto(); });
+    nextBtn?.addEventListener('click', ()=> { go(idx+1); pauseAuto(); });
+    const thumbs = Array.from(document.querySelectorAll('.thumb-btn'));
+    thumbs.forEach(t => t.addEventListener('click', ()=> { const i = Number(t.dataset.index||0); go(i); pauseAuto(); }));
+    let autoId = setInterval(()=> go(idx+1), 4500);
+    function pauseAuto(){ if (autoId) { clearInterval(autoId); autoId = null; setTimeout(()=> { if (!autoId) autoId = setInterval(()=> go(idx+1), 4500); }, 7000); } }
+    rsTrack.addEventListener('mouseenter', pauseAuto);
+    rsTrack.addEventListener('mouseleave', ()=> { if (!autoId) autoId = setInterval(()=> go(idx+1), 4500); });
+    updateDots(); go(0);
+  })();
+
   renderBothMonths();
   daysGridLeft?.addEventListener('dblclick', ()=> { clearSelectionAndInputs(); renderBothMonths(); });
   daysGridRight?.addEventListener('dblclick', ()=> { clearSelectionAndInputs(); renderBothMonths(); });
