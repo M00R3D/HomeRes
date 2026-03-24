@@ -49,8 +49,8 @@ Route::middleware('auth')->group(function () {
 
     // ── Properties (non-admin: browse/reserve only) ────────────────────────
     Route::get('/propiedades',                   [PropiedadController::class,'index'])->name('propiedades.index');
-    Route::get('/propiedades/{propiedade}',      [PropiedadController::class,'show'])->name('propiedades.show');
 
+    // Static admin routes MUST come before {propiedade} wildcard to avoid being captured
     Route::middleware('admin')->group(function () {
         Route::get('/propiedades/create',            [PropiedadController::class,'create'])->name('propiedades.create');
         Route::post('/propiedades',                  [PropiedadController::class,'store'])->name('propiedades.store');
@@ -58,6 +58,8 @@ Route::middleware('auth')->group(function () {
         Route::match(['put','patch'], '/propiedades/{propiedade}', [PropiedadController::class,'update'])->name('propiedades.update');
         Route::delete('/propiedades/{propiedade}',   [PropiedadController::class,'destroy'])->name('propiedades.destroy');
     });
+
+    Route::get('/propiedades/{propiedade}',      [PropiedadController::class,'show'])->name('propiedades.show');
 
     // ── Reservations ─────────────────────────────────────────────────────────
     Route::get('/propiedades/{id}/reservar',       [ReservationController::class,'createForPropiedad'])->name('reservaciones.create_for_propiedad');
