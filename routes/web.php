@@ -115,10 +115,13 @@ Route::middleware('auth')->group(function () {
 
     // ── Images (admin-only) ──────────────────────────────────────────────────
     Route::middleware('admin')->group(function () {
-        Route::get('/imagenes',         [ImageController::class,'index'])->name('images.index');
-        Route::get('/imagenes/dirs',    [ImageController::class,'dirs'])->name('images.dirs');
-        Route::post('/imagenes/upload', [ImageController::class,'upload'])->name('images.upload');
-        Route::get('/imagenes/list',    [ImageController::class,'list'])->name('images.list');
+        Route::get('/imagenes',          [ImageController::class,'index'])->name('images.index');
+        Route::get('/imagenes/dirs',     [ImageController::class,'dirs'])->name('images.dirs');
+        Route::post('/imagenes/upload',  [ImageController::class,'upload'])->name('images.upload');
+        Route::get('/imagenes/list',     [ImageController::class,'list'])->name('images.list');
+        Route::post('/imagenes/mkdir',    [ImageController::class,'mkdir'])->name('images.mkdir');
+        Route::delete('/imagenes/file',   [ImageController::class,'deleteFile'])->name('images.deleteFile');
+        Route::delete('/imagenes/folder', [ImageController::class,'deleteFolder'])->name('images.deleteFolder');
     });
 });
 

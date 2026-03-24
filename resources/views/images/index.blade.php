@@ -3,6 +3,7 @@
 @section('title','Imágenes')
 
 @section('content')
+@php $isAdmin = auth()->check() && (auth()->user()->rol ?? '') === 'admin'; @endphp
 <style>
 .uploader { border:2px dashed #e5e7eb; border-radius:10px; padding:18px; display:flex; flex-direction:column; gap:10px; align-items:center; text-align:center; background:#fff; transition: all .18s ease; }
 .uploader.dragover { background:#ecfeff; border-color:#06b6d4; box-shadow: 0 8px 28px rgba(6,182,212,0.08); transform: translateY(-2px); }
@@ -65,9 +66,25 @@
         <div style="font-weight:800;margin-bottom:6px;">Navegador</div>
         <div id="browser-current" style="font-size:0.9rem;color:#6b7280;margin-bottom:6px;">Carpeta: <strong id="browser-current-path">/</strong></div>
         <div id="browser-files" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;overflow:auto;border:1px solid #eef2f7;border-radius:8px;padding:8px;background:#fff;min-height:160px;"></div>
-        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;">
-          <div id="browser-selection" style="flex:1;color:#374151;">Seleccion: <span id="browser-selection-val">Ninguno</span></div>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <div id="browser-selection" style="flex:1;color:#374151;">Seleccionado: <span id="browser-selection-val">Ninguno</span></div>
           <button id="browser-copy" style="padding:6px 10px;border-radius:8px;border:0;background:#06b6d4;color:#fff;">Copiar ruta</button>
+          @if($isAdmin)
+          <button id="browser-delete-file" style="padding:6px 10px;border-radius:8px;border:0;background:#ef4444;color:#fff;cursor:pointer;">Eliminar archivo</button>
+          @endif
+        </div>
+        @if($isAdmin)
+        <div id="browser-delete-status" style="font-size:0.82rem;margin-top:4px;color:#6b7280;min-height:1.2em;"></div>
+        @endif
+        <div style="margin-top:10px;border-top:1px solid #eef2f7;padding-top:10px;">
+          <div style="font-weight:700;margin-bottom:6px;font-size:0.9rem;">Nueva carpeta</div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input id="mkdir-prefix" readonly placeholder="(ruta actual)" style="width:110px;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;background:#f8fafc;font-size:0.82rem;color:#6b7280;">
+            <span style="color:#9ca3af;font-size:0.9rem;">/</span>
+            <input id="mkdir-name" placeholder="nombre" style="flex:1;padding:6px 8px;border-radius:6px;border:1px solid #e5e7eb;font-size:0.9rem;">
+            <button id="mkdir-btn" style="padding:6px 12px;border-radius:6px;border:0;background:#059669;color:#fff;cursor:pointer;white-space:nowrap;">+ Crear</button>
+          </div>
+          <div id="mkdir-status" style="font-size:0.82rem;margin-top:4px;color:#6b7280;"></div>
         </div>
       </div>
       <h3 style="margin-top:12px;">Enlaces subidos</h3>
@@ -80,6 +97,9 @@
 @section('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function(){
+  const isAdmin = {{ $isAdmin ? 'true' : 'false' }};
+  const _deleteFileUrl   = "{{ route('images.deleteFile') }}";
+  const _deleteFolderUrl = "{{ route('images.deleteFolder') }}";
   const drop = document.getElementById('dropzone');
   const fileInput = document.getElementById('file-input');
   const previews = document.getElementById('previews');
@@ -118,8 +138,15 @@ document.addEventListener('DOMContentLoaded', function(){
         }
         el.appendChild(thumbs);
         el.setAttribute('data-folder', f.name);
-        el.style.cursor = 'pointer';
+        el.style.cursor = 'pointer'; el.style.position = 'relative';
         el.addEventListener('click', function(){ loadFiles(f.name); });
+        if (isAdmin) {
+          const xb = document.createElement('button');
+          xb.textContent='×'; xb.title='Eliminar carpeta';
+          xb.style='position:absolute;top:3px;right:3px;width:20px;height:20px;line-height:1;border-radius:50%;border:0;background:rgba(239,68,68,0.85);color:#fff;cursor:pointer;font-size:14px;padding:0;display:flex;align-items:center;justify-content:center;';
+          xb.addEventListener('click', async function(e){ e.stopPropagation(); if (!confirm('¿Eliminar carpeta "'+f.name+'" y todo su contenido?')) return; await _deleteFolderReq(f.name, el); });
+          el.appendChild(xb);
+        }
         dirList.appendChild(el);
       });
     } catch(err){ console.error(err); }
@@ -128,14 +155,22 @@ document.addEventListener('DOMContentLoaded', function(){
   async function loadFiles(folder){
     currentBrowserFolder = folder;
     browserCurrentPath.textContent = folder;
+    updateMkdirPrefix();
     try{
       const resp = await fetch("{{ route('images.list') }}?folder="+encodeURIComponent(folder), { credentials:'same-origin' });
       const data = await resp.json();
       browserFiles.innerHTML = '';
       if (data.dirs && data.dirs.length){
         data.dirs.forEach(sd=>{
-          const fwrap = document.createElement('div'); fwrap.style='display:flex;align-items:center;justify-content:center;height:100px;border-radius:8px;background:#fff;border:1px dashed #e6eef6;cursor:pointer;'; fwrap.textContent = sd;
+          const fwrap = document.createElement('div'); fwrap.style='position:relative;display:flex;align-items:center;justify-content:center;height:100px;border-radius:8px;background:#fff;border:1px dashed #e6eef6;cursor:pointer;'; fwrap.textContent = sd;
           fwrap.addEventListener('click', ()=> loadFiles(folder + '/' + sd));
+          if (isAdmin) {
+            const xb = document.createElement('button');
+            xb.textContent='×'; xb.title='Eliminar carpeta';
+            xb.style='position:absolute;top:3px;right:3px;width:20px;height:20px;line-height:1;border-radius:50%;border:0;background:rgba(239,68,68,0.85);color:#fff;cursor:pointer;font-size:14px;padding:0;display:flex;align-items:center;justify-content:center;';
+            xb.addEventListener('click', async function(e){ e.stopPropagation(); if (!confirm('¿Eliminar carpeta "'+sd+'" y todo su contenido?')) return; await _deleteFolderReq(folder+'/'+sd, fwrap); });
+            fwrap.appendChild(xb);
+          }
           browserFiles.appendChild(fwrap);
         });
       }
@@ -144,7 +179,15 @@ document.addEventListener('DOMContentLoaded', function(){
         const img = document.createElement('img'); img.src = '/' + folder + '/' + fname; img.style='width:100%;height:100px;object-fit:cover;display:block;cursor:pointer;';
         img.addEventListener('click', function(){ browserSelected = folder + '/' + fname; browserSelectionVal.textContent = browserSelected; });
         img.addEventListener('error', function(){ const err = document.createElement('div'); err.style='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(239,68,68,0.06);color:#991b1b;font-weight:700;'; err.textContent='Archivo no encontrado'; if (!wrap.querySelector('.err')){ err.className='err'; wrap.appendChild(err);} });
-        wrap.appendChild(img); browserFiles.appendChild(wrap);
+        wrap.appendChild(img);
+        if (isAdmin) {
+          const xb = document.createElement('button');
+          xb.textContent='×'; xb.title='Eliminar imagen';
+          xb.style='position:absolute;top:3px;right:3px;width:22px;height:22px;line-height:1;border-radius:50%;border:0;background:rgba(239,68,68,0.85);color:#fff;cursor:pointer;font-size:15px;padding:0;display:flex;align-items:center;justify-content:center;';
+          xb.addEventListener('click', async function(e){ e.stopPropagation(); if (!confirm('¿Eliminar imagen "'+fname+'"?')) return; await _deleteFileReq(folder+'/'+fname, wrap); });
+          wrap.appendChild(xb);
+        }
+        browserFiles.appendChild(wrap);
       });
     } catch(err){ console.error(err); }
   }
@@ -153,6 +196,93 @@ document.addEventListener('DOMContentLoaded', function(){
   try{ window.loadDirs = loadDirs; window.loadFiles = loadFiles; } catch(e){}
 
   browserCopyBtn.addEventListener('click', function(){ if (!browserSelected){ alert('Selecciona un archivo primero'); return; } navigator.clipboard?.writeText(browserSelected).then(()=> alert('Ruta copiada')).catch(()=>{ alert('No se pudo copiar'); }); });
+
+  // ── delete helpers ─────────────────────────────────────────────────────────
+  const _browserDeleteFileBtn = document.getElementById('browser-delete-file');
+  const _browserDeleteStatus  = document.getElementById('browser-delete-status');
+
+  function _showDelStatus(msg, ok){
+    if (!_browserDeleteStatus) return;
+    _browserDeleteStatus.textContent = msg;
+    _browserDeleteStatus.style.color = ok ? '#059669' : '#b91c1c';
+    setTimeout(()=>{ if (_browserDeleteStatus) _browserDeleteStatus.textContent = ''; }, 4000);
+  }
+
+  async function _deleteFileReq(path, domEl){
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    try {
+      const resp = await fetch(_deleteFileUrl, { method:'DELETE', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token,'Accept':'application/json'}, body:JSON.stringify({path}), credentials:'same-origin' });
+      const data = await resp.json().catch(()=>({}));
+      if (resp.ok) {
+        if (domEl) domEl.remove();
+        if (browserSelected === path){ browserSelected = null; browserSelectionVal.textContent = 'Ninguno'; }
+        _showDelStatus('Imagen eliminada', true);
+      } else { _showDelStatus(data.message || 'Error al eliminar', false); }
+    } catch(e){ _showDelStatus('Error de red', false); }
+  }
+
+  async function _deleteFolderReq(path, domEl){
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    try {
+      const resp = await fetch(_deleteFolderUrl, { method:'DELETE', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':token,'Accept':'application/json'}, body:JSON.stringify({path}), credentials:'same-origin' });
+      const data = await resp.json().catch(()=>({}));
+      if (resp.ok) {
+        if (domEl) domEl.remove();
+        if (currentBrowserFolder && (currentBrowserFolder === path || currentBrowserFolder.startsWith(path+'/'))){
+          currentBrowserFolder = ''; browserCurrentPath.textContent = '/'; browserFiles.innerHTML = ''; updateMkdirPrefix();
+        }
+        _showDelStatus('Carpeta eliminada', true);
+        await loadDirs();
+      } else { _showDelStatus(data.message || 'Error al eliminar carpeta', false); }
+    } catch(e){ _showDelStatus('Error de red', false); }
+  }
+
+  if (_browserDeleteFileBtn) {
+    _browserDeleteFileBtn.addEventListener('click', async function(){
+      if (!browserSelected){ alert('Selecciona un archivo primero'); return; }
+      if (!confirm('¿Eliminar "' + browserSelected + '"?')) return;
+      await _deleteFileReq(browserSelected, null);
+      if (currentBrowserFolder) await loadFiles(currentBrowserFolder);
+    });
+  }
+
+  // ── mkdir ──────────────────────────────────────────────────────────────────
+  const mkdirPrefixInput = document.getElementById('mkdir-prefix');
+  const mkdirNameInput   = document.getElementById('mkdir-name');
+  const mkdirBtn         = document.getElementById('mkdir-btn');
+  const mkdirStatus      = document.getElementById('mkdir-status');
+
+  function updateMkdirPrefix(){ const el = document.getElementById('mkdir-prefix'); if (el) el.value = currentBrowserFolder || ''; }
+
+  mkdirBtn.addEventListener('click', async function(){
+    const name = (mkdirNameInput.value || '').trim();
+    if (!name){ mkdirStatus.textContent = 'Escribe un nombre'; mkdirStatus.style.color='#b91c1c'; return; }
+    const prefix = (mkdirPrefixInput.value || '').trim();
+    const fullPath = prefix ? (prefix.replace(/\/+$/,'') + '/' + name) : name;
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    mkdirBtn.disabled = true;
+    try {
+      const resp = await fetch("{{ route('images.mkdir') }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
+        body: JSON.stringify({ path: fullPath }),
+        credentials: 'same-origin'
+      });
+      const data = await resp.json().catch(()=>({}));
+      if (resp.ok || resp.status === 200) {
+        mkdirStatus.style.color = '#059669';
+        mkdirStatus.textContent = data.message || 'Carpeta creada';
+        mkdirNameInput.value = '';
+        // reload current browser view
+        if (currentBrowserFolder) await loadFiles(currentBrowserFolder);
+        else await loadDirs();
+      } else {
+        mkdirStatus.style.color = '#b91c1c';
+        mkdirStatus.textContent = data.message || 'Error al crear carpeta';
+      }
+    } catch(err){ mkdirStatus.style.color='#b91c1c'; mkdirStatus.textContent='Error de red'; console.error(err); }
+    finally { mkdirBtn.disabled = false; setTimeout(()=>mkdirStatus.textContent='', 4000); }
+  });
 
   // initialize browser dirs
   loadDirs();

@@ -171,4 +171,130 @@ class ImageController extends Controller
         usort($folders, function($a,$b){ return strcmp($a['name'],$b['name']); });
         return response()->json(['folders' => $folders]);
     }
+
+    public function mkdir(Request $request)
+    {
+        $request->validate([
+            'path' => 'required|string|max:200',
+        ]);
+
+        $rawPath = trim(str_replace('\\', '/', (string)$request->input('path')), '/ ');
+
+        // Prevent directory traversal: reject any segment that is '.' or '..'
+        $parts = array_filter(explode('/', $rawPath), fn($p) => $p !== '' && $p !== '.' && $p !== '..');
+        $cleanParts = [];
+        foreach ($parts as $p) {
+            $clean = preg_replace('/[^A-Za-z0-9\-_]/', '_', $p);
+            if ($clean !== '') $cleanParts[] = $clean;
+        }
+
+        if (empty($cleanParts)) {
+            return response()->json(['message' => 'Ruta inválida'], 422);
+        }
+
+        $relativePath = implode('/', $cleanParts);
+        $target = public_path($relativePath);
+
+        if (is_dir($target)) {
+            return response()->json(['message' => 'La carpeta ya existe', 'path' => $relativePath]);
+        }
+
+        if (! @mkdir($target, 0755, true)) {
+            return response()->json(['message' => 'No se pudo crear la carpeta'], 500);
+        }
+
+        try {
+            Log::entry('images', 'Carpeta creada: ' . $relativePath, auth()->id(), null, null, null, url('/imagenes'));
+        } catch (\Throwable $e) {}
+
+        return response()->json(['message' => 'Carpeta creada', 'path' => $relativePath], 201);
+    }
+
+    public function deleteFile(Request $request)
+    {
+        if ((auth()->user()->rol ?? '') !== 'admin') {
+            abort(403);
+        }
+
+        $request->validate(['path' => 'required|string|max:400']);
+        $rawPath = trim(str_replace('\\', '/', (string)$request->input('path')), '/');
+        $parts = array_values(array_filter(
+            explode('/', $rawPath),
+            fn($p) => $p !== '' && $p !== '.' && $p !== '..'
+        ));
+        if (empty($parts)) return response()->json(['message' => 'Ruta inválida'], 422);
+
+        $cleanParts = [];
+        $lastIdx = count($parts) - 1;
+        foreach ($parts as $i => $p) {
+            $clean = ($i === $lastIdx)
+                ? preg_replace('/[^A-Za-z0-9\-_\.]/', '_', $p)  // filename: allow dot for extension
+                : preg_replace('/[^A-Za-z0-9\-_]/', '_', $p);   // directory segment: no dots
+            if ($clean !== '') $cleanParts[] = $clean;
+        }
+        if (empty($cleanParts)) return response()->json(['message' => 'Ruta inválida'], 422);
+
+        $ext = strtolower(pathinfo(end($cleanParts), PATHINFO_EXTENSION));
+        if (!in_array($ext, ['jpg','jpeg','png','webp','gif','svg'], true)) {
+            return response()->json(['message' => 'Tipo de archivo no permitido'], 422);
+        }
+
+        $relativePath = implode('/', $cleanParts);
+        $target = public_path($relativePath);
+        if (!is_file($target)) return response()->json(['message' => 'Archivo no encontrado'], 404);
+        if (!@unlink($target)) return response()->json(['message' => 'No se pudo eliminar el archivo'], 500);
+
+        try {
+            Log::entry('images', 'Archivo eliminado: ' . $relativePath, auth()->id(), null, null, null, url('/imagenes'));
+        } catch (\Throwable $e) {}
+
+        return response()->json(['message' => 'Archivo eliminado']);
+    }
+
+    public function deleteFolder(Request $request)
+    {
+        if ((auth()->user()->rol ?? '') !== 'admin') {
+            abort(403);
+        }
+
+        $request->validate(['path' => 'required|string|max:200']);
+        $rawPath = trim(str_replace('\\', '/', (string)$request->input('path')), '/');
+        $parts = array_filter(explode('/', $rawPath), fn($p) => $p !== '' && $p !== '.' && $p !== '..');
+        $cleanParts = [];
+        foreach ($parts as $p) {
+            $clean = preg_replace('/[^A-Za-z0-9\-_]/', '_', $p);
+            if ($clean !== '') $cleanParts[] = $clean;
+        }
+        if (empty($cleanParts)) return response()->json(['message' => 'Ruta inválida'], 422);
+
+        // Protect compiled asset folder from accidental deletion
+        if (count($cleanParts) === 1 && in_array($cleanParts[0], ['build'], true)) {
+            return response()->json(['message' => 'No se puede eliminar esta carpeta del sistema'], 403);
+        }
+
+        $relativePath = implode('/', $cleanParts);
+        $target = public_path($relativePath);
+        if (!is_dir($target)) return response()->json(['message' => 'Carpeta no encontrada'], 404);
+
+        $this->rrmdir($target);
+
+        if (is_dir($target)) return response()->json(['message' => 'No se pudo eliminar la carpeta'], 500);
+
+        try {
+            Log::entry('images', 'Carpeta eliminada: ' . $relativePath, auth()->id(), null, null, null, url('/imagenes'));
+        } catch (\Throwable $e) {}
+
+        return response()->json(['message' => 'Carpeta eliminada']);
+    }
+
+    private function rrmdir(string $dir): void
+    {
+        if (!is_dir($dir)) return;
+        foreach (@scandir($dir) ?: [] as $item) {
+            if ($item === '.' || $item === '..') continue;
+            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            is_dir($path) ? $this->rrmdir($path) : @unlink($path);
+        }
+        @rmdir($dir);
+    }
 }
