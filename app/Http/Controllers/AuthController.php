@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cookie;
 use App\Models\User;
+use App\Models\Log;
 
 class AuthController extends Controller
 {
@@ -78,6 +79,10 @@ class AuthController extends Controller
 
             $user = Auth::user();
             if ($user->baneado ?? false) {
+                try {
+                    Log::entry('login', 'usuario', $user->id, $user->id, 'error', 'Inicio de sesion bloqueado por ban', route('login'));
+                } catch (\Throwable $e) {
+                }
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
@@ -106,11 +111,27 @@ class AuthController extends Controller
 
             // Remember logins should not use the browser-only token
             session()->forget('session_browser_token');
+            try {
+                Log::entry('login', 'usuario', $user?->id, $user?->id, 'success', 'Inicio de sesion exitoso', route('dashboard'));
+            } catch (\Throwable $e) {
+            }
             return redirect()->intended(route('dashboard'));
         }
 
         // If AJAX / fetch request, return JSON with specific message (email not found vs wrong password)
         $user = \App\Models\User::where('email', $credentials['email'])->first();
+        try {
+            Log::entry(
+                'login',
+                'usuario',
+                $user?->id,
+                $user?->id,
+                'error',
+                $user ? 'Login fallido: contrasena incorrecta' : 'Login fallido: correo no registrado',
+                route('login')
+            );
+        } catch (\Throwable $e) {
+        }
         if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
             $msg = $user ? 'Contraseña incorrecta.' : 'No existe una cuenta registrada con ese correo.';
             return response()->json(['message' => $msg], 401);
@@ -149,6 +170,11 @@ class AuthController extends Controller
             'area' => null,
         ]);
 
+        try {
+            Log::entry('register', 'usuario', auth()->id(), $user->id, 'success', 'Registro de usuario exitoso', route('users.show', $user->id));
+        } catch (\Throwable $e) {
+        }
+
         Auth::login($user);
         $request->session()->regenerate();
 
@@ -157,6 +183,7 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
+        $actorId = auth()->id();
         Auth::logout();
 
         $request->session()->invalidate();
@@ -164,6 +191,11 @@ class AuthController extends Controller
         Cookie::queue(Cookie::forget('remember_web_' . sha1('web')));
         // clear any browser-session token on logout
         try { session()->forget('session_browser_token'); } catch (\Throwable $_e) {}
+
+        try {
+            Log::entry('logout', 'usuario', $actorId, $actorId, 'info', 'Cierre de sesion', route('login'));
+        } catch (\Throwable $e) {
+        }
 
         return redirect()->route('login');
     }

@@ -1,7 +1,10 @@
 @extends('layouts.app')
 
 @section('title','Notificaciones')
-
+@php
+    $currentUser = auth()->user();
+    $isAdmin = $currentUser && (($currentUser->rol ?? '') === 'admin');
+@endphp
 @section('content')
 <div style="max-width:980px;margin:20px auto;padding:12px;">
   <h1>Notificaciones</h1>
@@ -27,7 +30,9 @@
           <td style="max-width:760px;white-space:normal;overflow-wrap:break-word;word-break:break-word">{{ $n->data['body'] ?? '' }}</td>
           <td>{{ $n->created_at->diffForHumans() }}</td>
           <td>
-            <a class="btn-alt" href="{{ route('notifications.show', $n->id) }}">Ver notificación</a>
+            @if($isAdmin)
+              <a class="btn-alt" href="{{ route('notifications.show', $n->id) }}">Ver notificación</a>
+            @endif
             @php
               $resLink = $n->data['link'] ?? ($n->data['url'] ?? ($n->link ?? null));
               $resTipo = null;
@@ -64,7 +69,6 @@
             @if(!$n->read_at)
               <form method="POST" action="{{ route('notifications.read', $n->id) }}" style="display:inline;margin-left:8px">@csrf<button class="btn-alt">Marcar leído</button></form>
             @endif
-            <form method="POST" action="{{ route('notifications.destroy', $n->id) }}" style="display:inline;margin-left:8px">@csrf @method('DELETE')<button class="btn-alt">Eliminar</button></form>
           </td>
         </tr>
         @endforeach

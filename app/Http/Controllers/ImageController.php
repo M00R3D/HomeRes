@@ -2,9 +2,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Notification;
-use App\Models\User;
-use Carbon\Carbon;
+use App\Models\Log;
 
 class ImageController extends Controller
 {
@@ -61,6 +59,10 @@ class ImageController extends Controller
         $targetDir = public_path($folder);
         if (! is_dir($targetDir)) {
             if (! @mkdir($targetDir, 0755, true)) {
+                try {
+                    Log::entry('upload', 'imagen', auth()->id(), null, 'error', 'No se pudo crear la carpeta de destino: ' . $folder, url('/imagenes'));
+                } catch (\Throwable $e) {
+                }
                 return response()->json(['message' => 'No se pudo crear la carpeta de destino'], 500);
             }
         }
@@ -92,23 +94,16 @@ class ImageController extends Controller
                     'name' => $name,
                 ];
                 try {
-                    $adminId = auth()->id();
-                    $actor = $adminId ? User::find($adminId) : null;
-                    $actorName = $actor ? ($actor->nombre . ' ' . $actor->apellido) : 'Sistema';
-                    Notification::create([
-                        'usuario_id' => null,
-                        'estado' => 'cerrada',
-                        'tipo' => 'otra',
-                        'descripcion' => "Imagen subida por {$actorName}: {$folder}/{$name}",
-                        'fecha_creacion' => Carbon::now()->format('Y-m-d H:i:s'),
-                        'fecha_visto' => null,
-                        'ruta' => asset($folder . '/' . $name),
-                    ]);
+                    Log::entry('upload', 'imagen', auth()->id(), null, 'success', 'Imagen subida: ' . $folder . '/' . $name, asset($folder . '/' . $name));
                 } catch (\Throwable $e) {
-                    \Log::error('Error creando notificación de imagen: ' . $e->getMessage());
+                    \Log::error('Error creando log/notificacion de imagen: ' . $e->getMessage());
                 }
 
             } catch (\Exception $e) {
+                try {
+                    Log::entry('upload', 'imagen', auth()->id(), null, 'error', 'Error moviendo archivo: ' . $e->getMessage(), url('/imagenes'));
+                } catch (\Throwable $ignored) {
+                }
                 \Log::error('Error moviendo archivo: '.$e->getMessage());
             }
         }
