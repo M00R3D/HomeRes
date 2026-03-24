@@ -18,12 +18,51 @@ class ReservationController extends Controller
     {
         $q = Reservation::query();
 
-        if ($request->filled('usuario_id')) $q->where('usuario_id', $request->usuario_id);
+        $currentUser = auth()->user();
+
+        // Admins may filter by usuario_id; non-admins always see only their own reservations
+        if ($request->filled('usuario_id') && $currentUser && (($currentUser->rol ?? '') === 'admin')) {
+            $q->where('usuario_id', $request->usuario_id);
+        } elseif ($currentUser && (($currentUser->rol ?? '') !== 'admin')) {
+            $q->where('usuario_id', $currentUser->id);
+        }
+
         if ($request->filled('propiedad_id')) $q->where('propiedad_id', $request->propiedad_id);
         if ($request->filled('estado')) $q->where('estado', $request->estado);
-        $currentUser = auth()->user();
-        if ($currentUser && ($currentUser->rol ?? '') !== 'admin') {
-            $q->where('usuario_id', $currentUser->id);
+
+        // Date range filters (check_in) - accept either check_in/check_out or check_in_from/check_in_to
+        $from = $request->filled('check_in_from') ? $request->check_in_from : ($request->filled('check_in') ? $request->check_in : null);
+        $to   = $request->filled('check_in_to') ? $request->check_in_to : ($request->filled('check_out') ? $request->check_out : null);
+        if (!empty($from)) {
+            try { $q->where('check_in', '>=', $from); } catch (\Throwable $e) {}
+        }
+        if (!empty($to)) {
+            try { $q->where('check_in', '<=', $to); } catch (\Throwable $e) {}
+        }
+
+        // Free-text search: reservation id (admin only), user name/email, property nombre/codigo
+        if ($request->filled('q')) {
+            $term = trim((string) $request->q);
+            $q->where(function($w) use ($term) {
+                // allow numeric id search only for admins
+                if (is_numeric($term) && auth()->check() && (auth()->user()->rol ?? '') === 'admin') {
+                    $w->orWhere('id', (int)$term);
+                }
+                $w->orWhereHas('user', function($u) use ($term) {
+                    $u->where('nombre', 'like', '%' . $term . '%')
+                      ->orWhere('apellido', 'like', '%' . $term . '%')
+                      ->orWhere('email', 'like', '%' . $term . '%');
+                });
+                $w->orWhereHas('propiedad', function($p) use ($term) {
+                    $p->where('nombre', 'like', '%' . $term . '%')
+                      ->orWhere('codigo', 'like', '%' . $term . '%');
+                });
+            });
+        }
+
+        // Pago status filter: admin-only
+        if ($request->filled('estado_pago') && $currentUser && (($currentUser->rol ?? '') === 'admin')) {
+            $q->where('estado_pago', $request->estado_pago);
         }
 
         if ($request->wantsJson()) {

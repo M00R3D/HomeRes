@@ -120,6 +120,8 @@ class PropiedadController extends Controller
         return view('propiedades.show', ['propiedad' => $propiedad, 'gallery' => $gallery]);
     }
 
+
+
     public function edit($id)
     {
         $propiedad = Propiedad::findOrFail($id);

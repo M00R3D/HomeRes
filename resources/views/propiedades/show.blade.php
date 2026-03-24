@@ -36,6 +36,16 @@
   .pd-nav{width:34px;height:34px}
 }
 </style>
+    .pd-reserve-btn {
+      background: linear-gradient(90deg,#2274e1,#1a6fdb);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      box-shadow: 0 2px 8px rgba(34,116,225,0.18);
+    }
+    .pd-reserve-btn:hover{opacity:0.95}
+
 
 <div style="max-width:1100px;margin:18px auto;padding:12px;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -49,6 +59,9 @@
       <a href="{{ route('propiedades.index', ['edit' => $propiedad->id]) }}" class="btn" title="Abrir editor">Editar</a>
       @endif
     </div>
+      <div class="property-actions" style="margin-top:14px;">
+        <a href="{{ route('reservaciones.create_for_propiedad', $propiedad->id) }}" class="btn btn-primary pd-reserve-btn" style="margin-left:8px;">Solicitar reserva</a>
+      </div>
   </div>
 
   <div style="display:flex;gap:16px;flex-wrap:wrap;">

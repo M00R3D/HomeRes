@@ -216,8 +216,8 @@
       </div>
 
       <form id="rv-filters" method="GET" action="{{ url('/reservaciones') }}" style="margin-top:10px;">
-        @if($isAdmin)
-          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+          @if($isAdmin)
             <input name="id" placeholder="ID" value="{{ request('id') }}" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;width:80px;">
 
             <select name="usuario_id" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
@@ -228,39 +228,47 @@
                 </option>
               @endforeach
             </select>
+          @endif
 
-            <select name="propiedad_id" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
-              <option value="">-- Propiedad --</option>
-              @foreach($propiedades ?? [] as $p)
-                <option value="{{ $p->id }}" {{ (string)request('propiedad_id') === (string)$p->id ? 'selected' : '' }}>
-                  {{ $p->nombre }} {{ $p->codigo ? '· ' . $p->codigo : '' }}
-                </option>
+          <select name="propiedad_id" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
+            <option value="">-- Propiedad --</option>
+            @foreach($propiedades ?? [] as $p)
+              <option value="{{ $p->id }}" {{ (string)request('propiedad_id') === (string)$p->id ? 'selected' : '' }}>
+                {{ $p->nombre }} {{ $p->codigo ? '· ' . $p->codigo : '' }}
+              </option>
+            @endforeach
+          </select>
+
+          <select name="estado" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
+            <option value="">-- Estado --</option>
+            @foreach(['pendiente','confirmada','cancelada','completada'] as $st)
+              <option value="{{ $st }}" {{ request('estado') === $st ? 'selected' : '' }}>{{ ucfirst($st) }}</option>
+            @endforeach
+          </select>
+
+          <label style="display:flex;align-items:center;gap:6px;">
+            <span class="small" style="margin-right:4px;">Desde</span>
+            <input type="date" name="check_in" value="{{ request('check_in') }}" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;">
+            <span class="small" style="margin-right:4px;">Hasta</span>
+            <input type="date" name="check_out" value="{{ request('check_out') }}" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
+          </label>
+
+          @if($isAdmin)
+            <select name="estado_pago" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
+              <option value="">-- Estado pago --</option>
+              @foreach(['pendiente','pagado','parcial','fallido'] as $ep)
+                <option value="{{ $ep }}" {{ request('estado_pago') === $ep ? 'selected' : '' }}>{{ ucfirst($ep) }}</option>
               @endforeach
             </select>
+          @endif
 
-            <select name="estado" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
-              <option value="">-- Estado --</option>
-              @foreach(['pendiente','confirmada','cancelada','completada'] as $st)
-                <option value="{{ $st }}" {{ request('estado') === $st ? 'selected' : '' }}>{{ ucfirst($st) }}</option>
-              @endforeach
-            </select>
-
-            <label style="display:flex;align-items:center;gap:6px;">
-              <span class="small" style="margin-right:4px;">Desde</span>
-              <input type="date" name="check_in" value="{{ request('check_in') }}" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;">
-              <span class="small" style="margin-right:4px;">Hasta</span>
-              <input type="date" name="check_out" value="{{ request('check_out') }}" style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;">
-            </label>
-
-            <div style="margin-left:auto;display:flex;gap:8px;">
-              <button type="submit" class="action-btn primary">Buscar</button>
-              <button type="button" id="rv-filters-clear" class="action-btn view">Limpiar</button>
-            </div>
+          <div style="margin-left:auto;display:flex;gap:8px;">
+            <button type="submit" class="action-btn primary">Buscar</button>
+            <button type="button" id="rv-filters-clear" class="action-btn view">Limpiar</button>
           </div>
-        @else
-        @endif
+        </div>
       </form>
 
       <div style="margin-top:12px;overflow:auto;">
