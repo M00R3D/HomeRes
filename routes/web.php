@@ -82,8 +82,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/mis-codigos',           [PaymentController::class,'myCodes'])->name('pagos.codes');
     Route::get('/mis-codigos/{id}',      [PaymentController::class,'showCode'])->name('pagos.codes.show');
     Route::get('/reservaciones/{id}/pagar', [PaymentController::class,'form'])->name('pagos.form');
+    // pagos.index and pagos.show are accessible to any authenticated user;
+    // the controller enforces ownership for non-admins on show().
+    Route::get('/pagos',          [PaymentController::class,'index'])->name('pagos.index');
+    Route::get('/pagos/{id}',     [PaymentController::class,'show'])->name('pagos.show');
     Route::middleware('admin')->group(function () {
-        Route::resource('pagos', PaymentController::class)->names('pagos');
+        Route::post('/pagos',                     [PaymentController::class,'store'])->name('pagos.store');
+        Route::get('/pagos/create',               [PaymentController::class,'create'])->name('pagos.create');
+        Route::get('/pagos/{id}/edit',            [PaymentController::class,'edit'])->name('pagos.edit');
+        Route::match(['put','patch'],'/pagos/{id}',[PaymentController::class,'update'])->name('pagos.update');
+        Route::delete('/pagos/{id}',              [PaymentController::class,'destroy'])->name('pagos.destroy');
     });
 
     // ── Tarjetas (specific routes before resource) ────────────────────────────

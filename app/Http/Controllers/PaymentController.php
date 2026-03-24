@@ -135,10 +135,34 @@ class PaymentController extends Controller
 
     public function show(Request $request, $id)
     {
-        $query = Payment::query()->with(['reservation','tarjeta']);
-        $this->applyRolePaymentFilter($query, auth()->user());
-        $p = $query->where('id', $id)->first();
-        if (!$p) return $request->wantsJson() ? response()->json(['message'=>'No encontrado'],404) : abort(404);
+        $current = auth()->user();
+
+        // Load payment with relations for ownership checks
+        $p = Payment::with(['reservation','tarjeta'])->where('id', $id)->first();
+        if (! $p) {
+            return $request->wantsJson() ? response()->json(['message'=>'No encontrado'],404) : abort(404);
+        }
+
+        // Admins may view any payment
+        if (! $this->isAdmin($current)) {
+            $owns = false;
+            if (!empty($p->usuario_id) && $current && $p->usuario_id == $current->id) {
+                $owns = true;
+            }
+            if (!$owns && $p->relationLoaded('reservation')) {
+                $res = $p->reservation;
+            } else {
+                $res = $p->reservation()->first();
+            }
+            if (!$owns && $res && $current && ($res->usuario_id == $current->id)) {
+                $owns = true;
+            }
+
+            if (! $owns) {
+                return $request->wantsJson() ? response()->json(['message' => 'No autorizado'], 403) : abort(403);
+            }
+        }
+
         $this->ensurePaymentQrCode($p);
         $p->loadMissing(['reservation','tarjeta']);
         if ($request->wantsJson()) return response()->json($p);
