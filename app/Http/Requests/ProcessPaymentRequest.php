@@ -18,7 +18,7 @@ class ProcessPaymentRequest extends FormRequest
             'tarjeta_id'     => 'nullable|exists:tarjetas_simuladas,id',
             'usuario_id'     => 'required|exists:usuarios,id',
             'monto'          => 'required|numeric|min:0.01',
-            'metodo_pago'    => 'required|string|in:tarjeta,efectivo',
+            'metodo_pago'    => 'required|string|in:tarjeta',
             'cvv'            => 'nullable|string|max:4',
         ];
     }

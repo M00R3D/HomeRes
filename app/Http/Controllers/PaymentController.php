@@ -118,7 +118,7 @@ class PaymentController extends Controller
             'reservacion_id' => 'nullable|exists:reservaciones,id',
             'tarjeta_id' => 'nullable|exists:tarjetas_simuladas,id',
             'monto' => 'required|numeric',
-            'metodo_pago' => 'required|string|max:50',
+            'metodo_pago' => 'required|string|in:tarjeta',
             'estado' => 'required|in:pendiente,pagado,cancelado',
             'fecha_pago' => 'nullable|date',
         ]);
@@ -196,7 +196,7 @@ class PaymentController extends Controller
             'reservacion_id' => 'nullable|exists:reservaciones,id',
             'tarjeta_id' => 'nullable|exists:tarjetas_simuladas,id',
             'monto' => 'sometimes|numeric',
-            'metodo_pago' => 'sometimes|string|max:50',
+            'metodo_pago' => 'sometimes|string|in:tarjeta',
             'estado' => 'sometimes|in:pendiente,pagado,cancelado',
             'fecha_pago' => 'nullable|date',
         ]);
@@ -232,6 +232,7 @@ class PaymentController extends Controller
         $usuarioId = $request->input('usuario_id');
         $monto = floatval($request->input('monto'));
         $metodo = $request->input('metodo_pago');
+        $alreadyPaidMsg = 'Esta reservacion ya esta pagada.';
 
         // Authorization: non-admin users may only pay for themselves
         $current = auth()->user();
@@ -250,87 +251,80 @@ class PaymentController extends Controller
             }
         }
 
+        if ($metodo !== 'tarjeta') {
+            $msg = 'Solo se permiten pagos con tarjeta.';
+            try { Log::entry('pago', 'Pago rechazado: metodo no permitido (' . $metodo . ') en reservacion #' . $reservacionId, auth()->id(), 'reservacion', $reservacionId, route('reservaciones.show', $reservacionId)); } catch (\Throwable $e) {}
+            if ($request->wantsJson()) return response()->json(['message' => $msg], 422);
+            return back()->withInput()->withErrors(['pagos' => $msg]);
+        }
+
         // Procesamiento por método
         try {
-            if ($metodo === 'tarjeta') {
-                if (empty($tarjetaId)) {
-                    return back()->withInput()->withErrors(['tarjeta_id' => 'Selecciona una tarjeta para pagar.']);
+            if (empty($tarjetaId)) {
+                return back()->withInput()->withErrors(['tarjeta_id' => 'Selecciona una tarjeta para pagar.']);
+            }
+
+            $cvv = $request->input('cvv');
+            if (empty($cvv)) {
+                return back()->withInput()->withErrors(['cvv' => 'CVV requerido para pagos con tarjeta.']);
+            }
+
+            $result = DB::transaction(function() use ($tarjetaId, $monto, $cvv, $usuarioId, $reservacionId, $metodo, $alreadyPaidMsg) {
+                $r = Reservation::where('id', $reservacionId)->lockForUpdate()->first();
+                if (! $r) {
+                    throw new \Exception('Reservacion no encontrada');
                 }
 
-                $cvv = $request->input('cvv');
-                if (empty($cvv)) {
-                    return back()->withInput()->withErrors(['cvv' => 'CVV requerido para pagos con tarjeta.']);
+                // Only block when there is an already successful payment.
+                $alreadyPaid = Payment::where('reservacion_id', $reservacionId)
+                    ->where('estado', 'pagado')
+                    ->lockForUpdate()
+                    ->exists();
+
+                if ($alreadyPaid) {
+                    throw new \Exception($alreadyPaidMsg);
                 }
 
-                $result = DB::transaction(function() use ($tarjetaId, $monto, $cvv, $usuarioId, $reservacionId, $metodo) {
-                    $tarjeta = TarjetaSimulada::where('id', $tarjetaId)->lockForUpdate()->first();
-                    if (!$tarjeta) throw new \Exception('Tarjeta no encontrada');
+                $tarjeta = TarjetaSimulada::where('id', $tarjetaId)->lockForUpdate()->first();
+                if (!$tarjeta) throw new \Exception('Tarjeta no encontrada');
 
-                    // If current user is not admin, ensure the tarjeta belongs to the reservation's usuario (ownership)
-                    $user = User::find($usuarioId);
-                    $currentUser = auth()->user();
-                    $isCurrentAdmin = $currentUser && (($currentUser->rol ?? '') === 'admin');
-                    if (! $isCurrentAdmin) {
-                        if ($user && !empty($user->id_tarjeta) && $user->id_tarjeta != $tarjeta->id) {
-                            throw new \Exception('La tarjeta seleccionada no pertenece al usuario.');
-                        }
+                // If current user is not admin, ensure the tarjeta belongs to the reservation's usuario (ownership)
+                $user = User::find($usuarioId);
+                $currentUser = auth()->user();
+                $isCurrentAdmin = $currentUser && (($currentUser->rol ?? '') === 'admin');
+                if (! $isCurrentAdmin) {
+                    if ($user && !empty($user->id_tarjeta) && $user->id_tarjeta != $tarjeta->id) {
+                        throw new \Exception('La tarjeta seleccionada no pertenece al usuario.');
                     }
+                }
 
-                    if (trim($tarjeta->cvv) !== trim($cvv)) {
-                        // signal CVV mismatch to outer scope so we can persist attempts outside transaction
-                        throw new \Exception('CVV_MISMATCH');
+                if (trim($tarjeta->cvv) !== trim($cvv)) {
+                    // signal CVV mismatch to outer scope so we can persist attempts outside transaction
+                    throw new \Exception('CVV_MISMATCH');
+                }
+
+                // Reset attempts on successful CVV check for the acting user
+                $actingUser = auth()->user();
+                if ($actingUser && (($actingUser->rol ?? '') !== 'admin')) {
+                    try {
+                        \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $actingUser->id)->update(['intentos_cvv' => 0]);
+                    } catch (\Throwable $e) {
+                        // ignore
                     }
+                }
 
-                        // Reset attempts on successful CVV check for the acting user
-                        $actingUser = auth()->user();
-                        if ($actingUser && (($actingUser->rol ?? '') !== 'admin')) {
-                            try {
-                                \Illuminate\Support\Facades\DB::table('usuarios')->where('id', $actingUser->id)->update(['intentos_cvv' => 0]);
-                            } catch (\Throwable $e) {
-                                // ignore
-                            }
-                        }
+                if (floatval($tarjeta->saldo) < $monto) {
+                    throw new \Exception('Saldo insuficiente en la tarjeta');
+                }
 
-                        if (floatval($tarjeta->saldo) < $monto) {
-                        throw new \Exception('Saldo insuficiente en la tarjeta');
-                    }
+                // Debitar
+                $tarjeta->saldo = round(floatval($tarjeta->saldo) - $monto, 2);
+                $tarjeta->save();
 
-                    // Debitar
-                    $tarjeta->saldo = round(floatval($tarjeta->saldo) - $monto, 2);
-                    $tarjeta->save();
-
-                    // Crear pago
-                    $p = Payment::create([
-                        'reservacion_id' => $reservacionId,
-                        'tarjeta_id' => $tarjeta->id,
-                        'monto' => $monto,
-                        'metodo_pago' => $metodo,
-                        'estado' => 'pagado',
-                        'fecha_pago' => Carbon::now(),
-                        'usuario_id' => $usuarioId,
-                    ]);
-                    $this->ensurePaymentQrCode($p);
-
-                    // Actualizar reservación
-                    $r = Reservation::find($reservacionId);
-                    if ($r) {
-                        $r->estado_pago = 'pagado';
-                        if (($r->estado ?? '') !== 'confirmada') $r->estado = 'confirmada';
-                        $r->save();
-                    }
-
-                    return $p;
-                });
-
-                if ($request->wantsJson()) return response()->json($result);
-                try { Log::entry('pago', 'Pago realizado correctamente: #' . ($result->id ?? 'n/a'), $usuarioId, 'reservacion', $reservacionId, isset($result->id) ? route('pagos.show', $result->id) : route('reservaciones.show', $reservacionId)); } catch (\Throwable $e) {}
-                return redirect()->route('reservaciones.show', $reservacionId)->with('success', 'Pago realizado correctamente');
-
-            } else {
-                // Efectivo u otros métodos: crear pago y marcar reservación
+                // Crear pago
                 $p = Payment::create([
                     'reservacion_id' => $reservacionId,
-                    'tarjeta_id' => null,
+                    'tarjeta_id' => $tarjeta->id,
                     'monto' => $monto,
                     'metodo_pago' => $metodo,
                     'estado' => 'pagado',
@@ -339,20 +333,26 @@ class PaymentController extends Controller
                 ]);
                 $this->ensurePaymentQrCode($p);
 
-                $r = Reservation::find($reservacionId);
-                if ($r) {
-                    $r->estado_pago = 'pagado';
-                    if (($r->estado ?? '') !== 'confirmada') $r->estado = 'confirmada';
-                    $r->save();
-                }
+                // Actualizar reservación
+                $r->estado_pago = 'pagado';
+                if (($r->estado ?? '') !== 'confirmada') $r->estado = 'confirmada';
+                $r->save();
 
-                if ($request->wantsJson()) return response()->json($p);
-                try { Log::entry('pago', 'Pago registrado (efectivo): #' . $p->id, $usuarioId, 'reservacion', $reservacionId, route('pagos.show', $p->id)); } catch (\Throwable $e) {}
-                return redirect()->route('reservaciones.show', $reservacionId)->with('success', 'Pago registrado (efectivo)');
-            }
+                return $p;
+            });
+
+            if ($request->wantsJson()) return response()->json($result);
+            try { Log::entry('pago', 'Pago realizado correctamente: #' . ($result->id ?? 'n/a'), $usuarioId, 'reservacion', $reservacionId, isset($result->id) ? route('pagos.show', $result->id) : route('reservaciones.show', $reservacionId)); } catch (\Throwable $e) {}
+            return redirect()->route('reservaciones.show', $reservacionId)->with('success', 'Pago realizado correctamente');
 
         } catch (\Exception $e) {
             $msg = $e->getMessage() ?: 'Error procesando el pago';
+
+            if ($msg === $alreadyPaidMsg) {
+                try { Log::entry('pago', 'Pago rechazado: reservacion ya pagada #' . $reservacionId, auth()->id(), 'reservacion', $reservacionId, route('reservaciones.show', $reservacionId)); } catch (\Throwable $ex) {}
+                if ($request->wantsJson()) return response()->json(['message' => $msg], 409);
+                return back()->withInput()->withErrors(['pagos' => $msg]);
+            }
 
             // Handle CVV mismatch specifically: increment attempts outside transaction so it persists
             if ($msg === 'CVV_MISMATCH') {
