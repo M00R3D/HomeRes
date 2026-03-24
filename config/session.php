@@ -38,6 +38,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Login-specific lifetimes
+    |--------------------------------------------------------------------------
+    |
+    | Two optional configuration values to control how long a user remains
+    | authenticated after logging in. They are expressed in minutes and can
+    | be overridden via environment variables.
+    |
+    */
+    'login_remember_minutes' => (int) env('LOGIN_REMEMBER_MINUTES', 60 *  12), // 12 hours
+    'login_minutes' => (int) env('LOGIN_MINUTES', (int) env('SESSION_LIFETIME', 0.1)),// 6 seconds (for testing; set to 120 or more for production)
+
+    /*
+    |--------------------------------------------------------------------------
     | Session Encryption
     |--------------------------------------------------------------------------
     |

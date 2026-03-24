@@ -25,6 +25,57 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
 
+            // If "remember" is checked we create a persistent cookie; otherwise
+            // create a session cookie (no expiration — cleared when browser closes).
+            try {
+                if ($request->boolean('remember')) {
+                    $minutes = (int) config('session.login_remember_minutes', config('session.lifetime'));
+
+                    Cookie::queue(
+                        Cookie::make(
+                            config('session.cookie'),
+                            session()->getId(),
+                            $minutes,
+                            config('session.path'),
+                            config('session.domain'),
+                            config('session.secure'),
+                            config('session.http_only'),
+                            false,
+                            config('session.same_site')
+                        )
+                    );
+
+                    // store server-side expiry so we can enforce it on every request
+                    try {
+                        $expiresAt = now()->addMinutes($minutes)->getTimestamp();
+                        session(['auth_expires_at' => $expiresAt]);
+                    } catch (\Throwable $_e) {
+                    }
+                } else {
+                    // session cookie: minutes = 0 -> no Expires header (cleared when browser closes)
+                    Cookie::queue(
+                        Cookie::make(
+                            config('session.cookie'),
+                            session()->getId(),
+                            0,
+                            config('session.path'),
+                            config('session.domain'),
+                            config('session.secure'),
+                            config('session.http_only'),
+                            false,
+                            config('session.same_site')
+                        )
+                    );
+                    // remove any previous server-side expiry for session-only logins
+                    try {
+                        session()->forget('auth_expires_at');
+                    } catch (\Throwable $_e) {
+                    }
+                }
+            } catch (\Throwable $e) {
+                // non-fatal: if cookie can't be queued, continue normal flow
+            }
+
             $user = Auth::user();
             if ($user->baneado ?? false) {
                 Auth::logout();
@@ -35,6 +86,26 @@ class AuthController extends Controller
                 ], 403);
             }
 
+            // For non-remembered logins, create a per-browser session token
+            // that must live in sessionStorage. If the browser is closed and
+            // reopened, sessionStorage is cleared and the check in the layout
+            // will redirect the user to the login page.
+            if (! $request->boolean('remember')) {
+                try {
+                    $token = bin2hex(random_bytes(16));
+                    session(['session_browser_token' => $token]);
+                } catch (\Throwable $_e) {
+                }
+
+                // redirect to intended URL and signal the client to initialize
+                // sessionStorage with the token
+                $intended = session()->pull('url.intended', url('/dashboard'));
+                $sep = str_contains($intended, '?') ? '&' : '?';
+                return redirect($intended . $sep . 'session_init=1');
+            }
+
+            // Remember logins should not use the browser-only token
+            session()->forget('session_browser_token');
             return redirect()->intended(route('dashboard'));
         }
 
@@ -91,6 +162,8 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         Cookie::queue(Cookie::forget('remember_web_' . sha1('web')));
+        // clear any browser-session token on logout
+        try { session()->forget('session_browser_token'); } catch (\Throwable $_e) {}
 
         return redirect()->route('login');
     }

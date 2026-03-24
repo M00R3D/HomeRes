@@ -86,6 +86,10 @@
     <div class="card">
       <h1 class="title">Iniciar sesión</h1>
 
+      @if(request()->query('session_closed'))
+        <div class="alert error">Tu sesión se cerró porque cerraste la pestaña o la ventana. Por seguridad necesitas iniciar sesión de nuevo.</div>
+      @endif
+
       @if(session('success'))
         <div class="alert success">{{ session('success') }}</div>
       @endif

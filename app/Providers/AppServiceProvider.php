@@ -37,5 +37,28 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable $e) {
             // some environments may not have the notifications table yet during boot
         }
+
+        // Enforce server-side session expiry (set at login in `auth_expires_at`)
+        try {
+            \Illuminate\Support\Facades\Event::listen(\Illuminate\Routing\Events\RouteMatched::class, function ($event) {
+                try {
+                    $request = $event->request;
+                    if (auth()->check()) {
+                        $expires = session('auth_expires_at');
+                        if (! empty($expires) && time() > (int) $expires) {
+                            auth()->logout();
+                            $request->session()->invalidate();
+                            $request->session()->regenerateToken();
+                            if (! $request->expectsJson()) {
+                                \redirect()->route('login')->send();
+                            }
+                        }
+                    }
+                } catch (\Throwable $_e) {
+                }
+            });
+        } catch (\Throwable $e) {
+            // non-fatal
+        }
     }
 }

@@ -441,6 +441,44 @@
       } catch(e) {}
     })();
   </script>
+  @if(auth()->check() && session('session_browser_token'))
+  <script>
+    (function(){
+      const serverToken = @json(session('session_browser_token'));
+      try {
+        const params = new URLSearchParams(window.location.search || '');
+        if (params.get('session_init') === '1') {
+          try { sessionStorage.setItem('hr_session_token', serverToken); } catch(e) {}
+          // remove the flag from the URL without reloading
+          try { const u = new URL(window.location.href); u.searchParams.delete('session_init'); history.replaceState({}, '', u.toString()); } catch(e) {}
+        } else {
+          try {
+            if (sessionStorage.getItem('hr_session_token') !== serverToken) {
+              // Invalidate server session first to avoid the guest->auth redirect loop
+              try {
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                fetch("{{ route('logout') }}", { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                  .finally(() => { window.location = "{{ route('login') }}?session_closed=1"; });
+              } catch(e) { window.location = "{{ route('login') }}?session_closed=1"; }
+            }
+          } catch(e) {
+            try {
+              const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+              fetch("{{ route('logout') }}", { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                .finally(() => { window.location = "{{ route('login') }}?session_closed=1"; });
+            } catch(err) { window.location = "{{ route('login') }}?session_closed=1"; }
+          }
+        }
+      } catch(e) {
+        try {
+          const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+          fetch("{{ route('logout') }}", { method: 'POST', headers: { 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .finally(() => { window.location = "{{ route('login') }}?session_closed=1"; });
+        } catch(err) { try { window.location = "{{ route('login') }}?session_closed=1"; } catch(_) {} }
+      }
+    })();
+  </script>
+  @endif
   <aside id="sidebar" class="sidebar">
     <div class="brand">
       <a class="brand-link" href="{{ route('homepage.index') }}">
