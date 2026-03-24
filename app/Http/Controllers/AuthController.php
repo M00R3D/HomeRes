@@ -38,7 +38,15 @@ class AuthController extends Controller
             return redirect()->intended(route('dashboard'));
         }
 
-        return back()->withErrors(['email' => 'Credenciales inválidas.'])->withInput();
+        // If AJAX / fetch request, return JSON with specific message (email not found vs wrong password)
+        $user = \App\Models\User::where('email', $credentials['email'])->first();
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            $msg = $user ? 'Contraseña incorrecta.' : 'No existe una cuenta registrada con ese correo.';
+            return response()->json(['message' => $msg], 401);
+        }
+
+        $errMsg = $user ? 'Contraseña incorrecta.' : 'No existe una cuenta registrada con ese correo.';
+        return back()->withErrors(['email' => $errMsg])->withInput();
     }
 
     public function register(Request $request)
