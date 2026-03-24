@@ -514,9 +514,13 @@ label.field .label-text { margin-bottom:8px; }
   .confirm-actions .btn{ width:100%; }
 }
 
-/* Notification bell positioning and toast */
+/* Notification bell positioning and toast
+  Use normal flex flow for `.topbar-right` so header width
+  remains consistent whether the sidebar is open or closed. */
 .topbar{ position: relative; }
-.topbar-right{ position: absolute; right: 12px; top: 8px; display:flex; gap:10px; align-items:center; }
+/* Keep `.topbar-right` in the flex layout (not absolute). This prevents
+  it from shifting when the sidebar gains the `sidebar-collapsed` class. */
+.topbar-right{ position: static !important; right: auto !important; top: auto !important; display:flex; gap:10px; align-items:center; margin-left:auto; }
 .notification-bell{ margin-right:0; }
 .notification-toast{ min-width:280px; max-width:360px; }
 
