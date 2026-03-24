@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use App\Models\AuditLog;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class NotificationController extends Controller
 {
@@ -201,5 +202,35 @@ class NotificationController extends Controller
         }catch(\Throwable $e){ }
 
         return redirect()->route('notifications.preferences')->with('success', 'Preferencias guardadas');
+    }
+
+    /**
+     * Update current user's password (requires current password for non-admin users).
+     */
+    public function updatePassword(Request $request)
+    {
+        $user = Auth::user();
+        if (! $user) abort(403);
+
+        $data = $request->validate([
+            'current_password' => 'nullable|string',
+            'new_password' => 'required|string|min:6|confirmed',
+        ]);
+
+        // Non-admin must provide current password
+        if (($user->rol ?? '') !== 'admin') {
+            if (empty($data['current_password']) || ! Hash::check($data['current_password'], $user->password)) {
+                return redirect()->route('notifications.preferences')->withErrors(['current_password' => 'Contraseña actual inválida']);
+            }
+        }
+
+        try {
+            $user->password = Hash::make($data['new_password']);
+            $user->save();
+        } catch (\Throwable $e) {
+            return redirect()->route('notifications.preferences')->withErrors(['new_password' => 'No se pudo actualizar la contraseña']);
+        }
+
+        return redirect()->route('notifications.preferences')->with('success', 'Contraseña actualizada');
     }
 }

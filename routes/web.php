@@ -100,6 +100,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/notifications/{id}',          [NotificationController::class,'destroy'])->name('notifications.destroy');
     Route::get('/profile/notifications/preferences',  [NotificationController::class,'preferencesForm'])->name('notifications.preferences');
     Route::post('/profile/notifications/preferences', [NotificationController::class,'savePreferences'])->name('notifications.preferences.save');
+    Route::post('/profile/password', [NotificationController::class,'updatePassword'])->name('notifications.updatePassword');
 
     // ── Homepage ──────────────────────────────────────────────────────────────
     Route::get('/homepage', [HomepageController::class, 'index'])->name('homepage.index');

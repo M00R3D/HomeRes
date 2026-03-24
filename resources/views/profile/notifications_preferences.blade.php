@@ -7,40 +7,123 @@
   <h1>Preferencias de notificaciones</h1>
   @if(session('success'))<div style="background:#ecfdf5;color:#065f46;padding:10px;border-radius:8px;margin-bottom:12px;font-weight:700;">{{ session('success') }}</div>@endif
 
-  <form method="POST" action="{{ route('notifications.preferences.save') }}">
-    @csrf
-    <div style="display:flex;flex-direction:column;gap:12px;">
-      <label><input type="checkbox" name="channel_inapp" {{ ($prefs && $prefs->channel_inapp) ? 'checked':'' }}> In-app (campana)</label>
-      <label><input type="checkbox" name="receive_push" {{ ($prefs && $prefs->receive_push) ? 'checked':'' }}> Recibir push</label>
+  @php $isAdmin = ($currentUser && ($currentUser->rol ?? '') === 'admin'); @endphp
 
-      {{-- No theme selector here: site-wide theme is controlled by admins. --}}
-
-      @php $isAdmin = ($currentUser && ($currentUser->rol ?? '') === 'admin'); @endphp
-      @if($isAdmin)
-        <hr />
-        <h3>Admin — Editar usuario</h3>
-        <label>Nombre<br><input type="text" name="user_nombre" value="{{ old('user_nombre', $currentUser->nombre ?? '') }}" style="width:100%"></label>
-        <label>Apellido<br><input type="text" name="user_apellido" value="{{ old('user_apellido', $currentUser->apellido ?? '') }}" style="width:100%"></label>
-        <label>Email<br><input type="email" name="user_email" value="{{ old('user_email', $currentUser->email ?? '') }}" style="width:100%"></label>
-
-        <h4>Propiedades</h4>
-        <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;padding:6px;border:1px solid #f3f4f6;border-radius:8px;background:#fff;">
-          @foreach($propiedades as $p)
-            @php $checked = false; if($prefs && !empty($prefs->categories)) { $cats = is_array($prefs->categories) ? $prefs->categories : json_decode($prefs->categories, true); $checked = in_array($p->id, $cats ?? []); } @endphp
-            <label><input type="checkbox" name="propiedades[]" value="{{ $p->id }}" {{ $checked ? 'checked':'' }}> {{ $p->nombre }}</label>
-          @endforeach
-        </div>
-      @endif
-      <button class="btn" type="submit">Guardar</button>
+  <div style="background:#fff;padding:14px;border-radius:10px;box-shadow:0 8px 24px rgba(2,6,23,0.04);">
+    <h2>Información de cuenta</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;margin-bottom:12px;">
+      <div>
+        <div style="font-weight:700">Nombre</div>
+        <div>{{ $currentUser->nombre ?? '-' }}</div>
+      </div>
+      <div>
+        <div style="font-weight:700">Apellido</div>
+        <div>{{ $currentUser->apellido ?? '-' }}</div>
+      </div>
+      <div>
+        <div style="font-weight:700">Email</div>
+        <div>{{ $currentUser->email ?? '-' }}</div>
+      </div>
+      <div>
+        <div style="font-weight:700">Propiedades</div>
+        @php
+          $props = [];
+          try{
+            $props = \App\Models\Reservation::where('usuario_id', $currentUser->id)->with('propiedad')->get()->pluck('propiedad.nombre')->filter()->unique()->values();
+          }catch(\Throwable $e){ }
+        @endphp
+        <div>{{ $props->isNotEmpty() ? $props->join(', ') : '-' }}</div>
+      </div>
     </div>
-  </form>
+
+      <div style="margin-top:8px;">
+        <div style="display:flex;gap:8px;align-items:center">
+          @if($isAdmin)
+          <div style="font-weight:700;margin-bottom:6px;">Contraseña</div>
+        <input id="pw-mask" type="password" value="********" disabled style="padding:8px;border-radius:8px;border:1px solid #e6e9ee;min-width:240px;">
+          <button id="btn-toggle-edit" type="button" class="action-btn view">Editar</button>
+        @endif
+      </div>
+
+      <div id="pw-edit-area" style="display:none;margin-top:12px;border-top:1px dashed #eef2f7;padding-top:12px;">
+        <form method="POST" action="{{ route('notifications.updatePassword') }}">
+          @csrf
+          <div style="display:flex;flex-direction:column;gap:8px;max-width:420px">
+            @if($isAdmin)
+              <div style="color:#6b7280;font-size:0.95rem;">Nota: por seguridad las contraseñas están almacenadas en forma segura y no pueden mostrarse en texto plano. Puedes establecer una nueva contraseña a continuación.</div>
+
+              <label>Nueva contraseña<br><input name="new_password" type="password" class="pw-input" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ee;"></label>
+              <label>Confirmar nueva contraseña<br><input name="new_password_confirmation" type="password" class="pw-input" style="width:100%;padding:8px;border-radius:8px;border:1px solid #e6e9ee;"></label>
+
+              <label style="display:flex;align-items:center;gap:8px;"><input id="pw-reveal" type="checkbox"> Mostrar contraseñas</label>
+              <div style="display:flex;gap:8px;">
+                <button type="submit" class="action-btn primary">Guardar contraseña</button>
+                <button id="pw-cancel" type="button" class="action-btn view">Cancelar</button>
+              </div>
+            @else
+              <div style="color:#6b7280;font-size:0.95rem;">Por seguridad no es posible mostrar la contraseña en texto plano ni editarla desde aquí. Si necesitas cambiarla usa la opción de recuperar contraseña o contacta al administrador.</div>
+              <div style="margin-top:8px;"><button id="pw-close-only" type="button" class="action-btn view">Cerrar</button></div>
+            @endif
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  @if($isAdmin)
+    <div style="margin-top:14px;">
+      <hr />
+      <h3>Admin — Preferencias y edición</h3>
+      <form method="POST" action="{{ route('notifications.preferences.save') }}">
+        @csrf
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <label>Nombre<br><input type="text" name="user_nombre" value="{{ old('user_nombre', $currentUser->nombre ?? '') }}" style="width:100%"></label>
+          <label>Apellido<br><input type="text" name="user_apellido" value="{{ old('user_apellido', $currentUser->apellido ?? '') }}" style="width:100%"></label>
+          <label>Email<br><input type="email" name="user_email" value="{{ old('user_email', $currentUser->email ?? '') }}" style="width:100%"></label>
+
+          <h4>Propiedades</h4>
+          <div style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;padding:6px;border:1px solid #f3f4f6;border-radius:8px;background:#fff;">
+            @foreach($propiedades as $p)
+              @php $checked = false; if($prefs && !empty($prefs->categories)) { $cats = is_array($prefs->categories) ? $prefs->categories : json_decode($prefs->categories, true); $checked = in_array($p->id, $cats ?? []); } @endphp
+              <label><input type="checkbox" name="propiedades[]" value="{{ $p->id }}" {{ $checked ? 'checked':'' }}> {{ $p->nombre }}</label>
+            @endforeach
+          </div>
+
+          <button class="btn" type="submit">Guardar</button>
+        </div>
+      </form>
+    </div>
+  @endif
 </div>
 @endsection
 
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  // No per-user theme controls (admin-only global theme)
+  // Toggle password edit area
+  const btnToggle = document.getElementById('btn-toggle-edit');
+  const pwEdit = document.getElementById('pw-edit-area');
+  const pwCancel = document.getElementById('pw-cancel');
+  const pwReveal = document.getElementById('pw-reveal');
+  const pwInputs = document.querySelectorAll('.pw-input');
+  if(btnToggle){
+    btnToggle.addEventListener('click', function(){
+      // If admin, toggle edit area; if not admin, show view-only message area
+      var isAdmin = {{ $isAdmin ? 'true' : 'false' }};
+      if(isAdmin){
+        if(pwEdit.style.display === 'none' || pwEdit.style.display === '') pwEdit.style.display = 'block';
+        else pwEdit.style.display = 'none';
+      } else {
+        // show edit area (contains view-only message) when non-admin clicks Ver
+        pwEdit.style.display = 'block';
+      }
+    });
+  }
+  if(pwCancel){ pwCancel.addEventListener('click', function(){ pwEdit.style.display = 'none'; }); }
+  // close-only button for non-admins
+  var pwCloseOnly = document.getElementById('pw-close-only');
+  if(pwCloseOnly){ pwCloseOnly.addEventListener('click', function(){ pwEdit.style.display = 'none'; }); }
+  if(pwReveal){ pwReveal.addEventListener('change', function(){ pwInputs.forEach(i => i.type = this.checked ? 'text' : 'password'); }); }
 });
 </script>
 @endpush
