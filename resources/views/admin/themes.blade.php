@@ -76,6 +76,10 @@
         <button type="button" class="ap-tab is-active" data-tab="theme">Tema</button>
       </div>
 
+      <div style="margin-top:8px">
+        <button type="button" class="btn">Guardar personalización global</button>
+      </div>
+
       <form method="POST" action="{{ route('admin.themes.save') }}">
         @csrf
         <input type="hidden" name="id" value="{{ $theme->id ?? '' }}">
