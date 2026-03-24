@@ -276,7 +276,9 @@
               <th>Estado</th>
               <th>Estado pago</th>
               <th>Acciones</th>
-              <th style="width:200px">Cambiar estado</th>
+              @if($isAdmin)
+                <th style="width:200px">Cambiar estado</th>
+              @endif
             </tr>
           </thead>
           <tbody>
@@ -430,9 +432,6 @@
                   @else
                     <div class="btn-group-col">
                       <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn view">Ver</a>
-
-                      <a href="/notificaciones?reservacion_id={{ $r->id }}" class="action-btn view">Notificaciones</a>
-
                       @if(in_array($r->estado, ['pendiente','confirmada']) && !($r->isExpired() ?? false) && !($r->isPaid() ?? false))
                         <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar</a>
 
@@ -446,8 +445,8 @@
                   @endif
                 </td>
 
-                <td style="vertical-align:middle;">
-                  @if($isAdmin)
+                @if($isAdmin)
+                  <td style="vertical-align:middle;">
                     <form id="form-change-{{ $r->id }}" action="{{ route('reservaciones.changeEstado', $r->id) }}" method="POST" style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
                       @csrf
                       <input type="hidden" name="estado" value="">
@@ -461,13 +460,11 @@
                         <button type="button" class="action-btn danger" data-change data-id="{{ $r->id }}" data-estado="cancelada">Cancelar</button>
                       @endif
                     </form>
-                  @else
-                    <div class="muted">Solo administración</div>
-                  @endif
-                </td>
+                  </td>
+                @endif
               </tr>
             @empty
-              <tr><td colspan="9" class="muted">No hay reservaciones aún.</td></tr>
+              <tr><td colspan="{{ $isAdmin ? 10 : 9 }}" class="muted">No hay reservaciones aún.</td></tr>
             @endforelse
           </tbody>
         </table>
