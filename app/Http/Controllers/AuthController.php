@@ -45,9 +45,20 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'nombre' => 'required|string|max:100',
-            'apellido' => 'nullable|string|max:100',
+            'apellido' => 'required|string|max:100',
             'email' => 'required|email|unique:usuarios,email',
             'password' => 'required|string|min:6|confirmed',
+        ], [
+            'nombre.required' => 'El nombre es obligatorio.',
+            'nombre.max' => 'El nombre no puede exceder :max caracteres.',
+            'apellido.required' => 'El apellido es obligatorio.',
+            'apellido.max' => 'El apellido no puede exceder :max caracteres.',
+            'email.required' => 'El correo electrónico es obligatorio.',
+            'email.email' => 'Introduce un correo electrónico válido.',
+            'email.unique' => 'El correo electrónico ya está en uso.',
+            'password.required' => 'La contraseña es obligatoria.',
+            'password.min' => 'La contraseña debe tener al menos :min caracteres.',
+            'password.confirmed' => 'Las contraseñas no coinciden.',
         ]);
 
         $user = User::create([

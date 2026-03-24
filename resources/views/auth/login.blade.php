@@ -135,7 +135,7 @@
 
         <label class="field">
           <span class="label-text">Apellido</span>
-          <input type="text" name="apellido" />
+          <input type="text" name="apellido" required />
         </label>
 
         <label class="field">
@@ -159,87 +159,183 @@
         </div>
       </form>
     </div>
-  </div>
+    </div>
 
-  <script>
-    (function () {
-      const open = document.getElementById('open-register');
-      const modal = document.getElementById('modal-register');
-      const closeBtns = [document.getElementById('modal-close'), document.getElementById('close-register'), document.getElementById('cancel-register')];
+    <script>
+      (function () {
+        const open = document.getElementById('open-register');
+        const modal = document.getElementById('modal-register');
+        const closeBtns = [document.getElementById('modal-close'), document.getElementById('close-register'), document.getElementById('cancel-register')];
 
-      function show() { modal.setAttribute('aria-hidden', 'false'); modal.classList.add('open'); }
-      function hide() { modal.setAttribute('aria-hidden', 'true'); modal.classList.remove('open'); }
+        function show() { modal.setAttribute('aria-hidden', 'false'); modal.classList.add('open'); }
+        function hide() { modal.setAttribute('aria-hidden', 'true'); modal.classList.remove('open'); }
 
-      open && open.addEventListener('click', function (e) { e.preventDefault(); show(); });
-      closeBtns.forEach(b => b && b.addEventListener('click', hide));
-      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
-    })();
-  </script>
-  <script>
-    // Show persistent session error (set by interceptor) and handle login via fetch to avoid full 419 page
-    document.addEventListener('DOMContentLoaded', function(){
-      try {
-        const msg = localStorage.getItem('session_error');
-        if (msg) {
-          localStorage.removeItem('session_error');
-          const alert = document.createElement('div');
-          alert.className = 'alert error';
-          alert.textContent = msg;
-          const card = document.querySelector('.card');
-          if (card) card.insertBefore(alert, card.firstChild);
-          else document.body.insertAdjacentElement('afterbegin', alert);
-        }
-      } catch (e) {}
+        open && open.addEventListener('click', function (e) { e.preventDefault(); show(); });
+        closeBtns.forEach(b => b && b.addEventListener('click', hide));
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+      })();
+    </script>
 
-      const form = document.querySelector('form.form');
-      if (!form) return;
-      form.addEventListener('submit', async function (e) {
-        e.preventDefault();
-        const fd = new FormData(form);
+    <script>
+      // Show persistent session error (set by interceptor) and handle login via fetch to avoid full 419 page
+      document.addEventListener('DOMContentLoaded', function(){
         try {
-          const res = await fetch(form.action, {
-            method: 'POST',
-            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
-            body: fd,
-            credentials: 'same-origin'
-          });
-
-          if (res.status === 419) {
-            try { localStorage.setItem('session_error', 'Tu sesión expiró. Por favor inicia sesión de nuevo.'); } catch (e) {}
-            window.location = '/login';
-            return;
+          const msg = localStorage.getItem('session_error');
+          if (msg) {
+            localStorage.removeItem('session_error');
+            const alert = document.createElement('div');
+            alert.className = 'alert error';
+            alert.textContent = msg;
+            const card = document.querySelector('.card');
+            if (card) card.insertBefore(alert, card.firstChild);
+            else document.body.insertAdjacentElement('afterbegin', alert);
           }
+        } catch (e) {}
 
-          if (res.status === 403) {
-            const ct = (res.headers.get('content-type') || '').toLowerCase();
-            if (ct.includes('text/html')) {
-              const html = await res.text();
-              document.open();
-              document.write(html);
-              document.close();
+        const form = document.querySelector('form.form');
+        if (!form) return;
+
+        form.addEventListener('submit', async function (e) {
+          e.preventDefault();
+          const fd = new FormData(form);
+          try {
+            const res = await fetch(form.action, {
+              method: 'POST',
+              headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+              body: fd,
+              credentials: 'same-origin'
+            });
+
+            if (res.status === 419) {
+              try { localStorage.setItem('session_error', 'Tu sesión expiró. Por favor inicia sesión de nuevo.'); } catch (e) {}
+              window.location = '/login';
               return;
             }
-          }
 
-          if (!res.ok) {
-            let data = null;
-            try { data = await res.json(); } catch (er) {}
-            const msg = (data && (data.message || (data.errors && Object.values(data.errors).flat()[0]))) || 'Error al iniciar sesión. Intenta nuevamente.';
-            try { localStorage.setItem('session_error', msg); } catch (e) {}
+            if (res.status === 403) {
+              const ct = (res.headers.get('content-type') || '').toLowerCase();
+              if (ct.includes('text/html')) {
+                const html = await res.text();
+                document.open();
+                document.write(html);
+                document.close();
+                return;
+              }
+            }
+
+            if (!res.ok) {
+              let data = null;
+              try { data = await res.json(); } catch (er) {}
+              const msg = (data && (data.message || (data.errors && Object.values(data.errors).flat()[0]))) || 'Error al iniciar sesión. Intenta nuevamente.';
+              try { localStorage.setItem('session_error', msg); } catch (e) {}
+              window.location.reload();
+              return;
+            }
+
+            // success: follow redirect if any, else reload
+            if (res.redirected) window.location = res.url;
+            else window.location.reload();
+
+          } catch (err) {
+            try { localStorage.setItem('session_error', 'Error de conexión. Intenta de nuevo.'); } catch (e) {}
             window.location.reload();
-            return;
           }
-
-          // success: follow redirect if any, else reload
-          if (res.redirected) window.location = res.url;
-          else window.location.reload();
-
-        } catch (err) {
-          try { localStorage.setItem('session_error', 'Error de conexión. Intenta de nuevo.'); } catch (e) {}
-          window.location.reload();
-        }
+        });
       });
-    });
-  </script>
-</body>
-</html>
+    </script>
+
+    <script>
+      // Intercept register form submit and show inline validation errors without closing modal
+      document.addEventListener('DOMContentLoaded', function(){
+        const regForm = document.querySelector('#modal-register form');
+        if (!regForm) return;
+
+        // disable browser native validation so we can show consistent messages
+        regForm.noValidate = true;
+
+        function clearErrors() {
+          regForm.querySelectorAll('.field-error').forEach(e => e.remove());
+          const top = regForm.querySelector('.alert'); if (top) top.remove();
+        }
+
+        function showErrors(errors) {
+          clearErrors();
+          for (const key in errors) {
+            if (!Object.prototype.hasOwnProperty.call(errors, key)) continue;
+            const msgs = errors[key];
+            const input = regForm.querySelector('[name="' + key + '"]');
+            const el = document.createElement('div');
+            el.className = 'field-error';
+            el.style.color = '#b91c1c';
+            el.style.marginTop = '6px';
+            el.textContent = Array.isArray(msgs) ? msgs[0] : msgs;
+            if (input && input.parentNode) input.parentNode.appendChild(el);
+            else regForm.insertBefore(el, regForm.firstChild);
+          }
+        }
+
+        function clientValidate() {
+          const errs = {};
+          const fNombre = regForm.querySelector('[name="nombre"]');
+          const fApellido = regForm.querySelector('[name="apellido"]');
+          const fEmail = regForm.querySelector('[name="email"]');
+          const fPass = regForm.querySelector('[name="password"]');
+          const fPassc = regForm.querySelector('[name="password_confirmation"]');
+
+          if (!fNombre || !fNombre.value.trim()) errs['nombre'] = ['El nombre es obligatorio.'];
+          if (!fApellido || !fApellido.value.trim()) errs['apellido'] = ['El apellido es obligatorio.'];
+          if (!fEmail || !fEmail.value.trim()) errs['email'] = ['El correo electrónico es obligatorio.'];
+          else if (!/^\S+@\S+\.\S+$/.test(fEmail.value.trim())) errs['email'] = ['Introduce un correo electrónico válido.'];
+          if (!fPass || !fPass.value) errs['password'] = ['La contraseña es obligatoria.'];
+          else if (fPass.value.length < 6) errs['password'] = ['La contraseña debe tener al menos 6 caracteres.'];
+          if (!fPassc || fPassc.value !== fPass.value) errs['password_confirmation'] = ['Las contraseñas no coinciden.'];
+
+          return Object.keys(errs).length ? errs : null;
+        }
+
+        regForm.addEventListener('submit', async function(e){
+          e.preventDefault();
+          clearErrors();
+          const clientErrs = clientValidate();
+          if (clientErrs) { showErrors(clientErrs); return; }
+
+          const fd = new FormData(regForm);
+          try {
+            const res = await fetch(regForm.action, {
+              method: 'POST',
+              headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+              body: fd,
+              credentials: 'same-origin'
+            });
+
+            if (res.status === 422) {
+              let data = null;
+              try { data = await res.json(); } catch (err) { }
+              if (data && data.errors) { showErrors(data.errors); return; }
+              showErrors({ _ : ['Datos inválidos'] });
+              return;
+            }
+
+            if (!res.ok) {
+              const text = await res.text();
+              const alert = document.createElement('div');
+              alert.className = 'alert error';
+              alert.textContent = (text && text.length < 300) ? text : 'Error al registrar. Intenta de nuevo.';
+              regForm.insertBefore(alert, regForm.firstChild);
+              return;
+            }
+
+            // success
+            if (res.redirected) window.location = res.url; else window.location.reload();
+
+          } catch (err) {
+            const alert = document.createElement('div');
+            alert.className = 'alert error';
+            alert.textContent = 'Error de conexión. Intenta de nuevo.';
+            regForm.insertBefore(alert, regForm.firstChild);
+          }
+        });
+      });
+    </script>
+  </body>
+  </html>
