@@ -100,7 +100,6 @@
             <div style="text-align:center;">
               <img src="{{ $qrUrl }}" alt="QR pago {{ $p->id }}" style="width:200px;height:200px;border:1px solid #e5e7eb;border-radius:10px;padding:8px;background:#fff;">
               <div style="margin-top:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:800;font-size:12px;word-break:break-all;">{{ $p->codigo_qr }}</div>
-              <button type="button" class="btn" style="margin-top:8px;" data-qr-open data-qr-src="{{ $qrUrl }}" data-qr-code="{{ $p->codigo_qr }}">Ver código grande</button>
               <a href="{{ route('pagos.codes.show', $p->id) }}" class="link-button" style="display:inline-block;margin-top:6px;">Detalle de código</a>
             </div>
           </div>
