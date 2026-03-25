@@ -70,15 +70,101 @@
   @endphp
 
   @if($dashPayments->isNotEmpty())
+    <style>
+      .qr-prop-square {
+        width: 136px;
+        aspect-ratio: 1 / 1;
+        border-radius: 14px;
+        overflow: hidden;
+        position: relative;
+        border: 1px solid #e5e7eb;
+        background: linear-gradient(135deg, #f8fafc, #eef2ff);
+        transform: rotate(-1deg);
+        box-shadow: 0 10px 24px rgba(2,6,23,0.08);
+      }
+      .qr-prop-square::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,0.3), rgba(255,255,255,0) 48%);
+        opacity: 0;
+        transition: opacity .25s ease;
+      }
+      .qr-prop-square:hover::before { opacity: 1; }
+      .qr-prop-track {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        transition: transform .68s cubic-bezier(.22,.61,.36,1);
+      }
+      .qr-prop-slide {
+        flex: 0 0 100%;
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+      .qr-prop-slide img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transform: scale(1.02);
+        transition: transform .9s ease, filter .35s ease;
+        filter: saturate(1.05);
+      }
+      .qr-prop-square:hover .qr-prop-slide img {
+        transform: scale(1.1);
+        filter: saturate(1.2);
+      }
+      .qr-prop-dots {
+        position: absolute;
+        left: 8px;
+        bottom: 8px;
+        display: flex;
+        gap: 5px;
+        z-index: 2;
+      }
+      .qr-prop-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.55);
+        border: 1px solid rgba(2,6,23,0.2);
+      }
+      .qr-prop-dot.is-active {
+        width: 14px;
+        background: #fff;
+      }
+    </style>
     <div style="margin-top:16px;">
       <h2 style="margin:0 0 10px 0;">{{ $isAdmin ? 'Pagos y códigos (todos)' : 'Mis pagos y códigos' }}</h2>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(460px,1fr));gap:14px;">
         @foreach($dashPayments as $p)
           @php
             $rawImg = $p->reservation->propiedad->ruta_img ?? null;
-            $imgUrl = null;
-            if (is_string($rawImg) && preg_match('/\.(jpg|jpeg|png|webp|gif)$/i', $rawImg)) {
-              $imgUrl = asset(ltrim($rawImg, '/\\'));
+            $galleryUrls = [];
+            $allowedExt = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+            if (is_string($rawImg) && $rawImg !== '') {
+              $normalized = trim(str_replace('\\', '/', $rawImg), '/');
+              $publicTarget = public_path($normalized);
+
+              if (preg_match('/\.([a-zA-Z0-9]+)$/', $normalized, $m)) {
+                $ext = strtolower($m[1]);
+                if (in_array($ext, $allowedExt, true)) {
+                  $galleryUrls[] = asset($normalized);
+                }
+              } elseif (is_dir($publicTarget)) {
+                $entries = @scandir($publicTarget) ?: [];
+                foreach ($entries as $entry) {
+                  if ($entry === '.' || $entry === '..') continue;
+                  $ext = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
+                  if (!in_array($ext, $allowedExt, true)) continue;
+                  $galleryUrls[] = asset($normalized . '/' . $entry);
+                }
+                natcasesort($galleryUrls);
+                $galleryUrls = array_values($galleryUrls);
+              }
             }
             $qrPayload = 'HOMERES|RES:' . ($p->reservacion_id ?? '-') . '|PAGO:' . ($p->id ?? '-') . '|COD:' . ($p->codigo_qr ?? '');
             $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' . rawurlencode($qrPayload);
@@ -90,10 +176,25 @@
               <div style="color:#374151;margin-bottom:4px;"><strong>Monto:</strong> ${{ number_format($p->monto ?? 0,2,',','.') }}</div>
               <div style="color:#374151;margin-bottom:4px;"><strong>Método:</strong> {{ $p->metodo_pago ?? '-' }}</div>
               <div style="color:#374151;margin-bottom:8px;"><strong>Estado:</strong> {{ ucfirst($p->estado ?? '-') }}</div>
-              @if($imgUrl)
-                <img src="{{ $imgUrl }}" alt="preview propiedad" style="width:100%;max-width:280px;height:120px;object-fit:cover;border-radius:10px;border:1px solid #e5e7eb;">
+              @if(!empty($galleryUrls))
+                <div class="qr-prop-square" data-qr-prop-carousel>
+                  <div class="qr-prop-track" data-qr-prop-track>
+                    @foreach($galleryUrls as $i => $url)
+                      <div class="qr-prop-slide" data-qr-prop-slide>
+                        <img src="{{ $url }}" alt="Vista {{ $i + 1 }} de {{ $p->reservation->propiedad->nombre ?? 'propiedad' }}">
+                      </div>
+                    @endforeach
+                  </div>
+                  @if(count($galleryUrls) > 1)
+                    <div class="qr-prop-dots" data-qr-prop-dots>
+                      @foreach($galleryUrls as $i => $url)
+                        <span class="qr-prop-dot {{ $i === 0 ? 'is-active' : '' }}"></span>
+                      @endforeach
+                    </div>
+                  @endif
+                </div>
               @else
-                <div style="width:100%;max-width:280px;height:120px;display:flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid #e5e7eb;background:#f8fafc;color:#94a3b8;">Sin preview</div>
+                <div class="qr-prop-square" style="display:flex;align-items:center;justify-content:center;color:#64748b;font-weight:700;">Sin preview</div>
               @endif
             </div>
 
@@ -106,6 +207,39 @@
         @endforeach
       </div>
     </div>
+    <script>
+      (function() {
+        const carousels = document.querySelectorAll('[data-qr-prop-carousel]');
+        carousels.forEach(function(carousel) {
+          const track = carousel.querySelector('[data-qr-prop-track]');
+          const slides = carousel.querySelectorAll('[data-qr-prop-slide]');
+          const dots = carousel.querySelectorAll('.qr-prop-dot');
+          if (!track || slides.length < 2) return;
+
+          let idx = 0;
+          const show = function(next) {
+            idx = (next + slides.length) % slides.length;
+            track.style.transform = 'translateX(' + (-idx * 100) + '%)';
+            dots.forEach(function(dot, i) { dot.classList.toggle('is-active', i === idx); });
+          };
+
+          let timer = setInterval(function() { show(idx + 1); }, 2600);
+          carousel.addEventListener('mouseenter', function() { clearInterval(timer); });
+          carousel.addEventListener('mouseleave', function() {
+            clearInterval(timer);
+            timer = setInterval(function() { show(idx + 1); }, 2600);
+          });
+
+          carousel.addEventListener('mousemove', function(ev) {
+            const rect = carousel.getBoundingClientRect();
+            const x = ((ev.clientX - rect.left) / rect.width) * 100;
+            const y = ((ev.clientY - rect.top) / rect.height) * 100;
+            carousel.style.setProperty('--mx', x.toFixed(1) + '%');
+            carousel.style.setProperty('--my', y.toFixed(1) + '%');
+          });
+        });
+      })();
+    </script>
   @endif
 
   <div id="modal-new" class="modal" aria-hidden="true">
