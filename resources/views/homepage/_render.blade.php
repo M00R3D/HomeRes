@@ -119,65 +119,80 @@
           </div>
         </section>
         @break
+
+      @case('dynamic_reservations')
+        @if(!empty($settings['show_reservations']))
+          @php($isAdminViewer = $currentUser && (($currentUser->rol ?? '') === 'admin'))
+          <section class="hp-block hp-dynamic-block">
+            <div class="hp-section-head"><h3>{{ $isAdminViewer ? 'Reservaciones (todas)' : 'Tus reservaciones' }}</h3><a class="btn btn-ghost" href="{{ url('/reservaciones') }}">Ver reservaciones</a></div>
+            @if($currentUser && $userReservs->isNotEmpty())
+              <div class="hp-mini-table-wrap">
+                <table class="hp-mini-table">
+                  <thead>
+                    <tr><th>ID</th><th>Propiedad</th><th>Fechas</th><th>Estado</th><th>Accion</th></tr>
+                  </thead>
+                  <tbody>
+                    @foreach($userReservs as $rv)
+                      <tr>
+                        <td>#{{ $rv->id }}</td>
+                        <td>{{ $rv->propiedad->nombre ?? ('Propiedad #' . $rv->propiedad_id) }}</td>
+                        <td>{{ \Carbon\Carbon::parse($rv->check_in)->format('d M Y') }} - {{ \Carbon\Carbon::parse($rv->check_out)->format('d M Y') }}</td>
+                        <td>{{ ucfirst($rv->estado) }}</td>
+                        <td class="hp-mini-actions"><a class="btn btn-ghost" href="{{ route('reservaciones.show', $rv->id) }}">Ver reservacion</a></td>
+                      </tr>
+                    @endforeach
+                  </tbody>
+                </table>
+              </div>
+            @else
+              <div class="hp-empty">{{ $currentUser ? ($isAdminViewer ? 'No hay reservaciones registradas todavia.' : 'No tienes reservaciones registradas todavia.') : 'Inicia sesion para ver tus reservaciones.' }}</div>
+            @endif
+          </section>
+        @endif
+        @break
+
+      @case('dynamic_properties')
+        @if(!empty($settings['show_properties']))
+          <section class="hp-block hp-dynamic-block">
+            <div class="hp-section-head">
+              <h3>Propiedades disponibles</h3>
+              <span>Accesos directos a las propiedades activas</span>
+            </div>
+            <div class="hp-card-grid">
+              @foreach($allProps as $p)
+                @php($gallery = array_values(array_filter((array) ($p->gallery_urls ?? []))))
+                <article class="hp-card-mini">
+                  <div class="hp-card-media hp-card-media-carousel" data-carousel data-carousel-index="0">
+                    <div class="hp-carousel-track" data-carousel-track>
+                      @foreach($gallery as $img)
+                        <div class="hp-carousel-slide"><img src="{{ $img }}" alt="{{ $p->nombre }}"></div>
+                      @endforeach
+                    </div>
+                    @if(count($gallery) > 1)
+                      <button type="button" class="hp-carousel-btn prev" data-carousel-dir="prev" aria-label="Anterior">‹</button>
+                      <button type="button" class="hp-carousel-btn next" data-carousel-dir="next" aria-label="Siguiente">›</button>
+                      <div class="hp-carousel-dots">
+                        @foreach($gallery as $i => $_img)
+                          <span class="{{ $i === 0 ? 'is-active' : '' }}"></span>
+                        @endforeach
+                      </div>
+                    @endif
+                  </div>
+                  <div class="hp-card-copy">
+                    <strong>{{ $p->nombre }}</strong>
+                    <span>{{ $p->ubicacion }}</span>
+                    <span>${{ number_format($p->precio_noche ?? 0, 2, ',', '.') }} / noche</span>
+                  </div>
+                  <div class="hp-inline-actions">
+                    <a class="btn btn-ghost" href="{{ route('propiedades.show', $p->id) }}">Ver</a>
+                    <a class="btn btn-primary" href="{{ route('reservaciones.create_for_propiedad', $p->id) }}">Reservar</a>
+                  </div>
+                </article>
+              @endforeach
+            </div>
+          </section>
+        @endif
+        @break
     @endswitch
   @endforeach
-
-  @if(!empty($settings['show_reservations']))
-    <section class="hp-block hp-dynamic-block">
-      <div class="hp-section-head">
-        <h3>Tus reservaciones</h3>
-        <span>Resumen rapido de tu actividad</span>
-      </div>
-      @if($currentUser && $userReservs->isNotEmpty())
-        <div class="hp-card-grid">
-          @foreach($userReservs as $rv)
-            <article class="hp-card-mini">
-              <div class="hp-card-media">
-                @if(optional($rv->propiedad)->ruta_img)
-                  <img src="{{ $resolveMedia($rv->propiedad->ruta_img) }}" alt="{{ $rv->propiedad->nombre ?? 'Propiedad' }}">
-                @endif
-              </div>
-              <div class="hp-card-copy">
-                <strong>{{ $rv->propiedad->nombre ?? ('Propiedad #' . $rv->propiedad_id) }}</strong>
-                <span>{{ \Carbon\Carbon::parse($rv->check_in)->format('d M Y') }} - {{ \Carbon\Carbon::parse($rv->check_out)->format('d M Y') }}</span>
-                <span>Estado: {{ ucfirst($rv->estado) }}</span>
-              </div>
-              <a class="btn btn-ghost" href="{{ route('reservaciones.show', $rv->id) }}">Ver</a>
-            </article>
-          @endforeach
-        </div>
-      @else
-        <div class="hp-empty">{{ $currentUser ? 'No tienes reservaciones registradas todavia.' : 'Inicia sesion para ver tus reservaciones.' }}</div>
-      @endif
-    </section>
-  @endif
-
-  @if(!empty($settings['show_properties']))
-    <section class="hp-block hp-dynamic-block">
-      <div class="hp-section-head">
-        <h3>Propiedades disponibles</h3>
-        <span>Accesos directos a las propiedades activas</span>
-      </div>
-      <div class="hp-card-grid">
-        @foreach($allProps as $p)
-          <article class="hp-card-mini">
-            <div class="hp-card-media">
-              @if($p->ruta_img)
-                <img src="{{ $resolveMedia($p->ruta_img) }}" alt="{{ $p->nombre }}">
-              @endif
-            </div>
-            <div class="hp-card-copy">
-              <strong>{{ $p->nombre }}</strong>
-              <span>{{ $p->ubicacion }}</span>
-              <span>${{ number_format($p->precio_noche ?? 0, 2, ',', '.') }} / noche</span>
-            </div>
-            <div class="hp-inline-actions">
-              <a class="btn btn-ghost" href="{{ route('propiedades.show', $p->id) }}">Ver</a>
-              <a class="btn btn-primary" href="{{ route('reservaciones.create_for_propiedad', $p->id) }}">Reservar</a>
-            </div>
-          </article>
-        @endforeach
-      </div>
-    </section>
-  @endif
 </div>

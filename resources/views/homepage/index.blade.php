@@ -16,15 +16,56 @@
 
   $userReservs = collect();
   if ($currentUser) {
-      $userReservs = Reservation::with('propiedad')
-          ->where('usuario_id', $currentUser->id)
+      $userReservs = Reservation::with(['propiedad', 'user'])
+        ->when(!$isAdmin, function ($q) use ($currentUser) {
+          $q->where('usuario_id', $currentUser->id);
+        })
           ->orderByDesc('created_at')
-          ->take(6)
+        ->take(12)
           ->get();
   }
 
-  $allProps = Propiedad::orderBy('nombre')->get();
+  $allProps = collect();
   $baseUrl = url('/');
+
+    $resolveGallery = function ($path) {
+      if (! $path) {
+        return [];
+      }
+
+      $raw = ltrim(str_replace('\\', '/', trim((string) $path)), '/');
+      if ($raw === '') {
+        return [];
+      }
+
+      $full = public_path($raw);
+      $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+
+      if (is_file($full)) {
+        $ext = strtolower(pathinfo($full, PATHINFO_EXTENSION));
+        return in_array($ext, $allowed, true) ? [$raw] : [];
+      }
+
+      if (! is_dir($full)) {
+        return [];
+      }
+
+      $files = @scandir($full) ?: [];
+      $gallery = [];
+      foreach ($files as $file) {
+        if ($file === '.' || $file === '..') {
+          continue;
+        }
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        if (! in_array($ext, $allowed, true)) {
+          continue;
+        }
+        $gallery[] = trim($raw, '/\\') . '/' . ltrim($file, '/\\');
+      }
+
+      return $gallery;
+    };
+
     $resolveMedia = function ($path) use ($settings, $homepage) {
       if (! $path) {
         return null;
@@ -60,15 +101,46 @@
         }
 
       foreach (array_values(array_unique($candidates)) as $candidate) {
-        if (is_file(public_path($candidate))) {
+        $target = public_path($candidate);
+        if (is_file($target)) {
           return asset($candidate);
+        }
+        if (is_dir($target)) {
+          $files = @scandir($target) ?: [];
+          foreach ($files as $file) {
+            $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+            if (in_array($ext, ['jpg','jpeg','png','webp','gif'], true)) {
+              return asset(trim($candidate, '/\\') . '/' . ltrim($file, '/\\'));
+            }
+          }
         }
       }
 
       return null;
     };
 
-  $quickMedia = collect($folderFiles ?? [])->map(function ($url) use ($baseUrl) {
+    $allProps = Propiedad::orderBy('nombre')->get()->map(function ($p) use ($resolveGallery, $resolveMedia) {
+      $galleryUrls = collect($resolveGallery($p->ruta_img))
+        ->map(function ($item) use ($resolveMedia) {
+          return $resolveMedia($item) ?: asset(ltrim(str_replace('\\', '/', (string) $item), '/'));
+        })
+        ->filter()
+        ->values()
+        ->all();
+
+      if (empty($galleryUrls)) {
+        $fallbackImage = $resolveMedia($p->ruta_img);
+        if ($fallbackImage) {
+          $galleryUrls[] = $fallbackImage;
+        }
+      }
+
+      $p->setAttribute('gallery_urls', array_values(array_unique($galleryUrls)));
+
+      return $p;
+    });
+
+    $quickMedia = collect($folderFiles ?? [])->map(function ($url) use ($baseUrl) {
       if (str_starts_with($url, $baseUrl)) {
           return ltrim(substr($url, strlen($baseUrl)), '/');
       }
@@ -81,6 +153,8 @@
   ];
 
   $dynamicPayload = [
+      'reservationsIndexUrl' => url('/reservaciones'),
+      'isAdmin' => (bool) $isAdmin,
       'reservations' => $userReservs->map(function ($rv) {
           return [
               'id' => $rv->id,
@@ -93,11 +167,13 @@
               'url' => route('reservaciones.show', $rv->id),
           ];
       })->values(),
-      'properties' => $allProps->map(function ($p) {
+        'properties' => $allProps->map(function ($p) use ($resolveGallery) {
+          $gallery = $resolveGallery($p->ruta_img);
           return [
               'id' => $p->id,
               'name' => $p->nombre,
               'image' => $p->ruta_img,
+            'gallery' => $gallery,
               'location' => $p->ubicacion,
               'price' => (float) ($p->precio_noche ?? 0),
               'showUrl' => route('propiedades.show', $p->id),
@@ -217,12 +293,37 @@
 .hp-section-head{display:flex;justify-content:space-between;gap:12px;align-items:end;flex-wrap:wrap}
 .hp-section-head span{color:var(--muted,#6b7280)}
 .hp-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
-.hp-card-mini{background:var(--card,#fff);border:1px solid var(--input-border,#e5e7eb);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:12px;box-shadow:0 14px 38px rgba(2,6,23,.05)}
+.hp-card-mini{background:var(--card,#fff);border:1px solid var(--input-border,#e5e7eb);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:12px;box-shadow:0 14px 38px rgba(2,6,23,.05);transition:transform .32s cubic-bezier(.22,.61,.36,1),box-shadow .32s ease,border-color .32s ease}
+.hp-card-mini:hover{transform:translateY(-6px);box-shadow:0 24px 46px rgba(2,6,23,.12);border-color:rgba(37,99,235,.18)}
 .hp-card-media{width:100%;height:160px;border-radius:14px;overflow:hidden;background:#eef2f7}
 .hp-card-media img{width:100%;height:100%;object-fit:cover;display:block}
+.hp-card-media-carousel{position:relative;padding:0;overflow:hidden;isolation:isolate;--mx:50%;--my:50%;background:radial-gradient(circle at top, rgba(255,255,255,.18), rgba(255,255,255,0) 34%),linear-gradient(135deg, rgba(15,23,42,.12), rgba(37,99,235,.04))}
+.hp-card-media-carousel::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at var(--mx) var(--my), rgba(255,255,255,.34), rgba(255,255,255,0) 32%);opacity:0;transition:opacity .25s ease;pointer-events:none;z-index:2}
+.hp-card-media-carousel::after{content:'';position:absolute;inset:auto 0 0 0;height:52%;background:linear-gradient(to top, rgba(15,23,42,.34), rgba(15,23,42,0));pointer-events:none;z-index:2}
+.hp-card-mini:hover .hp-card-media-carousel::before{opacity:1}
+.hp-carousel-track{display:flex;height:100%;transition:transform .82s cubic-bezier(.22,.61,.36,1)}
+.hp-carousel-slide{flex:0 0 100%;height:100%;position:relative;overflow:hidden}
+.hp-carousel-slide img{transform:scale(1.02);transition:transform 1.1s cubic-bezier(.22,.61,.36,1),filter .55s ease,opacity .45s ease;filter:saturate(.92) contrast(1.02) brightness(.96);opacity:.84}
+.hp-carousel-slide.is-active img{transform:scale(1.09);filter:saturate(1.12) contrast(1.06) brightness(1);opacity:1}
+.hp-card-mini:hover .hp-carousel-slide.is-active img{transform:scale(1.15)}
+.hp-carousel-btn{position:absolute;top:50%;transform:translateY(-50%) scale(.92);width:34px;height:34px;border:1px solid rgba(255,255,255,.24);border-radius:999px;background:rgba(15,23,42,.52);backdrop-filter:blur(10px);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:800;z-index:3;opacity:0;transition:opacity .22s ease,transform .22s ease,background .22s ease,box-shadow .22s ease}
+.hp-card-media-carousel:hover .hp-carousel-btn,.hp-card-media-carousel:focus-within .hp-carousel-btn{opacity:1;transform:translateY(-50%) scale(1)}
+.hp-carousel-btn:hover{background:rgba(37,99,235,.88);box-shadow:0 10px 18px rgba(37,99,235,.28)}
+.hp-carousel-btn.prev{left:8px}
+.hp-carousel-btn.next{right:8px}
+.hp-carousel-dots{position:absolute;left:0;right:0;bottom:9px;display:flex;justify-content:center;gap:6px;z-index:3}
+.hp-carousel-dots span{width:7px;height:7px;border-radius:999px;background:rgba(255,255,255,.42);box-shadow:0 0 0 1px rgba(255,255,255,.18);transition:transform .24s ease,width .24s ease,background .24s ease,box-shadow .24s ease;cursor:pointer}
+.hp-carousel-dots span.is-active{width:22px;background:#fff;box-shadow:0 0 0 1px rgba(255,255,255,.5),0 6px 14px rgba(255,255,255,.25)}
+.hp-carousel-dots span:hover{transform:scale(1.12)}
 .hp-card-copy{display:flex;flex-direction:column;gap:4px;color:var(--muted,#6b7280)}
 .hp-inline-actions{display:flex;gap:8px;flex-wrap:wrap}
 .hp-empty{padding:18px;border:1px dashed var(--input-border,#d1d5db);border-radius:16px;color:var(--muted,#6b7280);background:rgba(255,255,255,.56)}
+.hp-mini-table-wrap{border:1px solid var(--input-border,#e5e7eb);border-radius:14px;overflow:hidden;background:#fff}
+.hp-mini-table{width:100%;border-collapse:collapse;font-size:.92rem}
+.hp-mini-table th,.hp-mini-table td{padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:middle}
+.hp-mini-table th{background:#f8fafc;color:#475569;font-weight:800}
+.hp-mini-table tbody tr:last-child td{border-bottom:0}
+.hp-mini-actions{white-space:nowrap}
 @media (max-width:1100px){.hp-admin-layout{grid-template-columns:1fr}.hp-preview-pane{position:static}.hp-form-grid{grid-template-columns:1fr}.hp-inline-item{grid-template-columns:1fr}.hp-inline-item.faq{grid-template-columns:1fr}.hp-toolbar{align-items:flex-start}}
 </style>
 
@@ -300,7 +401,6 @@
             <label class="hp-tool-toggle"><input type="checkbox" id="hp-show-properties" {{ !empty($settings['show_properties']) ? 'checked' : '' }}> Mostrar propiedades</label>
           </div>
         </div>
-
         @if(!empty($quickMedia))
           <div class="hp-field">
             <span>Media rápida</span>
@@ -411,6 +511,8 @@ document.addEventListener('DOMContentLoaded', function () {
     image: 'Imagen',
     links: 'Links',
     faq: 'FAQ',
+    dynamic_reservations: 'Reservaciones dinámicas',
+    dynamic_properties: 'Propiedades dinámicas',
   };
 
   function uid(prefix) {
@@ -564,6 +666,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function renderBlockEditor(block, index) {
+    const isDynamicBlock = block.type === 'dynamic_reservations' || block.type === 'dynamic_properties';
     const commonTop = `
       <div class="hp-block-top">
         <div class="hp-block-title">
@@ -574,8 +677,7 @@ document.addEventListener('DOMContentLoaded', function () {
           <label class="hp-tool-toggle"><input type="checkbox" data-action="toggle-enabled" data-index="${index}" ${block.enabled ? 'checked' : ''}> Activo</label>
           <button type="button" class="hp-tool-btn" data-action="move-up" data-index="${index}">Subir</button>
           <button type="button" class="hp-tool-btn" data-action="move-down" data-index="${index}">Bajar</button>
-          <button type="button" class="hp-tool-btn" data-action="duplicate" data-index="${index}">Duplicar</button>
-          <button type="button" class="hp-tool-btn danger" data-action="delete" data-index="${index}">Eliminar</button>
+          ${isDynamicBlock ? '' : `<button type="button" class="hp-tool-btn" data-action="duplicate" data-index="${index}">Duplicar</button><button type="button" class="hp-tool-btn danger" data-action="delete" data-index="${index}">Eliminar</button>`}
         </div>
       </div>`;
 
@@ -694,31 +796,45 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>`;
     }
 
+    if (block.type === 'dynamic_reservations' || block.type === 'dynamic_properties') {
+      return `
+        <div class="hp-block-editor" data-block-index="${index}" data-block-id="${escapeHtml(block.id || '')}">
+          ${commonTop}
+          <div class="hp-pane-subtitle">Sección dinámica del sistema. Puedes mover su posición y activarla/desactivarla.</div>
+        </div>`;
+    }
+
     return `<div class="hp-block-editor">${commonTop}</div>`;
   }
 
   function renderDynamicSectionReservations() {
     if (!state.settings.show_reservations) return '';
+    const title = dynamicData.isAdmin ? 'Reservaciones (todas)' : 'Tus reservaciones';
     if (!dynamicData.loggedIn) {
-      return '<section class="hp-block hp-dynamic-block"><div class="hp-section-head"><h3>Tus reservaciones</h3><span>Resumen rapido de tu actividad</span></div><div class="hp-empty">Inicia sesion para ver tus reservaciones.</div></section>';
+      return '<section class="hp-block hp-dynamic-block"><div class="hp-section-head"><h3>' + title + '</h3><span>Resumen rapido de tu actividad</span></div><div class="hp-empty">Inicia sesion para ver tus reservaciones.</div></section>';
     }
     if (!dynamicData.reservations.length) {
-      return '<section class="hp-block hp-dynamic-block"><div class="hp-section-head"><h3>Tus reservaciones</h3><span>Resumen rapido de tu actividad</span></div><div class="hp-empty">No tienes reservaciones registradas todavia.</div></section>';
+      return '<section class="hp-block hp-dynamic-block"><div class="hp-section-head"><h3>' + title + '</h3><span>Resumen rapido de tu actividad</span></div><div class="hp-empty">' + (dynamicData.isAdmin ? 'No hay reservaciones registradas todavia.' : 'No tienes reservaciones registradas todavia.') + '</div></section>';
     }
     return `
       <section class="hp-block hp-dynamic-block">
-        <div class="hp-section-head"><h3>Tus reservaciones</h3><span>Resumen rapido de tu actividad</span></div>
-        <div class="hp-card-grid">
-          ${dynamicData.reservations.map((item) => `
-            <article class="hp-card-mini">
-              <div class="hp-card-media">${item.image ? `<img src="${toMediaUrl(item.image)}" alt="${escapeHtml(item.name)}">` : ''}</div>
-              <div class="hp-card-copy">
-                <strong>${escapeHtml(item.name)}</strong>
-                <span>${escapeHtml(item.check_in)} - ${escapeHtml(item.check_out)}</span>
-                <span>Estado: ${escapeHtml(item.status)}</span>
-              </div>
-              <a class="btn btn-ghost" href="${escapeHtml(item.url)}">Ver</a>
-            </article>`).join('')}
+        <div class="hp-section-head"><h3>${escapeHtml(title)}</h3><a class="btn btn-ghost" href="${escapeHtml(dynamicData.reservationsIndexUrl || '/reservaciones')}">Ver reservaciones</a></div>
+        <div class="hp-mini-table-wrap">
+          <table class="hp-mini-table">
+            <thead>
+              <tr><th>ID</th><th>Propiedad</th><th>Fechas</th><th>Estado</th><th>Accion</th></tr>
+            </thead>
+            <tbody>
+              ${dynamicData.reservations.map((item) => `
+                <tr>
+                  <td>#${escapeHtml(item.id)}</td>
+                  <td>${escapeHtml(item.name)}</td>
+                  <td>${escapeHtml(item.check_in)} - ${escapeHtml(item.check_out)}</td>
+                  <td>${escapeHtml(item.status)}</td>
+                  <td class="hp-mini-actions"><a class="btn btn-ghost" href="${escapeHtml(item.url)}">Ver reservacion</a></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
         </div>
       </section>`;
   }
@@ -731,7 +847,12 @@ document.addEventListener('DOMContentLoaded', function () {
         <div class="hp-card-grid">
           ${dynamicData.properties.map((item) => `
             <article class="hp-card-mini">
-              <div class="hp-card-media">${item.image ? `<img src="${toMediaUrl(item.image)}" alt="${escapeHtml(item.name)}">` : ''}</div>
+              <div class="hp-card-media hp-card-media-carousel" data-carousel data-carousel-index="0">
+                <div class="hp-carousel-track" data-carousel-track>
+                  ${(Array.isArray(item.gallery) && item.gallery.length ? item.gallery : (item.image ? [item.image] : [])).map((img) => `<div class="hp-carousel-slide"><img src="${toMediaUrl(img)}" alt="${escapeHtml(item.name)}"></div>`).join('')}
+                </div>
+                ${(Array.isArray(item.gallery) && item.gallery.length > 1) ? '<button type="button" class="hp-carousel-btn prev" data-carousel-dir="prev" aria-label="Anterior">‹</button><button type="button" class="hp-carousel-btn next" data-carousel-dir="next" aria-label="Siguiente">›</button><div class="hp-carousel-dots">' + item.gallery.map((_, i) => `<span class="${i === 0 ? 'is-active' : ''}"></span>`).join('') + '</div>' : ''}
+              </div>
               <div class="hp-card-copy">
                 <strong>${escapeHtml(item.name)}</strong>
                 <span>${escapeHtml(item.location || '')}</span>
@@ -800,6 +921,14 @@ document.addEventListener('DOMContentLoaded', function () {
       return `<section class="hp-block hp-block-faq">${block.title ? `<h3>${escapeHtml(block.title)}</h3>` : ''}${block.subtitle ? `<p class="hp-subtitle">${escapeHtml(block.subtitle)}</p>` : ''}<div class="hp-faq-list">${(block.items || []).map((item) => `<details class="hp-faq-item"><summary>${escapeHtml(item.question || 'Pregunta')}</summary><div>${nl2brSafe(item.answer || '')}</div></details>`).join('')}</div></section>`;
     }
 
+    if (block.type === 'dynamic_reservations') {
+      return renderDynamicSectionReservations();
+    }
+
+    if (block.type === 'dynamic_properties') {
+      return renderDynamicSectionProperties();
+    }
+
     return '';
   }
 
@@ -808,10 +937,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const html = `
       <div class="hp-public-content ${state.settings.container === 'narrow' ? 'is-narrow' : ''}">
         ${state.blocks.map(renderBlock).join('')}
-        ${renderDynamicSectionReservations()}
-        ${renderDynamicSectionProperties()}
       </div>`;
     previewRoot.innerHTML = html;
+    if (window.__hpInitCarousels) {
+      window.__hpInitCarousels(previewRoot);
+    }
     metaInput.value = JSON.stringify({ settings: state.settings, blocks: state.blocks });
   }
 
@@ -899,6 +1029,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (action === 'duplicate') {
+      if (state.blocks[index].type === 'dynamic_reservations' || state.blocks[index].type === 'dynamic_properties') {
+        return;
+      }
       const clone = JSON.parse(JSON.stringify(state.blocks[index]));
       clone.id = uid(clone.type || 'block');
       state.blocks.splice(index + 1, 0, clone);
@@ -908,6 +1041,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (action === 'delete') {
+      if (state.blocks[index].type === 'dynamic_reservations' || state.blocks[index].type === 'dynamic_properties') {
+        return;
+      }
       state.blocks.splice(index, 1);
       renderBlocksEditor();
       renderPreview();
@@ -1020,4 +1156,126 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 @endif
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const carouselTimers = new WeakMap();
+
+  function clearCarouselTimer(carousel) {
+    const timer = carouselTimers.get(carousel);
+    if (timer) {
+      window.clearInterval(timer);
+      carouselTimers.delete(carousel);
+    }
+  }
+
+  function applyCarousel(carousel) {
+    const track = carousel.querySelector('[data-carousel-track]');
+    if (!track) return;
+    const total = track.children.length;
+    if (!total) return;
+    let index = Number(carousel.dataset.carouselIndex || 0);
+    if (!Number.isFinite(index)) index = 0;
+    index = ((index % total) + total) % total;
+    carousel.dataset.carouselIndex = String(index);
+    track.style.transform = 'translateX(-' + (index * 100) + '%)';
+    Array.from(track.children).forEach(function (slide, slideIndex) {
+      slide.classList.toggle('is-active', slideIndex === index);
+    });
+    const dots = carousel.querySelectorAll('.hp-carousel-dots span');
+    dots.forEach(function (dot, dotIndex) {
+      dot.classList.toggle('is-active', dotIndex === index);
+    });
+  }
+
+  function stepCarousel(carousel, dir) {
+    const track = carousel.querySelector('[data-carousel-track]');
+    const total = track ? track.children.length : 0;
+    if (total <= 1) return;
+    const current = Number(carousel.dataset.carouselIndex || 0);
+    carousel.dataset.carouselIndex = String(((current + dir) % total + total) % total);
+    applyCarousel(carousel);
+  }
+
+  function startCarouselTimer(carousel) {
+    clearCarouselTimer(carousel);
+    const track = carousel.querySelector('[data-carousel-track]');
+    const total = track ? track.children.length : 0;
+    if (total <= 1) return;
+    const timer = window.setInterval(function () {
+      if (!carousel.isConnected) {
+        clearCarouselTimer(carousel);
+        return;
+      }
+      if (carousel.dataset.carouselPaused === '1') {
+        return;
+      }
+      stepCarousel(carousel, 1);
+    }, 4200);
+    carouselTimers.set(carousel, timer);
+  }
+
+  function pauseCarousel(carousel) {
+    carousel.dataset.carouselPaused = '1';
+  }
+
+  function resumeCarousel(carousel) {
+    carousel.dataset.carouselPaused = '0';
+  }
+
+  window.__hpInitCarousels = function (root) {
+    const scope = root || document;
+    scope.querySelectorAll('[data-carousel]').forEach(function (carousel) {
+      if (!carousel.dataset.carouselBound) {
+        carousel.dataset.carouselBound = '1';
+        carousel.addEventListener('mouseenter', function () {
+          pauseCarousel(carousel);
+        });
+        carousel.addEventListener('mouseleave', function () {
+          resumeCarousel(carousel);
+        });
+        carousel.addEventListener('focusin', function () {
+          pauseCarousel(carousel);
+        });
+        carousel.addEventListener('focusout', function () {
+          resumeCarousel(carousel);
+        });
+        carousel.addEventListener('mousemove', function (event) {
+          const rect = carousel.getBoundingClientRect();
+          const x = ((event.clientX - rect.left) / Math.max(rect.width, 1)) * 100;
+          const y = ((event.clientY - rect.top) / Math.max(rect.height, 1)) * 100;
+          carousel.style.setProperty('--mx', x.toFixed(2) + '%');
+          carousel.style.setProperty('--my', y.toFixed(2) + '%');
+        });
+      }
+      resumeCarousel(carousel);
+      applyCarousel(carousel);
+      startCarouselTimer(carousel);
+    });
+  };
+
+  document.addEventListener('click', function (event) {
+    const btn = event.target.closest('[data-carousel-dir]');
+    if (btn) {
+      const carousel = btn.closest('[data-carousel]');
+      if (!carousel) return;
+      pauseCarousel(carousel);
+      stepCarousel(carousel, btn.dataset.carouselDir === 'prev' ? -1 : 1);
+      return;
+    }
+
+    const dot = event.target.closest('.hp-carousel-dots span');
+    if (!dot) return;
+    const dots = Array.from(dot.parentElement ? dot.parentElement.children : []);
+    const carousel = dot.closest('[data-carousel]');
+    if (!carousel) return;
+    const index = dots.indexOf(dot);
+    if (index < 0) return;
+    pauseCarousel(carousel);
+    carousel.dataset.carouselIndex = String(index);
+    applyCarousel(carousel);
+  });
+
+  window.__hpInitCarousels(document);
+});
+</script>
 @endpush

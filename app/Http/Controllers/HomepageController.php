@@ -158,6 +158,7 @@ class HomepageController extends Controller
                 'image_folder' => $folder,
                 'show_reservations' => true,
                 'show_properties' => true,
+                'dynamic_order' => ['reservations', 'properties'],
                 'container' => 'wide',
                 'hero_height' => 'lg',
             ],
@@ -187,6 +188,18 @@ class HomepageController extends Controller
                     'subtitle' => 'Combina bloques visuales y secciones dinámicas sin salir del editor.',
                     'size' => 'xl',
                     'align' => 'center',
+                ],
+                [
+                    'id' => 'dynamic-reservations',
+                    'type' => 'dynamic_reservations',
+                    'enabled' => true,
+                    'title' => 'Reservaciones dinámicas',
+                ],
+                [
+                    'id' => 'dynamic-properties',
+                    'type' => 'dynamic_properties',
+                    'enabled' => true,
+                    'title' => 'Propiedades dinámicas',
                 ],
                 [
                     'id' => 'faq-default',
@@ -224,13 +237,30 @@ class HomepageController extends Controller
         $settings['show_reservations'] = (bool) ($settings['show_reservations'] ?? true);
         $settings['show_properties'] = (bool) ($settings['show_properties'] ?? true);
 
+        $allowedDynamic = ['reservations', 'properties'];
+        $order = is_array($settings['dynamic_order'] ?? null) ? $settings['dynamic_order'] : [];
+        $normalizedOrder = [];
+        foreach ($order as $item) {
+            $item = strtolower(trim((string) $item));
+            if (! in_array($item, $allowedDynamic, true) || in_array($item, $normalizedOrder, true)) {
+                continue;
+            }
+            $normalizedOrder[] = $item;
+        }
+        foreach ($allowedDynamic as $required) {
+            if (! in_array($required, $normalizedOrder, true)) {
+                $normalizedOrder[] = $required;
+            }
+        }
+        $settings['dynamic_order'] = $normalizedOrder;
+
         $blocks = [];
         foreach (($meta['blocks'] ?? []) as $index => $block) {
             if (! is_array($block)) {
                 continue;
             }
 
-            $type = in_array(($block['type'] ?? ''), ['hero', 'banner', 'title', 'text', 'image', 'links', 'faq'], true)
+            $type = in_array(($block['type'] ?? ''), ['hero', 'banner', 'title', 'text', 'image', 'links', 'faq', 'dynamic_reservations', 'dynamic_properties'], true)
                 ? $block['type']
                 : 'text';
 
@@ -284,6 +314,59 @@ class HomepageController extends Controller
             }
 
             $blocks[] = $normalized;
+        }
+
+        $hasDynamicReservations = collect($blocks)->contains(fn ($b) => ($b['type'] ?? '') === 'dynamic_reservations');
+        $hasDynamicProperties = collect($blocks)->contains(fn ($b) => ($b['type'] ?? '') === 'dynamic_properties');
+        if (! $hasDynamicReservations) {
+            $blocks[] = [
+                'id' => 'dynamic-reservations',
+                'type' => 'dynamic_reservations',
+                'enabled' => (bool) ($settings['show_reservations'] ?? true),
+                'title' => 'Reservaciones dinámicas',
+                'subtitle' => '',
+                'body' => '',
+                'image' => '',
+                'link' => '',
+                'label' => '',
+                'height' => 'md',
+                'width' => 'md',
+                'align' => 'left',
+                'overlay' => 35,
+                'eyebrow' => '',
+                'primary_label' => '',
+                'primary_url' => '',
+                'secondary_label' => '',
+                'secondary_url' => '',
+                'size' => 'md',
+                'style' => 'card',
+                'items' => [],
+            ];
+        }
+        if (! $hasDynamicProperties) {
+            $blocks[] = [
+                'id' => 'dynamic-properties',
+                'type' => 'dynamic_properties',
+                'enabled' => (bool) ($settings['show_properties'] ?? true),
+                'title' => 'Propiedades dinámicas',
+                'subtitle' => '',
+                'body' => '',
+                'image' => '',
+                'link' => '',
+                'label' => '',
+                'height' => 'md',
+                'width' => 'md',
+                'align' => 'left',
+                'overlay' => 35,
+                'eyebrow' => '',
+                'primary_label' => '',
+                'primary_url' => '',
+                'secondary_label' => '',
+                'secondary_url' => '',
+                'size' => 'md',
+                'style' => 'card',
+                'items' => [],
+            ];
         }
 
         if (empty($blocks)) {
