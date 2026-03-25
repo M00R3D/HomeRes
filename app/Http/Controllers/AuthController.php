@@ -104,7 +104,7 @@ class AuthController extends Controller
 
                 // redirect to intended URL and signal the client to initialize
                 // sessionStorage with the token
-                $intended = session()->pull('url.intended', url('/dashboard'));
+                $intended = session()->pull('url.intended', route('homepage.index'));
                 $sep = str_contains($intended, '?') ? '&' : '?';
                 return redirect($intended . $sep . 'session_init=1');
             }
@@ -112,10 +112,10 @@ class AuthController extends Controller
             // Remember logins should not use the browser-only token
             session()->forget('session_browser_token');
             try {
-                Log::entry('login', 'usuario', $user?->id, $user?->id, 'success', 'Inicio de sesion exitoso', route('dashboard'));
+                Log::entry('login', 'usuario', $user?->id, $user?->id, 'success', 'Inicio de sesion exitoso', route('homepage.index'));
             } catch (\Throwable $e) {
             }
-            return redirect()->intended(route('dashboard'));
+            return redirect()->intended(route('homepage.index'));
         }
 
         // If AJAX / fetch request, return JSON with specific message (email not found vs wrong password)
@@ -178,7 +178,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard');
+        return redirect()->route('homepage.index');
     }
 
     public function logout(Request $request)

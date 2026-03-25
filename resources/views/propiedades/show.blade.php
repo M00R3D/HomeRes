@@ -36,16 +36,6 @@
   .pd-nav{width:34px;height:34px}
 }
 </style>
-    .pd-reserve-btn {
-      background: linear-gradient(90deg,#2274e1,#1a6fdb);
-      color: #fff;
-      padding: 8px 12px;
-      border-radius: 8px;
-      text-decoration: none;
-      box-shadow: 0 2px 8px rgba(34,116,225,0.18);
-    }
-    .pd-reserve-btn:hover{opacity:0.95}
-
 
 <div style="max-width:1100px;margin:18px auto;padding:12px;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">

@@ -15,7 +15,7 @@ use App\Http\Controllers\HomepageController;
 use App\Http\Controllers\Admin\ThemeController;
 
 // Root redirect
-Route::get('/', fn () => auth()->check() ? redirect()->route('dashboard') : redirect()->route('login'));
+Route::get('/', fn () => auth()->check() ? redirect()->route('homepage.index') : redirect()->route('login'));
 
 // Guest-only routes
 Route::middleware('guest')->group(function () {
