@@ -492,6 +492,7 @@
       <a class="nav-item" href="{{ route('homepage.index') }}">Inicio</a>
       <div style="height:8px;"></div>
       <a class="nav-item" href="{{ route('dashboard') ?? '/dashboard' }}">Dashboard</a>
+      <a class="nav-item" href="{{ route('dashboard', ['panel' => 'calendar']) }}">{{ in_array(($currentUser->rol ?? ''), ['admin', 'recepcionista'], true) ? 'Calendario' : 'Mi calendario' }}</a>
       <a class="nav-item" href="/reservaciones">Reservaciones</a>
       <a class="nav-item" href="/propiedades">Propiedades</a>
       <a class="nav-item" href="/notificaciones">Notificaciones</a>
