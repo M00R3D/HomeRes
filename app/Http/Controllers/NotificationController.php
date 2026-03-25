@@ -1,12 +1,15 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\NotificationPreference;
+use App\Support\NotificationPresenter;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use App\Models\AuditLog;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache;
@@ -22,22 +25,72 @@ class NotificationController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+        $prefs = NotificationPreference::query()->where('user_id', $user->id)->first();
         $query = DatabaseNotification::where('notifiable_type', get_class($user))
             ->where('notifiable_id', $user->id);
 
-        if ($request->filled('filter') && $request->filter === 'unread') {
+        $filter = strtolower((string) $request->get('filter', 'all'));
+        if ($filter === 'unread') {
             $query->whereNull('read_at');
-        }
-        if ($request->filled('type')) {
-            $query->where('type', $request->type);
+        } elseif ($filter === 'read') {
+            $query->whereNotNull('read_at');
         }
         if ($request->filled('date_from')) {
             $query->where('created_at', '>=', $request->date_from);
         }
-        $perPage = (int) $request->get('per_page', 20);
-        $notifs = $query->orderByDesc('created_at')->paginate($perPage);
 
-        return view('notifications.index', ['notifications' => $notifs]);
+        $allNotifications = $query->orderByDesc('created_at')->get();
+        $typeCatalog = NotificationPresenter::catalog();
+
+        $resolvedTypeById = [];
+        $resolveType = function ($notification) use (&$resolvedTypeById) {
+            $id = (string) $notification->id;
+            if (! isset($resolvedTypeById[$id])) {
+                $resolvedTypeById[$id] = NotificationPresenter::resolveType($notification);
+            }
+
+            return $resolvedTypeById[$id];
+        };
+
+        $availableTypeKeys = $allNotifications
+            ->map(fn ($n) => $resolveType($n))
+            ->filter(fn ($type) => isset($typeCatalog[$type]))
+            ->unique()
+            ->values();
+
+        $selectedType = strtolower((string) $request->get('type', 'all'));
+        if ($selectedType !== '' && $selectedType !== 'all') {
+            $allNotifications = $allNotifications
+                ->filter(fn ($n) => $resolveType($n) === $selectedType)
+                ->values();
+        }
+
+        $perPage = (int) $request->get('per_page', 20);
+        $perPage = $perPage > 0 ? $perPage : 20;
+
+        $page = LengthAwarePaginator::resolveCurrentPage('page');
+        $total = $allNotifications->count();
+        $results = $allNotifications->slice(($page - 1) * $perPage, $perPage)->values();
+
+        $notifs = new LengthAwarePaginator(
+            $results,
+            $total,
+            $perPage,
+            $page,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+
+        return view('notifications.index', [
+            'notifications' => $notifs,
+            'notificationTypeCatalog' => $typeCatalog,
+            'availableNotificationTypes' => $availableTypeKeys
+                ->mapWithKeys(fn ($type) => [$type => $typeCatalog[$type]['label'] ?? ucfirst($type)])
+                ->all(),
+            'resourceLinkTypes' => NotificationPresenter::allowedResourceTypes($prefs?->resource_link_types),
+        ]);
     }
 
     // Return unread count JSON
@@ -77,17 +130,28 @@ class NotificationController extends Controller
         }
         $limit = min(50, (int) $request->get('limit', 10));
         try {
+            $prefs = NotificationPreference::query()->where('user_id', $user->id)->first();
+            $allowedResourceTypes = NotificationPresenter::allowedResourceTypes($prefs?->resource_link_types);
             $items = DatabaseNotification::where('notifiable_type', get_class($user))
                 ->where('notifiable_id', $user->id)
                 ->orderByDesc('created_at')
                 ->limit($limit)
                 ->get()
-                ->map(function($n){
+                ->map(function ($n) use ($allowedResourceTypes) {
+                    $presentation = NotificationPresenter::present($n, $allowedResourceTypes);
+
                     return [
                         'id' => $n->id,
                         'type' => $n->type,
                         'data' => $n->data,
-                        'link' => $n->data['link'] ?? ($n->data['url'] ?? ($n->link ?? null)),
+                        'link' => $presentation['link'],
+                        'resource_kind' => $presentation['resource_kind'],
+                        'resource_label' => $presentation['resource_label'],
+                        'ui_type' => $presentation['type'],
+                        'ui_label' => $presentation['label'],
+                        'ui_symbol' => $presentation['symbol'],
+                        'ui_color' => $presentation['color'],
+                        'allow_resource' => $presentation['allow_resource'],
                         'read_at' => $n->read_at,
                         'created_at' => $n->created_at->toDateTimeString(),
                     ];
@@ -146,6 +210,7 @@ class NotificationController extends Controller
     public function show(Request $request, $id)
     {
         $user = Auth::user();
+        $prefs = NotificationPreference::query()->where('user_id', $user->id)->first();
         $notif = DatabaseNotification::where('id', $id)
             ->where('notifiable_type', get_class($user))
             ->where('notifiable_id', $user->id)
@@ -154,10 +219,13 @@ class NotificationController extends Controller
         // mark as read
         if (is_null($notif->read_at)) $notif->markAsRead();
 
-        // extract link if any
-        $link = $notif->data['link'] ?? ($notif->data['url'] ?? ($notif->link ?? null));
+        $presentation = NotificationPresenter::present($notif, $prefs?->resource_link_types);
 
-        return view('notifications.show', ['notification' => $notif, 'link' => $link]);
+        return view('notifications.show', [
+            'notification' => $notif,
+            'link' => $presentation['link'],
+            'notificationPresentation' => $presentation,
+        ]);
     }
 
     protected function audit($userId, $action, $targetType = null, $targetId = null, Request $request)
@@ -180,18 +248,26 @@ class NotificationController extends Controller
     public function preferencesForm(Request $request)
     {
         $user = Auth::user();
-        $prefs = DB::table('notification_preferences')->where('user_id', $user->id)->first();
+        $prefs = NotificationPreference::query()->where('user_id', $user->id)->first();
         // load propiedades for admin UI
         $propiedades = [];
         try{
             $propiedades = \App\Models\Propiedad::orderBy('nombre')->get();
         }catch(\Throwable $e){ }
-        return view('profile.notifications_preferences', ['prefs' => $prefs, 'propiedades' => $propiedades, 'currentUser' => $user]);
+        return view('profile.notifications_preferences', [
+            'prefs' => $prefs,
+            'propiedades' => $propiedades,
+            'currentUser' => $user,
+            'notificationTypeCatalog' => NotificationPresenter::catalog(),
+            'resourceLinkTypes' => NotificationPresenter::allowedResourceTypes($prefs?->resource_link_types),
+        ]);
     }
 
     public function savePreferences(Request $request)
     {
         $user = Auth::user();
+        $scope = (string) $request->input('settings_scope', 'notifications');
+        $prefs = NotificationPreference::query()->firstOrNew(['user_id' => $user->id]);
         $categories = null;
         if($request->has('propiedades')){
             $categories = json_encode(array_values((array)$request->input('propiedades')));
@@ -199,15 +275,18 @@ class NotificationController extends Controller
             $categories = is_array($request->input('categories')) ? json_encode($request->input('categories')) : $request->input('categories');
         }
 
-        $data = [
-            // email option removed from UI; keep stored false by default
-            'channel_email' => false,
-            'channel_inapp' => $request->has('channel_inapp'),
-            'receive_push' => $request->has('receive_push'),
-            'categories' => $categories,
-        ];
+        if ($scope !== 'admin_profile') {
+            $prefs->channel_email = false;
+            $prefs->channel_inapp = $request->has('channel_inapp');
+            $prefs->receive_push = $request->has('receive_push');
+            $prefs->resource_link_types = NotificationPresenter::allowedResourceTypes($request->input('resource_link_types', []));
+        }
 
-        DB::table('notification_preferences')->updateOrInsert(['user_id' => $user->id], $data);
+        if ($categories !== null || $request->has('propiedades') || $request->has('categories')) {
+            $prefs->categories = $categories;
+        }
+
+        $prefs->save();
 
         // If admin, allow updating basic user fields
         try{

@@ -9,12 +9,13 @@ class NotificationPreference extends Model
     use HasFactory;
 
     protected $table = 'notification_preferences';
-    protected $fillable = ['user_id','channel_email','channel_inapp','receive_push','categories'];
+    protected $fillable = ['user_id','channel_email','channel_inapp','receive_push','categories','resource_link_types'];
 
     protected $casts = [
         'channel_email' => 'boolean',
         'channel_inapp' => 'boolean',
         'receive_push' => 'boolean',
         'categories' => 'array',
+        'resource_link_types' => 'array',
     ];
 }

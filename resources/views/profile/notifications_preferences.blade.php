@@ -6,6 +6,7 @@
 <div style="max-width:700px;margin:20px auto;padding:12px;">
   <h1>Preferencias de notificaciones</h1>
   @if(session('success'))<div style="background:#ecfdf5;color:#065f46;padding:10px;border-radius:8px;margin-bottom:12px;font-weight:700;">{{ session('success') }}</div>@endif
+  @if($errors->any())<div style="background:#fee2e2;color:#991b1b;padding:10px;border-radius:8px;margin-bottom:12px;font-weight:700;">{{ $errors->first() }}</div>@endif
 
   @php $isAdmin = ($currentUser && ($currentUser->rol ?? '') === 'admin'); @endphp
 
@@ -68,6 +69,49 @@
         </form>
       </div>
     </div>
+
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid #eef2f7;">
+      <h2 style="margin:0 0 8px;">Comportamiento de notificaciones</h2>
+      <p style="margin:0 0 14px;color:#6b7280;line-height:1.5;">Aquí puedes ver todos los tipos que maneja la app y elegir cuáles sí pueden mostrar el botón para ir al recurso relacionado.</p>
+
+      <form method="POST" action="{{ route('notifications.preferences.save') }}">
+        @csrf
+        <input type="hidden" name="settings_scope" value="notifications">
+
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" name="channel_inapp" value="1" {{ ($prefs?->channel_inapp ?? true) ? 'checked' : '' }}>
+            Mostrar notificaciones dentro de la app
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" name="receive_push" value="1" {{ ($prefs?->receive_push ?? false) ? 'checked' : '' }}>
+            Permitir notificaciones del navegador
+          </label>
+        </div>
+
+        <div style="margin-top:16px;">
+          <div style="font-weight:700;margin-bottom:8px;">Tipos que sí pueden abrir recurso</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            @foreach(($notificationTypeCatalog ?? []) as $typeKey => $typeMeta)
+              <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;">
+                <span style="display:inline-flex;align-items:center;gap:10px;">
+                  <span aria-hidden="true" style="width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;background:{{ $typeMeta['color'] }};color:#fff;flex:0 0 28px;">{{ $typeMeta['symbol'] }}</span>
+                  <span>
+                    <span style="display:block;font-weight:700;">{{ $typeMeta['label'] }}</span>
+                    <span style="display:block;font-size:12px;color:#6b7280;">Tipo interno: {{ $typeKey }}</span>
+                  </span>
+                </span>
+                <input type="checkbox" name="resource_link_types[]" value="{{ $typeKey }}" {{ in_array($typeKey, $resourceLinkTypes ?? [], true) ? 'checked' : '' }}>
+              </label>
+            @endforeach
+          </div>
+        </div>
+
+        <div style="margin-top:14px;display:flex;gap:8px;">
+          <button class="btn" type="submit">Guardar preferencias</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   @if($isAdmin)
@@ -76,6 +120,7 @@
       <h3>Admin — Preferencias y edición</h3>
       <form method="POST" action="{{ route('notifications.preferences.save') }}">
         @csrf
+        <input type="hidden" name="settings_scope" value="admin_profile">
         <div style="display:flex;flex-direction:column;gap:12px;">
           <label>Nombre<br><input type="text" name="user_nombre" value="{{ old('user_nombre', $currentUser->nombre ?? '') }}" style="width:100%"></label>
           <label>Apellido<br><input type="text" name="user_apellido" value="{{ old('user_apellido', $currentUser->apellido ?? '') }}" style="width:100%"></label>

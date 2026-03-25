@@ -65,7 +65,8 @@ document.addEventListener('DOMContentLoaded', function(){
       notif.onclick = function(ev){
         try{
           window.focus();
-          if(resource){ window.open(resource, '_blank'); } else { window.location.href = '/notifications'; }
+          if(resource && n.allow_resource){ window.open(resource, '_blank'); }
+          else { window.location.href = `/notifications/${n.id}`; }
         }catch(e){}
         notif.close();
       };
@@ -148,10 +149,13 @@ document.addEventListener('DOMContentLoaded', function(){
     el.style.display='flex';
     el.style.gap='10px';
     el.style.alignItems='flex-start';
+    const tone = n.ui_color || '#3b82f6';
+    const symbol = n.ui_symbol || 'i';
     el.innerHTML = `
-      <div style="width:44px;height:44px;border-radius:8px;flex:0 0 44px" class="toast-icon-placeholder"></div>
+      <div style="width:44px;height:44px;border-radius:10px;flex:0 0 44px;background:${tone};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;line-height:1">${symbol}</div>
       <div style="flex:1;min-width:0">
         <div style="font-weight:700;margin-bottom:4px">${(data.title||'Notificación')}</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:3px">${(n.ui_label||'Informacion')}</div>
         <div class="toast-body-text" style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(data.body||'')}</div>
       </div>
       <button aria-label="Cerrar" style="border:0;cursor:pointer;margin-left:6px">✕</button>
@@ -184,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function(){
       unread.forEach(n => {
         const read = n.read_at ? 'opacity:0.6' : 'font-weight:700';
         const data = n.data || {};
-        const icon = data.icon ? `<img src="${data.icon}" style="width:28px;height:28px;border-radius:6px;margin-right:8px">` : `<div class="notif-icon-placeholder" style="width:28px;height:28px;border-radius:6px;margin-right:8px"></div>`;
+        const icon = `<div aria-hidden="true" style="width:28px;height:28px;border-radius:8px;margin-right:8px;display:flex;align-items:center;justify-content:center;font-weight:800;background:${n.ui_color || '#3b82f6'};color:#fff;flex:0 0 28px;">${n.ui_symbol || 'i'}</div>`;
           const el = document.createElement('div');
         el.setAttribute('role','menuitem');
           // keep resource link separate; clicking the item opens the notification detail
@@ -201,6 +205,7 @@ document.addEventListener('DOMContentLoaded', function(){
                 ${icon}
                 <div style="flex:1;min-width:0">
                   <div style="white-space:normal;overflow-wrap:break-word;word-break:break-word">${data.title||''}</div>
+                  <div style="font-size:12px;color:#64748b;margin-top:2px">${n.ui_label || 'Informacion'}</div>
                   <div class="notif-body-text" style="font-size:12px;white-space:normal;overflow-wrap:break-word;word-break:break-word">${(data.body||'')}</div>
                 </div>
               </div>
@@ -222,27 +227,10 @@ document.addEventListener('DOMContentLoaded', function(){
         });
         // add small action button to open resource link if present
         const resource = el.dataset.resourceLink;
-        if(resource){
-          function inferTypeFromUrl(url, data){
-            try{
-              const parsed = new URL(url, window.location.origin);
-              const path = parsed.pathname.replace(/^\/+|\/+$/g,'');
-              const seg = path.split('/').filter(Boolean);
-              const first = (seg[0] || '').toLowerCase();
-              const map = {reservaciones:'reservacion',pagos:'pago',propiedades:'propiedad',usuarios:'usuario',tarjetas_simuladas:'tarjeta',tarjetas:'tarjeta'};
-              if(data && (data.tipo || data.type)) return (data.tipo || data.type).toString().toLowerCase();
-              if(map[first]) return map[first];
-              if(first.endsWith('es')) return first.slice(0,-2);
-              return first.replace(/s$/,'') || 'recurso';
-            }catch(e){
-              return (data && (data.tipo || data.type)) ? (data.tipo || data.type).toString().toLowerCase() : 'recurso';
-            }
-          }
-
+        if(resource && n.allow_resource){
           const action = document.createElement('button');
           action.className = 'notif-open-resource action-hint inline';
-          const inferred = inferTypeFromUrl(resource, data);
-          action.textContent = 'ver ' + (inferred || 'recurso');
+          action.textContent = 'Ver ' + (n.resource_label || 'recurso');
           action.style.marginLeft = '8px';
           action.addEventListener('click', function(ev){
             ev.stopPropagation();
