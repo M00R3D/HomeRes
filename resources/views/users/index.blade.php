@@ -5,6 +5,94 @@
     .table td.btn-group-col { background: transparent !important; }
     .actions-inline { background: transparent !important; }
     .actions-inline form { background: transparent !important; margin: 0 !important; }
+    .users-table .actions-inline { flex-wrap: wrap; }
+
+    @media (max-width: 980px) {
+      .users-table { table-layout: fixed; }
+      .users-table th,
+      .users-table td { font-size: 13px; }
+      .users-table .actions-inline { gap: 6px !important; }
+      .users-table .actions-inline .action-btn { padding: 6px 8px; font-size: 12px; }
+    }
+
+    @media (max-width: 768px) {
+      .table-responsive { overflow-x: visible !important; }
+
+      .users-table,
+      .users-table thead,
+      .users-table tbody,
+      .users-table tr,
+      .users-table th,
+      .users-table td {
+        display: block;
+        width: 100%;
+      }
+
+      .users-table thead {
+        display: none;
+      }
+
+      .users-table tr {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 10px;
+        margin-bottom: 10px;
+        background: #fff;
+        box-shadow: 0 4px 12px rgba(2,6,23,0.04);
+      }
+
+      .users-table td {
+        border: 0 !important;
+        padding: 6px 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        text-align: right;
+        overflow-wrap: anywhere;
+      }
+
+      .users-table td::before {
+        content: attr(data-label);
+        color: #6b7280;
+        font-weight: 700;
+        text-align: left;
+        white-space: nowrap;
+        flex: 0 0 42%;
+      }
+
+      .users-table td.btn-group-col {
+        display: block;
+        text-align: left;
+        padding-top: 8px;
+        border-top: 1px dashed #e5e7eb !important;
+        margin-top: 6px;
+      }
+
+      .users-table td.btn-group-col::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      .users-table td.btn-group-col .actions-inline {
+        display: flex !important;
+        gap: 6px !important;
+        align-items: stretch !important;
+      }
+
+      .users-table td.btn-group-col .actions-inline form,
+      .users-table td.btn-group-col .actions-inline a {
+        width: calc(50% - 3px);
+      }
+
+      .users-table td.btn-group-col .actions-inline .action-btn,
+      .users-table td.btn-group-col .actions-inline a.action-btn {
+        width: 100%;
+        text-align: center;
+        justify-content: center;
+      }
+    }
   </style>
 
   <div class="page-header">
@@ -28,7 +116,7 @@
 
   <div class="card table-card">
     <div class="table-responsive">
-      <table class="table">
+      <table class="table users-table">
         <thead>
           <tr>
             <th>Nombre</th>
@@ -46,22 +134,22 @@
         <tbody>
           @forelse($users ?? [] as $user)
             <tr data-user-id="{{ $user->id }}">
-              <td>{{ $user->nombre }}</td>
-              <td>{{ $user->apellido }}</td>
-              <td>{{ $user->email }}</td>
-              <td>{{ optional($user->tarjeta)->numero_tarjeta ?? '-' }}</td>
-              <td>{{ $user->intentos_cvv ?? 0 }}</td>
-              <td class="col-bloqueo">{{ ($user->bloqueo_tarjetas ?? false) ? 'Bloqueado' : 'Activo' }}</td>
-              <td>
+              <td data-label="Nombre">{{ $user->nombre }}</td>
+              <td data-label="Apellido">{{ $user->apellido }}</td>
+              <td data-label="Email">{{ $user->email }}</td>
+              <td data-label="Tarjeta">{{ optional($user->tarjeta)->numero_tarjeta ?? '-' }}</td>
+              <td data-label="Intentos CVV">{{ $user->intentos_cvv ?? 0 }}</td>
+              <td class="col-bloqueo" data-label="Bloqueo">{{ ($user->bloqueo_tarjetas ?? false) ? 'Bloqueado' : 'Activo' }}</td>
+              <td data-label="Estado">
                 @if($user->baneado ?? false)
                   <span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700;">Baneado</span>
                 @else
                   <span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:700;">Activo</span>
                 @endif
               </td>
-              <td>{{ $user->rol }}</td>
-              <td>{{ $user->area ?? '-' }}</td>
-              <td class="btn-group-col">
+              <td data-label="Rol">{{ $user->rol }}</td>
+              <td data-label="Area">{{ $user->area ?? '-' }}</td>
+              <td class="btn-group-col" data-label="Acciones">
                 <div class="actions-inline" style="display:flex;gap:8px;align-items:center;background:transparent !important;padding:0 !important;border:0 !important;box-shadow:none !important;">
                   <a class="action-btn edit" href="{{ route('users.edit', $user->id) }}">Editar</a>
 
@@ -93,7 +181,7 @@
               </td>
             </tr>
           @empty
-            <tr><td colspan="6" class="muted">No hay usuarios registrados.</td></tr>
+            <tr><td colspan="10" class="muted">No hay usuarios registrados.</td></tr>
           @endforelse
         </tbody>
       </table>

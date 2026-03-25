@@ -22,7 +22,7 @@ class PaymentController extends Controller
             return redirect()->route('pagos.mine');
         }
 
-        $q = Payment::query()->with(['reservation','tarjeta.assignedUser']);
+        $q = Payment::query()->with(['reservation.user','reservation.propiedad','tarjeta.assignedUser']);
         $payments = $q->orderByDesc('id')->paginate(15);
 
         if ($request->wantsJson()) return response()->json($payments);
