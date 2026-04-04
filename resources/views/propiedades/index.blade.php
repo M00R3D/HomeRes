@@ -57,6 +57,65 @@
 .field { display:block;margin-bottom:10px; }
 .label-text{ display:block;font-weight:700;margin-bottom:6px; }
 .service-chip{ background:#f3f4f6;padding:6px 8px;border-radius:999px;display:inline-flex;gap:8px;align-items:center;font-weight:600;color:#111; }
+.propiedades-pagination {
+  border-top: 1px solid #e5e7eb;
+  margin-top: 10px;
+  padding-top: 12px;
+}
+.propiedades-pagination .np-wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.propiedades-pagination .np-meta {
+  color: #6b7280;
+  font-size: 13px;
+}
+.propiedades-pagination .np-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.propiedades-pagination .np-btn,
+.propiedades-pagination .np-page,
+.propiedades-pagination .np-ellipsis {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+  color: #111827;
+  padding: 0 10px;
+}
+.propiedades-pagination .np-btn:hover,
+.propiedades-pagination .np-page:hover {
+  background: #f8fafc;
+}
+.propiedades-pagination .np-page.is-active {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
+}
+.propiedades-pagination .np-btn.is-disabled {
+  opacity: .45;
+  pointer-events: none;
+}
+.propiedades-pagination .np-ellipsis {
+  min-width: auto;
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  padding: 0 4px;
+}
 @media (max-width: 768px){
   .pr-thumb{ height:176px; }
   .pr-nav{ opacity:1; width:30px; height:30px; }
@@ -228,7 +287,58 @@
     </div>
   @endif
 
-  <div style="margin-top:14px;">{{ $propiedades->withQueryString()->links() ?? '' }}</div>
+  <div class="propiedades-pagination" style="margin-top:14px;">
+    @php
+      $currentPage = $propiedades->currentPage();
+      $lastPage = $propiedades->lastPage();
+      $startPage = max(1, $currentPage - 2);
+      $endPage = min($lastPage, $currentPage + 2);
+    @endphp
+    @if($propiedades->lastPage() > 1)
+      <nav role="navigation" aria-label="Pagination Navigation">
+        <div class="np-wrap">
+          <div class="np-meta">
+            Showing {{ $propiedades->firstItem() ?? 0 }} to {{ $propiedades->lastItem() ?? 0 }} of {{ $propiedades->total() }} results
+          </div>
+          <div class="np-controls">
+            @if($propiedades->onFirstPage())
+              <span class="np-btn is-disabled" aria-disabled="true">Anterior</span>
+            @else
+              <a class="np-btn" href="{{ $propiedades->previousPageUrl() }}" rel="prev">Anterior</a>
+            @endif
+
+            @if($startPage > 1)
+              <a class="np-page" href="{{ $propiedades->url(1) }}">1</a>
+              @if($startPage > 2)
+                <span class="np-ellipsis" aria-hidden="true">...</span>
+              @endif
+            @endif
+
+            @for($page = $startPage; $page <= $endPage; $page++)
+              @if($page === $currentPage)
+                <span class="np-page is-active" aria-current="page">{{ $page }}</span>
+              @else
+                <a class="np-page" href="{{ $propiedades->url($page) }}">{{ $page }}</a>
+              @endif
+            @endfor
+
+            @if($endPage < $lastPage)
+              @if($endPage < $lastPage - 1)
+                <span class="np-ellipsis" aria-hidden="true">...</span>
+              @endif
+              <a class="np-page" href="{{ $propiedades->url($lastPage) }}">{{ $lastPage }}</a>
+            @endif
+
+            @if($propiedades->hasMorePages())
+              <a class="np-btn" href="{{ $propiedades->nextPageUrl() }}" rel="next">Siguiente</a>
+            @else
+              <span class="np-btn is-disabled" aria-disabled="true">Siguiente</span>
+            @endif
+          </div>
+        </div>
+      </nav>
+    @endif
+  </div>
 </div>
 
 <div id="modal-prop-new" class="modal" aria-hidden="true" style="display:none;align-items:center;justify-content:center;">

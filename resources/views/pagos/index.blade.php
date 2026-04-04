@@ -26,6 +26,65 @@
 
 .muted { color:#6b7280; }
 .row-actions { text-align:right; white-space:nowrap; }
+.pagos-index-pagination {
+  border-top: 1px solid #e5e7eb;
+  margin-top: 10px;
+  padding-top: 12px;
+}
+.pagos-index-pagination .np-wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pagos-index-pagination .np-meta {
+  color: #6b7280;
+  font-size: 13px;
+}
+.pagos-index-pagination .np-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pagos-index-pagination .np-btn,
+.pagos-index-pagination .np-page,
+.pagos-index-pagination .np-ellipsis {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+  color: #111827;
+  padding: 0 10px;
+}
+.pagos-index-pagination .np-btn:hover,
+.pagos-index-pagination .np-page:hover {
+  background: #f8fafc;
+}
+.pagos-index-pagination .np-page.is-active {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
+}
+.pagos-index-pagination .np-btn.is-disabled {
+  opacity: .45;
+  pointer-events: none;
+}
+.pagos-index-pagination .np-ellipsis {
+  min-width: auto;
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  padding: 0 4px;
+}
 </style>
 
 <div style="max-width:1100px;margin:18px auto;padding:12px;">
@@ -146,7 +205,56 @@
       </tbody>
     </table>
 
-    <div style="margin-top:12px;">{{ $payments->links() }}</div>
+    @if($payments->lastPage() > 1)
+      @php
+        $currentPage = $payments->currentPage();
+        $lastPage = $payments->lastPage();
+        $startPage = max(1, $currentPage - 2);
+        $endPage = min($lastPage, $currentPage + 2);
+      @endphp
+      <nav class="pagos-index-pagination" role="navigation" aria-label="Pagination Navigation">
+        <div class="np-wrap">
+          <div class="np-meta">
+            Showing {{ $payments->firstItem() ?? 0 }} to {{ $payments->lastItem() ?? 0 }} of {{ $payments->total() }} results
+          </div>
+          <div class="np-controls">
+            @if($payments->onFirstPage())
+              <span class="np-btn is-disabled" aria-disabled="true">Anterior</span>
+            @else
+              <a class="np-btn" href="{{ $payments->previousPageUrl() }}" rel="prev">Anterior</a>
+            @endif
+
+            @if($startPage > 1)
+              <a class="np-page" href="{{ $payments->url(1) }}">1</a>
+              @if($startPage > 2)
+                <span class="np-ellipsis" aria-hidden="true">...</span>
+              @endif
+            @endif
+
+            @for($page = $startPage; $page <= $endPage; $page++)
+              @if($page === $currentPage)
+                <span class="np-page is-active" aria-current="page">{{ $page }}</span>
+              @else
+                <a class="np-page" href="{{ $payments->url($page) }}">{{ $page }}</a>
+              @endif
+            @endfor
+
+            @if($endPage < $lastPage)
+              @if($endPage < $lastPage - 1)
+                <span class="np-ellipsis" aria-hidden="true">...</span>
+              @endif
+              <a class="np-page" href="{{ $payments->url($lastPage) }}">{{ $lastPage }}</a>
+            @endif
+
+            @if($payments->hasMorePages())
+              <a class="np-btn" href="{{ $payments->nextPageUrl() }}" rel="next">Siguiente</a>
+            @else
+              <span class="np-btn is-disabled" aria-disabled="true">Siguiente</span>
+            @endif
+          </div>
+        </div>
+      </nav>
+    @endif
   </div>
 </div>
 @endsection

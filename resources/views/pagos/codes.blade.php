@@ -3,6 +3,67 @@
 @section('title', ($isAdmin ?? false) ? 'Códigos QR (todos)' : 'Mis códigos')
 
 @section('content')
+<style>
+  .pagos-codes-pagination {
+    border-top: 1px solid #e5e7eb;
+    margin-top: 10px;
+    padding-top: 12px;
+  }
+  .pagos-codes-pagination .np-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .pagos-codes-pagination .np-meta {
+    color: #6b7280;
+    font-size: 13px;
+  }
+  .pagos-codes-pagination .np-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .pagos-codes-pagination .np-btn,
+  .pagos-codes-pagination .np-page,
+  .pagos-codes-pagination .np-ellipsis {
+    min-width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 13px;
+    color: #111827;
+    padding: 0 10px;
+  }
+  .pagos-codes-pagination .np-btn:hover,
+  .pagos-codes-pagination .np-page:hover {
+    background: #f8fafc;
+  }
+  .pagos-codes-pagination .np-page.is-active {
+    background: #111827;
+    border-color: #111827;
+    color: #fff;
+  }
+  .pagos-codes-pagination .np-btn.is-disabled {
+    opacity: .45;
+    pointer-events: none;
+  }
+  .pagos-codes-pagination .np-ellipsis {
+    min-width: auto;
+    border: 0;
+    background: transparent;
+    color: #6b7280;
+    padding: 0 4px;
+  }
+</style>
 <div style="max-width:1100px;margin:18px auto;padding:12px;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
     <h1 style="margin:0;">{{ ($isAdmin ?? false) ? 'Códigos QR (todos)' : 'Mis códigos' }}</h1>
@@ -39,9 +100,56 @@
       </tbody>
     </table>
 
-    <div style="margin-top:12px;display:flex;justify-content:center;">
-      {{ $codes->links() }}
-    </div>
+    @if($codes->lastPage() > 1)
+      @php
+        $currentPage = $codes->currentPage();
+        $lastPage = $codes->lastPage();
+        $startPage = max(1, $currentPage - 2);
+        $endPage = min($lastPage, $currentPage + 2);
+      @endphp
+      <nav class="pagos-codes-pagination" role="navigation" aria-label="Pagination Navigation">
+        <div class="np-wrap">
+          <div class="np-meta">
+            Showing {{ $codes->firstItem() ?? 0 }} to {{ $codes->lastItem() ?? 0 }} of {{ $codes->total() }} results
+          </div>
+          <div class="np-controls">
+            @if($codes->onFirstPage())
+              <span class="np-btn is-disabled" aria-disabled="true">Anterior</span>
+            @else
+              <a class="np-btn" href="{{ $codes->previousPageUrl() }}" rel="prev">Anterior</a>
+            @endif
+
+            @if($startPage > 1)
+              <a class="np-page" href="{{ $codes->url(1) }}">1</a>
+              @if($startPage > 2)
+                <span class="np-ellipsis" aria-hidden="true">...</span>
+              @endif
+            @endif
+
+            @for($page = $startPage; $page <= $endPage; $page++)
+              @if($page === $currentPage)
+                <span class="np-page is-active" aria-current="page">{{ $page }}</span>
+              @else
+                <a class="np-page" href="{{ $codes->url($page) }}">{{ $page }}</a>
+              @endif
+            @endfor
+
+            @if($endPage < $lastPage)
+              @if($endPage < $lastPage - 1)
+                <span class="np-ellipsis" aria-hidden="true">...</span>
+              @endif
+              <a class="np-page" href="{{ $codes->url($lastPage) }}">{{ $lastPage }}</a>
+            @endif
+
+            @if($codes->hasMorePages())
+              <a class="np-btn" href="{{ $codes->nextPageUrl() }}" rel="next">Siguiente</a>
+            @else
+              <span class="np-btn is-disabled" aria-disabled="true">Siguiente</span>
+            @endif
+          </div>
+        </div>
+      </nav>
+    @endif
   </div>
 </div>
 @endsection

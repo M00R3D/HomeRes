@@ -25,6 +25,65 @@
 .badge { display:inline-block;padding:6px 10px;border-radius:999px;font-weight:800;color:#fff; }
 .badge.positive { background:#065f46; }
 .badge.negative { background:#7f1d1d; }
+.tarjetas-index-pagination {
+  border-top: 1px solid #e5e7eb;
+  margin-top: 10px;
+  padding-top: 12px;
+}
+.tarjetas-index-pagination .np-wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.tarjetas-index-pagination .np-meta {
+  color: #6b7280;
+  font-size: 13px;
+}
+.tarjetas-index-pagination .np-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tarjetas-index-pagination .np-btn,
+.tarjetas-index-pagination .np-page,
+.tarjetas-index-pagination .np-ellipsis {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+  color: #111827;
+  padding: 0 10px;
+}
+.tarjetas-index-pagination .np-btn:hover,
+.tarjetas-index-pagination .np-page:hover {
+  background: #f8fafc;
+}
+.tarjetas-index-pagination .np-page.is-active {
+  background: #111827;
+  border-color: #111827;
+  color: #fff;
+}
+.tarjetas-index-pagination .np-btn.is-disabled {
+  opacity: .45;
+  pointer-events: none;
+}
+.tarjetas-index-pagination .np-ellipsis {
+  min-width: auto;
+  border: 0;
+  background: transparent;
+  color: #6b7280;
+  padding: 0 4px;
+}
 
 .card-3d { position:relative; width:320px; height:200px; perspective:1000px; }
 .card-3d-inner { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition: transform 0.7s ease; }
@@ -272,7 +331,58 @@
         </table>
       </div>
 
-      <div style="margin-top:12px;">{{ $tarjetas->links() }}</div>
+      <div class="tarjetas-index-pagination">
+        @php
+          $currentPage = $tarjetas->currentPage();
+          $lastPage = $tarjetas->lastPage();
+          $startPage = max(1, $currentPage - 2);
+          $endPage = min($lastPage, $currentPage + 2);
+        @endphp
+        @if($tarjetas->lastPage() > 1)
+          <nav role="navigation" aria-label="Pagination Navigation">
+            <div class="np-wrap">
+              <div class="np-meta">
+                Showing {{ $tarjetas->firstItem() ?? 0 }} to {{ $tarjetas->lastItem() ?? 0 }} of {{ $tarjetas->total() }} results
+              </div>
+              <div class="np-controls">
+                @if($tarjetas->onFirstPage())
+                  <span class="np-btn is-disabled" aria-disabled="true">Anterior</span>
+                @else
+                  <a class="np-btn" href="{{ $tarjetas->previousPageUrl() }}" rel="prev">Anterior</a>
+                @endif
+
+                @if($startPage > 1)
+                  <a class="np-page" href="{{ $tarjetas->url(1) }}">1</a>
+                  @if($startPage > 2)
+                    <span class="np-ellipsis" aria-hidden="true">...</span>
+                  @endif
+                @endif
+
+                @for($page = $startPage; $page <= $endPage; $page++)
+                  @if($page === $currentPage)
+                    <span class="np-page is-active" aria-current="page">{{ $page }}</span>
+                  @else
+                    <a class="np-page" href="{{ $tarjetas->url($page) }}">{{ $page }}</a>
+                  @endif
+                @endfor
+
+                @if($endPage < $lastPage)
+                  @if($endPage < $lastPage - 1)
+                    <span class="np-ellipsis" aria-hidden="true">...</span>
+                  @endif
+                  <a class="np-page" href="{{ $tarjetas->url($lastPage) }}">{{ $lastPage }}</a>
+                @endif
+
+                @if($tarjetas->hasMorePages())
+                  <a class="np-btn" href="{{ $tarjetas->nextPageUrl() }}" rel="next">Siguiente</a>
+                @else
+                  <span class="np-btn is-disabled" aria-disabled="true">Siguiente</span>
+                @endif
+              </div>
+            </div>
+          </nav>
+        @endif
+      </div>
     </div>
   @else
     <div class="card">
