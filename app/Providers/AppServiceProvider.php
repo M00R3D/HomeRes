@@ -23,9 +23,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if (str_starts_with((string) config('app.url'), 'https://')) {
+        $appUrl = (string) config('app.url');
+        $isProduction = app()->environment('production');
+
+        if ($isProduction || str_starts_with($appUrl, 'https://')) {
+            $forcedRoot = $appUrl !== '' ? preg_replace('#^http://#i', 'https://', $appUrl) : null;
             URL::forceScheme('https');
-            URL::forceRootUrl((string) config('app.url'));
+            if (! empty($forcedRoot)) {
+                URL::forceRootUrl($forcedRoot);
+            }
         }
 
         // Persist `data.link` into `notifications.link` when a DB notification is created
