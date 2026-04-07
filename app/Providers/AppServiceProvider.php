@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\URL;
 
 // Persist notification `data.link` into the `link` column when DB notification is created
 
@@ -22,6 +23,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (str_starts_with((string) config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+            URL::forceRootUrl((string) config('app.url'));
+        }
+
         // Persist `data.link` into `notifications.link` when a DB notification is created
         try {
             DatabaseNotification::created(function ($model) {
