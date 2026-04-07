@@ -18,4 +18,8 @@ cmds = [
 # Run DB migrations then start the server.
 # On Railway, set all env vars (APP_KEY, DB_*, etc.) in the Railway dashboard.
 [start]
-cmd = "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=$PORT"
+cmds = [
+  "php artisan migrate --force",
+  "php artisan storage:link || true",
+  "php artisan serve --host=0.0.0.0 --port=$PORT",
+]
