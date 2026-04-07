@@ -402,7 +402,14 @@ class PaymentController extends Controller
 
                 try { Log::entry('pago', 'Pago fallido (CVV): reservacion #' . $reservacionId . ' usuario #' . (auth()->id() ?? 'anon') . ' - ' . $msg, auth()->id(), 'reservacion', $reservacionId, route('reservaciones.show', $reservacionId)); } catch (\Throwable $e) {}
                 if ($request->wantsJson()) return response()->json(['message' => $msg], 400);
-            try { Log::entry('pago', 'Pago fallido: reservacion #' . $reservacionId . ' usuario #' . (auth()->id() ?? 'anon') . ' - ' . $msg, auth()->id(), 'reservacion', $reservacionId, route('reservaciones.show', $reservacionId)); } catch (\Throwable $e) {}
+                // Handle insufficient balance with a clear field-specific error
+                if (strtolower(trim($msg)) === 'saldo insuficiente en la tarjeta' || stripos($msg, 'saldo insuficiente') !== false) {
+                    try { Log::entry('pago', 'Pago rechazado: saldo insuficiente en tarjeta para reservacion #' . $reservacionId, auth()->id(), 'reservacion', $reservacionId, route('reservaciones.show', $reservacionId)); } catch (\Throwable $ex) {}
+                    if ($request->wantsJson()) return response()->json(['message' => $msg], 402);
+                    return back()->withInput()->withErrors(['tarjeta_id' => 'Saldo insuficiente en la tarjeta. Por favor usa otra tarjeta o recarga el saldo.']);
+                }
+
+                try { Log::entry('pago', 'Pago fallido: reservacion #' . $reservacionId . ' usuario #' . (auth()->id() ?? 'anon') . ' - ' . $msg, auth()->id(), 'reservacion', $reservacionId, route('reservaciones.show', $reservacionId)); } catch (\Throwable $e) {}
             return back()->withInput()->withErrors(['pagos' => $msg]);
         }
     }

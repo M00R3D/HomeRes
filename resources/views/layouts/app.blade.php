@@ -506,6 +506,7 @@
         <a class="nav-item" href="{{ route('admin.logs') }}">Logs</a>
         <a class="nav-item" href="{{ route('images.index') }}">Imágenes</a>
         <a class="nav-item" href="{{ route('pagos.index') }}">Pagos</a>
+        <a class="nav-item" href="{{ route('tarjetas.index') }}">Tarjetas</a>
         <a class="nav-item" href="{{ route('admin.themes') }}">Apariencia</a>
       @endif
       <form method="POST" action="{{ route('logout') }}" class="nav-item logout-form" style="display:flex;">
