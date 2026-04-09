@@ -499,7 +499,7 @@
       <a class="nav-item" href="{{ route('pagos.codes') }}">{{ $effectiveIsAdmin ? 'Códigos QR' : 'Mis códigos' }}</a>
       @if(!($effectiveIsAdmin))
       <a class="nav-item" href="{{ route('pagos.mine') }}">Mis Pagos</a>
-      <a class="nav-item" href="{{ route('tarjetas.index') }}">Tarjetas</a>
+      <a class="nav-item" href="{{ route('tarjetas.index') }}">Mi Tarjeta</a>
       @endif
       @if($effectiveIsAdmin)
         <a class="nav-item" href="/users">Usuarios</a>

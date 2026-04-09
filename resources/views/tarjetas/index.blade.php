@@ -127,8 +127,12 @@
   @endphp
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
     <div>
-      <h1 style="margin:0">Tarjetas</h1>
-      <div class="small" style="margin-top:6px;">Gestión de tarjetas simuladas</div>
+    @if ($isAdmin)
+    <h1 style="margin:0">Tarjetas</h1>
+    <div class="small" style="margin-top:6px;">Gestión de tarjetas simuladas</div>
+    @else
+    <h1 style="margin:0">Mi tarjeta</h1>
+    @endif  
     </div>
     <div>
       @if (($isAdmin || $myTarjeta) && !((($currentUser->bloqueo_tarjetas ?? false) && !$isAdmin)))
