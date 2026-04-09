@@ -24,10 +24,6 @@
           <input type="checkbox" name="channel_inapp" value="1" {{ $inAppEnabled ? 'checked' : '' }}>
           <span>Recibir notificaciones in app</span>
         </label>
-        <label style="display:flex;gap:8px;align-items:center;">
-          <input type="checkbox" name="receive_push" value="1" {{ $pushEnabled ? 'checked' : '' }}>
-          <span>Recibir notificaciones push</span>
-        </label>
       </div>
       <div style="margin-top:10px;">
         <button class="btn" type="submit">Guardar preferencias de notificación</button>
