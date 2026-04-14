@@ -8,6 +8,95 @@
   $currentUser = $currentUser ?? auth()->user();
   $layoutPreviewMode = ($currentUser && ($currentUser->rol ?? '') === 'admin') ? session('layout_preview_as', 'admin') : 'user';
   $isAdmin = ($isAdmin ?? ($currentUser && ($currentUser->rol ?? '') === 'admin')) && $layoutPreviewMode !== 'user';
+  $propertyCarouselSlides = [];
+  $seenPropertyImages = [];
+  foreach (($propiedades ?? []) as $propiedadPreview) {
+    if (!$propiedadPreview) {
+      continue;
+    }
+
+    $rutaPreview = trim((string) data_get($propiedadPreview, 'ruta_img', ''), '/\\');
+    if ($rutaPreview === '') {
+      continue;
+    }
+
+    $previewFolder = null;
+    $previewFullPath = public_path($rutaPreview);
+    if (is_dir($previewFullPath)) {
+      $previewFolder = $rutaPreview;
+    } elseif (is_file($previewFullPath)) {
+      $candidateFolder = trim(dirname($rutaPreview), '/\\.');
+      if ($candidateFolder !== '') {
+        $candidateFullPath = public_path($candidateFolder);
+        if (is_dir($candidateFullPath)) {
+          $previewFolder = $candidateFolder;
+        }
+      }
+    }
+
+    if (!$previewFolder) {
+      continue;
+    }
+
+    $galleryFiles = @scandir(public_path($previewFolder)) ?: [];
+    foreach ($galleryFiles as $galleryFile) {
+      $extension = strtolower(pathinfo($galleryFile, PATHINFO_EXTENSION));
+      if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'])) {
+        $relativeImagePath = trim($previewFolder, '/\\') . '/' . $galleryFile;
+        if (isset($seenPropertyImages[$relativeImagePath])) {
+          continue;
+        }
+
+        $seenPropertyImages[$relativeImagePath] = true;
+        $propertyCarouselSlides[] = [
+          'id' => 'property-slide-' . md5($relativeImagePath),
+          'property_id' => data_get($propiedadPreview, 'id'),
+          'name' => data_get($propiedadPreview, 'nombre', 'Propiedad'),
+          'code' => data_get($propiedadPreview, 'codigo'),
+          'location' => data_get($propiedadPreview, 'ubicacion'),
+          'price' => data_get($propiedadPreview, 'precio_noche'),
+          'image' => asset($relativeImagePath),
+        ];
+      }
+    }
+  }
+
+  $today = Carbon::today()->startOfDay();
+  $hasRelevantUserReservations = (bool) ($hasRelevantUserReservations ?? collect($reservaciones ?? [])->contains(function ($reservation) use ($currentUser, $isAdmin, $today) {
+    if ($isAdmin || ! $currentUser) {
+      return false;
+    }
+
+    $reservationUserId = (int) (data_get($reservation, 'usuario_id') ?: data_get($reservation, 'user.id'));
+    if ($reservationUserId !== (int) $currentUser->id) {
+      return false;
+    }
+
+    if (strtolower(trim((string) data_get($reservation, 'estado', ''))) === 'cancelada') {
+      return false;
+    }
+
+    $checkOutRaw = data_get($reservation, 'check_out');
+    if (empty($checkOutRaw)) {
+      return true;
+    }
+
+    try {
+      return Carbon::parse($checkOutRaw)->startOfDay()->gte($today);
+    } catch (\Throwable $e) {
+      return true;
+    }
+  }));
+
+  $shouldShowHeroPropertiesPanel = ! $isAdmin;
+  $showHeroPropertiesPanelFirst = $shouldShowHeroPropertiesPanel && (! $currentUser || ! $hasRelevantUserReservations);
+  $heroEyebrow = ! $isAdmin && ! $hasRelevantUserReservations ? 'Sin reservaciones vigentes' : 'Propiedades destacadas';
+  $heroTitle = ! $isAdmin && ! $hasRelevantUserReservations
+    ? 'Reserva tu próxima estadía'
+    : 'Explora más opciones disponibles';
+  $heroSubtitle = ! $isAdmin && ! $hasRelevantUserReservations
+    ? 'Como no tienes reservaciones activas ni pendientes para fechas actuales o futuras, aquí puedes descubrir propiedades para reservar.'
+    : 'Tus reservaciones vigentes aparecen primero y debajo puedes revisar más propiedades.';
 @endphp
 
 <style>
@@ -126,21 +215,46 @@
 
 .action-btn:focus, .modal-close:focus, .link-button:focus { outline: 3px solid rgba(99,102,241,0.14); outline-offset:2px; }
 
-.table tbody tr.row-cancelled {
-  filter: blur(0.8px) brightness(0.85);
-  transition: filter .18s ease, background .18s ease, transform .18s ease;
-  background: linear-gradient(180deg,#eef2f4,#f7f9fb);
+.table tbody tr.row-inactive {
+  position:relative;
+  background:linear-gradient(180deg, rgba(254, 226, 226, 0.72), rgba(255, 245, 245, 0.96));
+  transition: background .18s ease, transform .18s ease, box-shadow .18s ease;
 }
-.table tbody tr.row-cancelled td { color: #6b7280; opacity: 0.95; }
-.table tbody tr.row-cancelled .rv-thumb img{ filter: grayscale(100%) contrast(0.9); opacity: 0.8; transform: scale(1); }
+.table tbody tr.row-inactive td { color:#7f1d1d; }
+.table tbody tr.row-inactive .rv-thumb{
+  border-color:rgba(239,68,68,.28);
+  background:#fff5f5;
+}
+.table tbody tr.row-inactive .rv-thumb img{ filter:saturate(.82); opacity:.9; transform:scale(1); }
+.rv-inactive-hint{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  margin-top:6px;
+  padding:4px 8px;
+  border-radius:999px;
+  background:rgba(239,68,68,.12);
+  color:#b91c1c;
+  font-size:.76rem;
+  font-weight:800;
+  letter-spacing:.01em;
+  opacity:0;
+  transform:translateY(4px);
+  transition:opacity .18s ease, transform .18s ease;
+  pointer-events:none;
+}
 @media (min-width:901px){
-  .table tbody tr.row-cancelled:hover { filter: none; transform: translateY(-1px); background: linear-gradient(180deg,#ffffff,#fbfdff); }
-  .table tbody tr.row-cancelled:hover .rv-thumb img{ filter: none; opacity: 1; transform: scale(1.03); }
-  .table tbody tr.row-cancelled:hover .action-btn, .table tbody tr.row-cancelled:hover a, .table tbody tr.row-cancelled:hover button{ opacity: 1; filter:none; }
+  .table tbody tr.row-inactive:hover {
+    transform:translateY(-1px);
+    background:linear-gradient(180deg, rgba(254, 202, 202, 0.88), rgba(255, 237, 237, 1));
+    box-shadow:inset 3px 0 0 #ef4444;
+  }
+  .table tbody tr.row-inactive:hover .rv-thumb img{ filter:none; opacity:1; transform:scale(1.03); }
+  .table tbody tr.row-inactive:hover .rv-inactive-hint{ opacity:1; transform:translateY(0); }
 }
 @media (max-width:900px){
-  .table tbody tr.row-cancelled { filter: none; background: linear-gradient(180deg,#f6f7f8,#fafafa); }
-  .table tbody tr.row-cancelled .rv-thumb img{ filter: grayscale(100%); opacity:0.85; }
+  .table tbody tr.row-inactive { background:linear-gradient(180deg, rgba(254, 226, 226, 0.78), rgba(255, 241, 242, 1)); }
+  .table tbody tr.row-inactive .rv-inactive-hint{ opacity:1; transform:translateY(0); }
 }
 
 .muted{ color:var(--muted); }
@@ -153,6 +267,305 @@
 .pay-fallido{ background:linear-gradient(90deg,#ef4444,#dc2626); }
 .pay-parcial{ background:linear-gradient(90deg,#6366f1,#06b6d4); }
 .pay-unknown{ background:#6b7280; }
+
+.hero-properties-panel{ margin:0 0 16px; }
+
+.hero-properties-shell{
+  position:relative;
+  overflow:hidden;
+  border-radius:20px;
+  padding:16px;
+  background:
+    radial-gradient(circle at 16% 14%, rgba(255,255,255,0.42), transparent 20%),
+    radial-gradient(circle at 84% 82%, rgba(255,255,255,0.14), transparent 22%),
+    linear-gradient(135deg, var(--btn-primary, #6366f1) 0%, var(--btn-alt, #06b6d4) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.72),
+    0 24px 56px rgba(2,6,23,0.14);
+  transition:transform var(--transition), box-shadow var(--transition);
+}
+
+.hero-properties-shell::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.02) 42%, rgba(5,37,70,0.12) 100%);
+  pointer-events:none;
+}
+
+.hero-properties-shell:hover{
+  transform:translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.8),
+    0 28px 64px rgba(2,6,23,0.18);
+}
+
+.hero-properties-inner,
+.hero-properties-header,
+.hero-properties-copy,
+.hero-properties-carousel,
+.hero-properties-controls,
+.hero-properties-dots{
+  position:relative;
+  z-index:1;
+}
+
+.hero-properties-inner{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.hero-properties-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.hero-properties-copy{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-width:0;
+}
+
+.hero-properties-eyebrow{
+  display:inline-flex;
+  align-items:center;
+  width:max-content;
+  padding:6px 11px;
+  border-radius:999px;
+  background:rgba(255,255,255,0.22);
+  color:var(--btn-primary-text, #ffffff);
+  font-size:0.68rem;
+  font-weight:800;
+  letter-spacing:0.11em;
+  text-transform:uppercase;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.55);
+}
+
+.hero-properties-title{
+  margin:0;
+  color:var(--btn-primary-text, #ffffff);
+  font-size:clamp(1.28rem, 2.2vw, 1.7rem);
+  line-height:1.05;
+  letter-spacing:-0.04em;
+  text-shadow:0 1px 2px rgba(6,35,64,0.24);
+}
+
+.hero-properties-subtitle{
+  color:rgba(255,255,255,0.9);
+  font-size:0.86rem;
+  font-weight:700;
+  max-width:48ch;
+}
+
+.hero-properties-cta,
+.hero-properties-control{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:18px;
+  background:var(--card, #ffffff);
+  border:1px solid rgba(255,255,255,0.36);
+  color:var(--text-color, #111827);
+  box-shadow:0 12px 24px rgba(2,6,23,0.1);
+}
+
+.hero-properties-cta{
+  flex:0 0 auto;
+  min-width:180px;
+  padding:11px 14px;
+  font-size:0.88rem;
+  font-weight:800;
+  text-decoration:none;
+}
+
+.hero-properties-carousel{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  align-items:end;
+  padding-top:2px;
+}
+
+.hero-properties-viewport{
+  overflow:hidden;
+  border-radius:18px;
+}
+
+.hero-properties-track{
+  display:flex;
+  width:100%;
+  transition:transform .6s cubic-bezier(.22,.61,.36,1);
+}
+
+.hero-properties-slide{
+  flex:0 0 100%;
+  min-width:100%;
+  display:grid;
+  grid-template-columns:minmax(220px, 1.2fr) minmax(180px, .88fr);
+  align-items:stretch;
+  overflow:hidden;
+  border-radius:18px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08));
+  border:1px solid rgba(255,255,255,0.24);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.35);
+  text-decoration:none;
+}
+
+.hero-properties-media{
+  position:relative;
+  min-height:180px;
+  background:rgba(255,255,255,0.12);
+}
+
+.hero-properties-media img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.hero-properties-media::after{
+  content:'';
+  position:absolute;
+  inset:auto 0 0 0;
+  height:40%;
+  background:linear-gradient(to top, rgba(2,6,23,0.34), rgba(2,6,23,0));
+  pointer-events:none;
+}
+
+.hero-properties-price{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  width:max-content;
+  gap:4px;
+  padding:7px 10px;
+  border-radius:999px;
+  background:rgba(2,6,23,0.56);
+  color:#fff;
+  font-size:0.82rem;
+  font-weight:800;
+}
+
+.hero-properties-meta{
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:10px;
+  padding:14px 14px 13px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0.08));
+}
+
+.hero-properties-meta-head{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+}
+
+.hero-properties-name{
+  color:var(--btn-primary-text, #ffffff);
+  font-size:clamp(1rem, 1.7vw, 1.2rem);
+  font-weight:800;
+  line-height:1.06;
+}
+
+.hero-properties-meta-line,
+.hero-properties-code,
+.hero-properties-location,
+.hero-properties-counter{
+  color:rgba(255,255,255,0.84);
+}
+
+.hero-properties-code,
+.hero-properties-location{
+  font-size:0.76rem;
+  font-weight:700;
+}
+
+.hero-properties-code{ text-transform:uppercase; letter-spacing:0.06em; }
+
+.hero-properties-meta-line{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.hero-properties-slide:hover .hero-properties-name,
+.hero-properties-slide:focus-visible .hero-properties-name{
+  text-decoration:underline;
+  text-decoration-thickness:2px;
+}
+
+.hero-properties-slide:focus-visible{
+  outline:2px solid rgba(255,255,255,0.58);
+  outline-offset:-2px;
+}
+
+.hero-properties-controls{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.hero-properties-control{
+  width:40px;
+  height:40px;
+  cursor:pointer;
+  font-size:1rem;
+  font-weight:900;
+}
+
+.hero-properties-control[disabled]{
+  opacity:.48;
+  cursor:not-allowed;
+}
+
+.hero-properties-dots{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+
+.hero-properties-dot{
+  width:8px;
+  height:8px;
+  border-radius:999px;
+  border:0;
+  cursor:pointer;
+  background:rgba(255,255,255,0.34);
+  transition:transform var(--transition), background var(--transition), opacity var(--transition);
+}
+
+.hero-properties-dot.is-active{
+  background:var(--card, #ffffff);
+  transform:scale(1.2);
+}
+
+.hero-properties-empty{
+  padding:18px;
+  border-radius:20px;
+  background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.2);
+  color:rgba(255,255,255,0.9);
+}
+
+@media (max-width:720px){
+  .hero-properties-shell{ padding:14px; border-radius:18px; }
+  .hero-properties-header{ flex-direction:column; align-items:flex-start; }
+  .hero-properties-cta{ width:100%; min-width:0; }
+  .hero-properties-subtitle{ max-width:none; }
+  .hero-properties-carousel{ grid-template-columns:1fr; }
+  .hero-properties-controls{ flex-direction:row; justify-content:space-between; }
+  .hero-properties-slide{ grid-template-columns:1fr; }
+  .hero-properties-media{ min-height:170px; }
+  .hero-properties-meta{ padding:13px; }
+}
 </style>
 
 <div class="container">
@@ -162,50 +575,9 @@
     <div style="background:#ecfdf5;color:#065f46;padding:10px;border-radius:8px;margin:8px 0;font-weight:700;">{{ session('success') }}</div>
   @endif
 
-  <div style="display:flex;gap:18px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;">
-    <div style="flex:1; min-width:260px;">
-      <div class="card-wide">
-        <h2 style="margin:0;font-size:1.05rem;">Resumen</h2>
-        <div style="margin-top:12px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <div style="font-weight:700;">Total</div>
-            <div style="font-size:1.2rem;">{{ collect($reservaciones ?? [])->count() }}</div>
-          </div>
-
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
-            <div style="font-weight:700;">Pendientes</div>
-            <div class="badge badge-pendiente" style="font-size:0.9rem;">{{ collect($reservaciones ?? [])->where('estado','pendiente')->count() }}</div>
-          </div>
-
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
-            <div style="font-weight:700;">Confirmadas</div>
-            <div class="badge badge-confirmada" style="font-size:0.9rem;">{{ collect($reservaciones ?? [])->where('estado','confirmada')->count() }}</div>
-          </div>
-
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
-            <div style="font-weight:700;">Canceladas</div>
-            <div class="badge badge-cancelada" style="font-size:0.9rem;">{{ collect($reservaciones ?? [])->where('estado','cancelada')->count() }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div style="width:320px; min-width:220px;">
-      <div class="card-wide">
-        <h3 style="margin:0 0 8px 0;font-size:1rem;">Atajos</h3>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
-          <a href="{{ route('dashboard') }}" class="small">Volver al dashboard</a>
-          <a href="/propiedades" class="small">Ver propiedades</a>
-          <a href="/notificaciones" class="small">Notificaciones</a>
-          @if($isAdmin)
-            <a href="{{ function_exists('route') && \Illuminate\Support\Facades\Route::has('images.index') ? route('images.index') : url('/imagenes') }}" class="small">Imágenes</a>
-            <a href="{{ route('tarjetas.index') ?? '#' }}" class="small">Tarjetas</a>
-          @endif
-        </div>
-      </div>
-    </div>
-  </div>
-
+  @if($shouldShowHeroPropertiesPanel && $showHeroPropertiesPanelFirst)
+    @include('reservaciones._hero_properties_panel')
+  @endif
   <div style="margin-top:0;">
     <div class="card-wide" style="margin-bottom:12px;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -324,9 +696,11 @@
                 $maxVisible = 25;
                 $showAll = $totalDays <= $maxVisible;
                 $displayDays = $showAll ? $daysArray : [($daysArray[0] ?? $checkIn), ($daysArray[$totalDays-1] ?? ($checkOut ? $checkOut->copy()->subDay() : $checkIn))];
+                $isInactiveReservation = (($r->estado ?? '') === 'cancelada') || ($checkOut && $checkOut->copy()->startOfDay()->lt($today));
+                $inactiveMessage = 'Esta reservación ya no está vigente o está cancelada.';
               @endphp
 
-              <tr class="{{ (($r->estado ?? '') === 'cancelada') ? 'row-cancelled' : 'rv-row' }}">
+              <tr class="{{ $isInactiveReservation ? 'row-inactive' : 'rv-row' }}" title="{{ $isInactiveReservation ? $inactiveMessage : '' }}">
                 <td style="width:120px;">
                   <div class="rv-thumb" aria-hidden="true">
                     @if($thumbUrl)
@@ -342,6 +716,9 @@
                 <td style="vertical-align:middle;">
                   <div style="font-weight:700;">{{ $r->propiedad->nombre ?? ($r->propiedad_nombre ?? ($r->propiedad_id ?? '-')) }}</div>
                   <div class="small">{{ optional($r->propiedad)->codigo ?? '' }}</div>
+                  @if($isInactiveReservation)
+                    <div class="rv-inactive-hint">Ya no está vigente o fue cancelada</div>
+                  @endif
                 </td>
 
                 <td style="vertical-align:middle;">{{ $r->user->nombre ?? '-' }} {{ $r->user->apellido ?? '' }}</td>
@@ -396,16 +773,27 @@
                 <td style="vertical-align:middle;">${{ number_format($r->total ?? 0, 2, ',', '.') }}</td>
 
                 <td style="vertical-align:middle;">
-                  @if(($r->estado ?? '') === 'pendiente') <span class="badge badge-pendiente">Pendiente</span>
-                  @elseif(($r->estado ?? '') === 'confirmada') <span class="badge badge-confirmada">Confirmada</span>
-                  @elseif(($r->estado ?? '') === 'cancelada') <span class="badge badge-cancelada">Cancelada</span>
-                  @else <span class="badge">{{ $r->estado }}</span>
+                  @if(($r->estado ?? '') === 'cancelada')
+                    <span class="badge badge-cancelada">Cancelada</span>
+                  @elseif(($r->estado ?? '') === 'pendiente')
+                    <span class="badge badge-pendiente">Pendiente</span>
+                  @elseif(($r->estado ?? '') === 'confirmada')
+                    <span class="badge badge-confirmada">Confirmada</span>
+                  @else
+                    <span class="badge">{{ $r->estado }}</span>
                   @endif
                 </td>
 
                 <td style="vertical-align:middle;">
-                  @php $ep = strtolower(trim((string)($r->estado_pago ?? 'pendiente'))); @endphp
-                  @if($ep === 'pagado')
+                  @php
+                    $ep = strtolower(trim((string)($r->estado_pago ?? 'pendiente')));
+                    if (($r->estado ?? '') === 'cancelada') {
+                      $ep = 'cancelado';
+                    }
+                  @endphp
+                  @if($ep === 'cancelado')
+                    <span class="pay-badge pay-fallido">Cancelado</span>
+                  @elseif($ep === 'pagado')
                     <span class="pay-badge pay-pagado">Pagado</span>
                   @elseif($ep === 'pendiente')
                     <span class="pay-badge pay-pendiente">Pendiente</span>
@@ -423,10 +811,8 @@
                     <div class="btn-group-col">
                       <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn view">Ver</a>
 
-                      <a href="/notificaciones?reservacion_id={{ $r->id }}" class="action-btn view">Notificaciones</a>
-
                       @if(in_array(($r->estado ?? ''), ['pendiente','confirmada']) && !($r->isExpired() ?? false) && !($r->isPaid() ?? false))
-                        <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar</a>
+                        <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar reservación</a>
                       @endif
 
                       <a href="{{ route('reservaciones.edit', $r->id) }}" class="action-btn primary">Editar</a>
@@ -438,11 +824,17 @@
                       </form>
                     </div>
                   @else
+                    @php
+                      $canPayReservation = in_array(($r->estado ?? ''), ['pendiente','confirmada']) && !($r->isPaid() ?? false) && (($currentUser->id ?? null) === ($r->usuario_id ?? null));
+                      $canRequestCancellation = in_array(($r->estado ?? ''), ['pendiente','confirmada']) && (($currentUser->id ?? null) === ($r->usuario_id ?? null));
+                    @endphp
                     <div class="btn-group-col">
                       <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn view">Ver</a>
-                      @if(in_array($r->estado, ['pendiente','confirmada']) && !($r->isExpired() ?? false) && !($r->isPaid() ?? false))
-                        <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar</a>
+                      @if($canPayReservation)
+                        <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar reservación</a>
+                      @endif
 
+                      @if($canRequestCancellation)
                         <form method="POST" action="{{ route('reservaciones.changeEstado', $r->id) }}" class="request-cancel-form" style="display:inline;">
                           @csrf
                           <input type="hidden" name="estado" value="cancelada" />
@@ -479,6 +871,10 @@
       </div>
     </div>
   </div>
+
+  @if($shouldShowHeroPropertiesPanel && ! $showHeroPropertiesPanelFirst)
+    @include('reservaciones._hero_properties_panel')
+  @endif
 </div>
 
 <div id="rv-modal" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.45);align-items:center;justify-content:center;z-index:9999;padding:12px;">
@@ -578,6 +974,92 @@ document.addEventListener('DOMContentLoaded', function(){
 </script>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
+
+  function initPropertiesCarousel(){
+    document.querySelectorAll('[data-properties-carousel]').forEach(function(carousel){
+      const track = carousel.querySelector('[data-carousel-track]');
+      const slides = Array.from(carousel.querySelectorAll('[data-carousel-slide]'));
+      const dotsWrap = carousel.parentElement.querySelector('[data-carousel-dots]');
+      const dots = dotsWrap ? Array.from(dotsWrap.querySelectorAll('[data-carousel-dot]')) : [];
+      const prevBtn = carousel.querySelector('[data-carousel-prev]');
+      const nextBtn = carousel.querySelector('[data-carousel-next]');
+      if (!track || slides.length === 0) return;
+
+      let currentIndex = 0;
+      let autoplayId = null;
+      let touchStartX = null;
+      const canLoop = slides.length > 1;
+
+      function render(){
+        track.style.transform = 'translateX(-' + (currentIndex * 100) + '%)';
+        slides.forEach(function(slide, index){
+          slide.setAttribute('aria-hidden', index === currentIndex ? 'false' : 'true');
+        });
+        dots.forEach(function(dot, index){
+          const active = index === currentIndex;
+          dot.classList.toggle('is-active', active);
+          dot.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+        if (prevBtn) prevBtn.disabled = !canLoop;
+        if (nextBtn) nextBtn.disabled = !canLoop;
+      }
+
+      function goTo(index){
+        if (!slides.length) return;
+        currentIndex = (index + slides.length) % slides.length;
+        render();
+      }
+
+      function stopAutoplay(){
+        if (autoplayId) {
+          window.clearInterval(autoplayId);
+          autoplayId = null;
+        }
+      }
+
+      function startAutoplay(){
+        stopAutoplay();
+        if (!canLoop) return;
+        autoplayId = window.setInterval(function(){
+          goTo(currentIndex + 1);
+        }, 4800);
+      }
+
+      prevBtn?.addEventListener('click', function(){ goTo(currentIndex - 1); });
+      nextBtn?.addEventListener('click', function(){ goTo(currentIndex + 1); });
+      dots.forEach(function(dot){
+        dot.addEventListener('click', function(){
+          goTo(Number(dot.getAttribute('data-slide-index') || '0'));
+        });
+      });
+
+      carousel.addEventListener('mouseenter', stopAutoplay);
+      carousel.addEventListener('mouseleave', startAutoplay);
+      carousel.addEventListener('focusin', stopAutoplay);
+      carousel.addEventListener('focusout', function(){
+        if (!carousel.contains(document.activeElement)) startAutoplay();
+      });
+
+      carousel.addEventListener('touchstart', function(event){
+        touchStartX = event.changedTouches[0]?.clientX ?? null;
+      }, { passive: true });
+
+      carousel.addEventListener('touchend', function(event){
+        if (touchStartX === null) return;
+        const touchEndX = event.changedTouches[0]?.clientX ?? touchStartX;
+        const delta = touchEndX - touchStartX;
+        if (Math.abs(delta) > 35) {
+          goTo(delta > 0 ? currentIndex - 1 : currentIndex + 1);
+        }
+        touchStartX = null;
+      }, { passive: true });
+
+      render();
+      startAutoplay();
+    });
+  }
+
+  initPropertiesCarousel();
 
   function openModal(mode='create', data=null){
     const modal = document.getElementById('rv-modal');

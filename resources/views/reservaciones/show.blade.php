@@ -17,12 +17,22 @@
       @endif
 
       @php
+        $isReservationOwner = $currentUser && (($currentUser->id ?? null) === ($r->usuario_id ?? null));
         $canPay = (in_array(($r->estado ?? ''), ['pendiente','confirmada']))
-                 && !($r->isExpired() ?? false)
                  && !($r->isPaid() ?? false);
+        $canRequestCancellation = !$isAdmin
+                 && $isReservationOwner
+                 && in_array(($r->estado ?? ''), ['pendiente','confirmada']);
       @endphp
-      @if($canPay && ( $isAdmin || ($currentUser && ($currentUser->id ?? null) === ($r->usuario_id ?? null)) ))
-        <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar</a>
+      @if($canPay && ( $isAdmin || $isReservationOwner ))
+        <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar reservación</a>
+      @endif
+      @if($canRequestCancellation)
+        <form method="POST" action="{{ route('reservaciones.changeEstado', $r->id) }}" class="request-cancel-form" style="display:inline;">
+          @csrf
+          <input type="hidden" name="estado" value="cancelada" />
+          <button type="button" class="action-btn danger request-cancel-btn" data-id="{{ $r->id }}">Solicitar cancelación</button>
+        </form>
       @endif
     </div>
 
@@ -355,6 +365,16 @@ document.addEventListener('DOMContentLoaded', function(){
   btnEdit?.addEventListener('click', function(){ show(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
   btnClose?.addEventListener('click', hide);
   btnCancel?.addEventListener('click', hide);
+
+  document.querySelectorAll('.request-cancel-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const form = btn.closest('.request-cancel-form');
+      if (!form) return;
+      if (window.confirm('¿Deseas solicitar la cancelación de esta reservación?')) {
+        form.submit();
+      }
+    });
+  });
 
   form?.addEventListener('submit', async function(e){
     e.preventDefault();
