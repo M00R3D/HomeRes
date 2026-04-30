@@ -70,6 +70,19 @@ class ReservationController extends Controller
         }
 
         $reservaciones = $q->with(['user','propiedad'])->orderByDesc('created_at')->get();
+
+        // Auto-cancel expired reservations
+        $today = Carbon::today()->toDateString();
+        foreach ($reservaciones as $res) {
+            if (! in_array($res->estado, ['cancelada', 'completada'], true)
+                && ! empty($res->check_out)
+                && $res->check_out < $today) {
+                $res->estado       = 'cancelada';
+                $res->estado_pago  = 'cancelado';
+                $res->save();
+            }
+        }
+
         $usuarios = User::all();
         $propiedades = Propiedad::all();
 
@@ -175,6 +188,15 @@ class ReservationController extends Controller
         $r = Reservation::with(['user','propiedad'])->find($id);
         if (!$r) {
             abort(404);
+        }
+
+        // Auto-cancel if expired
+        if (! in_array($r->estado, ['cancelada', 'completada'], true)
+            && ! empty($r->check_out)
+            && $r->check_out < Carbon::today()->toDateString()) {
+            $r->estado      = 'cancelada';
+            $r->estado_pago = 'cancelado';
+            $r->save();
         }
 
         if ($request->wantsJson()) {
