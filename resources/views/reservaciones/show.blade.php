@@ -4,6 +4,94 @@
 
 @section('content')
 <div style="max-width:980px;margin:20px auto;padding:12px;">
+  <style>
+    @keyframes reservationPayPulse {
+      0% {
+        background: linear-gradient(135deg, #6b8e23, #7ea63a, #8cff3a);
+        box-shadow: 0 16px 34px rgba(107, 142, 35, 0.28), 0 0 0 rgba(132, 255, 58, 0);
+      }
+      50% {
+        background: linear-gradient(135deg, #7fa129, #9adf28, #7fff00);
+        box-shadow: 0 20px 42px rgba(127, 255, 0, 0.34), 0 0 26px rgba(132, 255, 58, 0.32);
+      }
+      100% {
+        background: linear-gradient(135deg, #6b8e23, #7ea63a, #8cff3a);
+        box-shadow: 0 16px 34px rgba(107, 142, 35, 0.28), 0 0 0 rgba(132, 255, 58, 0);
+      }
+    }
+
+    .reservation-pay-cta {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 72px;
+      padding: 18px 28px;
+      border-radius: 18px;
+      border: 1px solid rgba(224, 255, 196, 0.5);
+      background: linear-gradient(135deg, #6b8e23, #7ea63a, #8cff3a);
+      color: #fff;
+      font-size: 1.28rem;
+      font-weight: 900;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      text-decoration: none;
+      text-shadow: 0 2px 12px rgba(12, 24, 8, 0.35);
+      overflow: hidden;
+      box-shadow: 0 16px 34px rgba(107, 142, 35, 0.28);
+      animation: reservationPayPulse 3.2s ease-in-out infinite;
+      transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+    }
+
+    .reservation-pay-cta::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.14) 35%, rgba(255, 255, 255, 0.28) 50%, transparent 68%);
+      transform: translateX(-120%);
+      animation: reservationPayShine 2.8s linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes reservationPayShine {
+      to {
+        transform: translateX(120%);
+      }
+    }
+
+    .reservation-pay-cta-symbol {
+      font-size: 1.45rem;
+      font-weight: 1000;
+      line-height: 1;
+      color: #f4ffe4;
+      filter: drop-shadow(0 0 8px rgba(201, 255, 122, 0.45));
+    }
+
+    .reservation-pay-cta-label {
+      position: relative;
+      z-index: 1;
+    }
+
+    .reservation-pay-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 24px 46px rgba(127, 255, 0, 0.38), 0 0 30px rgba(132, 255, 58, 0.28);
+      opacity: .98;
+    }
+
+    .reservation-pay-cta-row {
+      margin: 10px 0 14px;
+      display: flex;
+      width: 100%;
+    }
+
+    @media (max-width: 640px) {
+      .reservation-pay-cta {
+        width: 100%;
+      }
+    }
+  </style>
   @php
     $currentUser = $currentUser ?? auth()->user();
     $isAdmin = ($currentUser && ($currentUser->rol ?? '') === 'admin');
@@ -24,9 +112,6 @@
                  && $isReservationOwner
                  && in_array(($r->estado ?? ''), ['pendiente','confirmada']);
       @endphp
-      @if($canPay && ( $isAdmin || $isReservationOwner ))
-        <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar reservación</a>
-      @endif
       @if($canRequestCancellation)
         <form method="POST" action="{{ route('reservaciones.changeEstado', $r->id) }}" class="request-cancel-form" style="display:inline;">
           @csrf
@@ -285,6 +370,16 @@
     </div>
 
   </div>
+
+  @if($canPay && ( $isAdmin || $isReservationOwner ))
+    <div class="reservation-pay-cta-row">
+      <a href="{{ route('pagos.form', $r->id) }}" class="reservation-pay-cta">
+        <span class="reservation-pay-cta-symbol">$$</span>
+        <span class="reservation-pay-cta-label">Pagar reservación</span>
+        <span class="reservation-pay-cta-symbol">$$</span>
+      </a>
+    </div>
+  @endif
 </div>
 
 <div id="rv-modal" style="display:none;position:fixed;inset:0;background:rgba(2,6,23,0.45);align-items:center;justify-content:center;z-index:9999;padding:12px;">

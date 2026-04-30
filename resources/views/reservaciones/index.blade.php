@@ -113,7 +113,11 @@
   --transition: .16s ease;
 }
 
-.container{max-width:1400px;margin:0 auto;padding:18px;}
+.content{
+  max-width: 1680px !important;
+}
+
+.container{max-width:1580px;margin:0 auto;padding:18px;}
 .split { display:flex; gap:18px; align-items:flex-start; }
 .left { flex:1.6; min-width:420px; }
 .right { width:360px; }
@@ -161,6 +165,74 @@
   box-shadow: 0 8px 20px rgba(99,102,241,0.12);
 }
 .action-btn.primary:hover{ transform: translateY(-2px); box-shadow: 0 14px 40px rgba(6,182,212,0.12); }
+
+@keyframes reservationListPayPulse {
+  0% {
+    background: linear-gradient(135deg, #6b8e23, #7ea63a, #8cff3a);
+    box-shadow: 0 14px 32px rgba(107,142,35,0.24), 0 0 0 rgba(132,255,58,0);
+  }
+  50% {
+    background: linear-gradient(135deg, #7fa129, #9adf28, #7fff00);
+    box-shadow: 0 18px 38px rgba(127,255,0,0.3), 0 0 22px rgba(132,255,58,0.26);
+  }
+  100% {
+    background: linear-gradient(135deg, #6b8e23, #7ea63a, #8cff3a);
+    box-shadow: 0 14px 32px rgba(107,142,35,0.24), 0 0 0 rgba(132,255,58,0);
+  }
+}
+
+@keyframes reservationListPayShine {
+  to {
+    transform: translateX(120%);
+  }
+}
+
+.action-btn.pay-cta {
+  position: relative;
+  justify-content: center;
+  width: 100%;
+  min-height: 58px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(224,255,196,0.48);
+  background: linear-gradient(135deg, #6b8e23, #7ea63a, #8cff3a);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 12px rgba(12,24,8,0.34);
+  box-shadow: 0 14px 32px rgba(107,142,35,0.24);
+  overflow: hidden;
+  animation: reservationListPayPulse 3.2s ease-in-out infinite;
+}
+
+.action-btn.pay-cta::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.14) 35%, rgba(255,255,255,0.26) 50%, transparent 68%);
+  transform: translateX(-120%);
+  animation: reservationListPayShine 2.8s linear infinite;
+  pointer-events: none;
+}
+
+.action-btn.pay-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 42px rgba(127,255,0,0.34), 0 0 28px rgba(132,255,58,0.24);
+}
+
+.action-btn.pay-cta .pay-cta-symbol,
+.action-btn.pay-cta .pay-cta-label {
+  position: relative;
+  z-index: 1;
+}
+
+.action-btn.pay-cta .pay-cta-symbol {
+  font-size: 1.18rem;
+  color: #f4ffe4;
+  filter: drop-shadow(0 0 8px rgba(201,255,122,0.42));
+}
 
 .action-btn.danger{
   color:#fff;
@@ -811,8 +883,8 @@
                     <div class="btn-group-col">
                       <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn view">Ver</a>
 
-                      @if(in_array(($r->estado ?? ''), ['pendiente','confirmada']) && !($r->isExpired() ?? false) && !($r->isPaid() ?? false))
-                        <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar reservación</a>
+                      @if(! $isInactiveReservation && in_array(($r->estado ?? ''), ['pendiente','confirmada']) && !($r->isExpired() ?? false) && !($r->isPaid() ?? false))
+                        <a href="{{ route('pagos.form', $r->id) }}" class="action-btn pay-cta"><span class="pay-cta-symbol">$$</span><span class="pay-cta-label">Pagar reservación</span><span class="pay-cta-symbol">$$</span></a>
                       @endif
 
                       <a href="{{ route('reservaciones.edit', $r->id) }}" class="action-btn primary">Editar</a>
@@ -825,13 +897,13 @@
                     </div>
                   @else
                     @php
-                      $canPayReservation = in_array(($r->estado ?? ''), ['pendiente','confirmada']) && !($r->isPaid() ?? false) && (($currentUser->id ?? null) === ($r->usuario_id ?? null));
-                      $canRequestCancellation = in_array(($r->estado ?? ''), ['pendiente','confirmada']) && (($currentUser->id ?? null) === ($r->usuario_id ?? null));
+                      $canPayReservation = ! $isInactiveReservation && in_array(($r->estado ?? ''), ['pendiente','confirmada']) && !($r->isPaid() ?? false) && (($currentUser->id ?? null) === ($r->usuario_id ?? null));
+                      $canRequestCancellation = ! $isInactiveReservation && in_array(($r->estado ?? ''), ['pendiente','confirmada']) && (($currentUser->id ?? null) === ($r->usuario_id ?? null));
                     @endphp
                     <div class="btn-group-col">
                       <a href="{{ route('reservaciones.show', $r->id) }}" class="action-btn view">Ver</a>
                       @if($canPayReservation)
-                        <a href="{{ route('pagos.form', $r->id) }}" class="action-btn primary">Pagar reservación</a>
+                        <a href="{{ route('pagos.form', $r->id) }}" class="action-btn pay-cta"><span class="pay-cta-symbol">$$</span><span class="pay-cta-label">Pagar reservación</span><span class="pay-cta-symbol">$$</span></a>
                       @endif
 
                       @if($canRequestCancellation)
