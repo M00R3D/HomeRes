@@ -15,8 +15,15 @@
       <button id="open-new" class="btn-primary">Nueva Reservación</button>
     </div>
     @else
-    <div class="actions">
+    <div class="actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
       <a href="/propiedades" class="btn-primary">Reservar una propiedad</a>
+      <span style="display:inline-flex;align-items:center;gap:8px;">
+        <button type="button" id="dash-open-help-btn" aria-label="Abrir ayuda"
+          style="width:24px;height:24px;border-radius:999px;border:1px solid rgba(59,130,246,.35);color:#1d4ed8;background:rgba(59,130,246,.08);font-weight:700;line-height:1;cursor:pointer;flex-shrink:0;transition:transform .15s ease,background-color .15s ease;"
+          onmouseover="this.style.transform='translateY(-1px)';this.style.background='rgba(59,130,246,.16)'"
+          onmouseout="this.style.transform='';this.style.background='rgba(59,130,246,.08)'">?</button>
+        <a href="#" id="dash-open-help-link" style="color:#2563eb;text-decoration:underline;text-underline-offset:2px;font-size:.93rem;">&#191;Necesitas ayuda para usar esta p&aacute;gina?</a>
+      </span>
     </div>
     @endif
   </div>
@@ -538,4 +545,89 @@
       })();
     </script>
 
+@if(!$isAdmin)
+<div id="dash-help-viewer" aria-hidden="true" style="position:fixed;inset:0;display:none;z-index:70;">
+  <div id="dash-help-backdrop" style="position:absolute;inset:0;background:rgba(15,23,42,.42);backdrop-filter:blur(2px);"></div>
+  <div role="dialog" aria-modal="true" aria-label="Guía de uso del dashboard"
+    style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(920px,94vw);height:min(84vh,760px);background:rgba(255,255,255,.98);border-radius:16px;box-shadow:0 24px 80px rgba(15,23,42,.25);border:1px solid rgba(148,163,184,.3);overflow:hidden;display:grid;grid-template-rows:auto 1fr;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.3);background:linear-gradient(90deg,rgba(248,250,252,.95),rgba(241,245,249,.95));">
+      <strong style="font-size:.92rem;color:#0f172a;">Guía rápida del panel de reservaciones</strong>
+      <div style="display:inline-flex;gap:6px;">
+        <button type="button" id="dash-zoom-out" style="border:1px solid rgba(148,163,184,.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600;">-</button>
+        <button type="button" id="dash-zoom-reset" style="border:1px solid rgba(148,163,184,.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600;">100%</button>
+        <button type="button" id="dash-zoom-in" style="border:1px solid rgba(148,163,184,.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600;">+</button>
+        <button type="button" id="dash-close-help" style="border:1px solid rgba(148,163,184,.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600;">Cerrar</button>
+      </div>
+    </div>
+    <div id="dash-help-stage" style="position:relative;overflow:hidden;background:#f8fafc;touch-action:none;cursor:grab;">
+      <img id="dash-help-image"
+        src="{{ asset('tutorial_imgs/no-admin/Dashboard.png') }}"
+        alt="Tutorial del panel de reservaciones" draggable="false"
+        style="position:absolute;top:50%;left:50%;max-width:100%;max-height:100%;user-select:none;transform:translate(-50%,-50%) translate(0px,0px) scale(1);transform-origin:center center;transition:transform .08s linear;will-change:transform;" />
+      <span style="position:absolute;right:12px;bottom:10px;color:#334155;font-size:.82rem;background:rgba(255,255,255,.86);border:1px solid rgba(148,163,184,.4);padding:4px 8px;border-radius:999px;">Rueda para zoom &middot; arrastra para mover &middot; clic fuera para salir</span>
+    </div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var viewer = document.getElementById('dash-help-viewer');
+  var stage = document.getElementById('dash-help-stage');
+  var img = document.getElementById('dash-help-image');
+  var openBtn = document.getElementById('dash-open-help-btn');
+  var openLink = document.getElementById('dash-open-help-link');
+  var closeBtn = document.getElementById('dash-close-help');
+  var backdrop = document.getElementById('dash-help-backdrop');
+  var zoomIn = document.getElementById('dash-zoom-in');
+  var zoomOut = document.getElementById('dash-zoom-out');
+  var zoomReset = document.getElementById('dash-zoom-reset');
+  if (!viewer || !stage || !img) return;
+  var isOpen = false, pushedHistory = false;
+  var scale = 1, x = 0, y = 0, dragging = false, startX = 0, startY = 0;
+  function applyTransform() {
+    img.style.transform = 'translate(-50%,-50%) translate(' + x + 'px,' + y + 'px) scale(' + scale + ')';
+    zoomReset.textContent = Math.round(scale * 100) + '%';
+  }
+  function setZoom(next) {
+    scale = Math.max(1, Math.min(4, next));
+    if (scale === 1) { x = 0; y = 0; }
+    applyTransform();
+  }
+  function openViewer() {
+    if (isOpen) return;
+    isOpen = true; viewer.style.display = 'block'; viewer.setAttribute('aria-hidden', 'false'); setZoom(1);
+    try { if (!history.state || !history.state.dashHelpOpen) { history.pushState({ dashHelpOpen: true }, ''); pushedHistory = true; } else { pushedHistory = false; } } catch (e) { pushedHistory = false; }
+  }
+  function closeViewer(fromPop) {
+    if (!isOpen) return;
+    isOpen = false; viewer.style.display = 'none'; viewer.setAttribute('aria-hidden', 'true'); dragging = false; stage.style.cursor = 'grab';
+    if (!fromPop && pushedHistory) { pushedHistory = false; try { history.back(); } catch (e) {} }
+  }
+  function beginDrag(cx, cy) { if (scale <= 1) return; dragging = true; startX = cx; startY = cy; stage.style.cursor = 'grabbing'; }
+  function moveDrag(cx, cy) { if (!dragging) return; x += cx - startX; y += cy - startY; startX = cx; startY = cy; applyTransform(); }
+  function endDrag() { dragging = false; stage.style.cursor = 'grab'; }
+  [openBtn, openLink].forEach(function (el) { if (!el) return; el.addEventListener('click', function (e) { e.preventDefault(); openViewer(); }); });
+  closeBtn && closeBtn.addEventListener('click', function () { closeViewer(false); });
+  backdrop && backdrop.addEventListener('click', function () { closeViewer(false); });
+  zoomIn && zoomIn.addEventListener('click', function () { setZoom(scale + 0.2); });
+  zoomOut && zoomOut.addEventListener('click', function () { setZoom(scale - 0.2); });
+  zoomReset && zoomReset.addEventListener('click', function () { setZoom(1); });
+  stage.addEventListener('wheel', function (e) { if (!isOpen) return; e.preventDefault(); setZoom(scale + (e.deltaY < 0 ? 0.18 : -0.18)); }, { passive: false });
+  stage.addEventListener('mousedown', function (e) { beginDrag(e.clientX, e.clientY); });
+  window.addEventListener('mousemove', function (e) { moveDrag(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', endDrag);
+  stage.addEventListener('touchstart', function (e) { if (e.touches && e.touches[0]) beginDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+  stage.addEventListener('touchmove', function (e) { if (dragging && e.touches && e.touches[0]) moveDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+  stage.addEventListener('touchend', endDrag, { passive: true });
+  stage.addEventListener('dblclick', function () { setZoom(scale > 1 ? 1 : 2); });
+  document.addEventListener('keydown', function (e) {
+    if (!isOpen) return;
+    if (e.key === 'Escape') closeViewer(false);
+    if (e.key === '+' || e.key === '=') setZoom(scale + 0.2);
+    if (e.key === '-') setZoom(scale - 0.2);
+  });
+  window.addEventListener('popstate', function () { if (isOpen) { pushedHistory = false; closeViewer(true); } });
+  applyTransform();
+});
+</script>
+@endif
 @endsection
