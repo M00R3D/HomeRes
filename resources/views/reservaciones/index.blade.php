@@ -627,6 +627,26 @@
   color:rgba(255,255,255,0.9);
 }
 
+.rv-help-inline{display:inline-flex;align-items:center;gap:8px;margin:2px 0 10px}
+.rv-help-q{width:24px;height:24px;border-radius:999px;border:1px solid rgba(59,130,246,.35);color:#1d4ed8;background:rgba(59,130,246,.08);font-weight:700;line-height:1;cursor:pointer;transition:transform .15s ease,background-color .15s ease;flex-shrink:0}
+.rv-help-q:hover{transform:translateY(-1px);background:rgba(59,130,246,.16)}
+.rv-help-link{color:#2563eb;text-decoration:underline;text-underline-offset:2px;font-size:.93rem;font-weight:700}
+.rv-help-note{font-size:.8rem;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;padding:4px 8px;border-radius:999px}
+.rv-help-viewer{position:fixed;inset:0;display:none;z-index:70}
+.rv-help-viewer.open{display:block}
+.rv-help-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.42);backdrop-filter:blur(2px)}
+.rv-help-panel{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(940px,95vw);height:min(86vh,780px);background:rgba(255,255,255,.98);border-radius:16px;box-shadow:0 24px 80px rgba(15,23,42,.25);border:1px solid rgba(148,163,184,.3);overflow:hidden;display:grid;grid-template-rows:auto 1fr}
+.rv-help-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.3);background:linear-gradient(90deg,rgba(248,250,252,.95),rgba(241,245,249,.95))}
+.rv-help-toolbar strong{font-size:.92rem;color:#0f172a}
+.rv-help-controls{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.rv-help-btn{border:1px solid rgba(148,163,184,.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600}
+.rv-help-btn:hover{background:#f8fafc}
+.rv-help-step{font-size:.82rem;color:#334155;background:#eef2ff;border:1px solid #c7d2fe;padding:5px 9px;border-radius:999px;font-weight:700}
+.rv-help-stage{position:relative;overflow:hidden;background:#f8fafc;touch-action:none;cursor:grab}
+.rv-help-stage.dragging{cursor:grabbing}
+.rv-help-image{position:absolute;top:50%;left:50%;max-width:100%;max-height:100%;user-select:none;transform:translate(-50%,-50%) translate(0px,0px) scale(1);transform-origin:center center;transition:transform .08s linear;will-change:transform}
+.rv-help-hint{position:absolute;right:12px;bottom:10px;color:#334155;font-size:.82rem;background:rgba(255,255,255,.86);border:1px solid rgba(148,163,184,.4);padding:4px 8px;border-radius:999px}
+
 @media (max-width:720px){
   .hero-properties-shell{ padding:14px; border-radius:18px; }
   .hero-properties-header{ flex-direction:column; align-items:flex-start; }
@@ -642,6 +662,14 @@
 
 <div class="container">
   <h1>Reservaciones</h1>
+
+  @if(!$isAdmin)
+    <div class="rv-help-inline">
+      <button type="button" class="rv-help-q" id="rv-open-help-btn" aria-label="Abrir ayuda">?</button>
+      <a href="#" class="rv-help-link" id="rv-open-help-link">¿Necesitas ayuda para usar esta página?</a>
+      <span class="rv-help-note">Guía visual (2 imágenes)</span>
+    </div>
+  @endif
 
   @if(session('success'))
     <div style="background:#ecfdf5;color:#065f46;padding:10px;border-radius:8px;margin:8px 0;font-weight:700;">{{ session('success') }}</div>
@@ -1025,6 +1053,30 @@
   </div>
 </div>
 
+@if(!$isAdmin)
+<div id="rv-help-viewer" class="rv-help-viewer" aria-hidden="true">
+  <div class="rv-help-backdrop" id="rv-help-backdrop"></div>
+  <div class="rv-help-panel" role="dialog" aria-modal="true" aria-label="Guía de reservaciones">
+    <div class="rv-help-toolbar">
+      <strong>Guía rápida de reservaciones y cancelación</strong>
+      <div class="rv-help-controls">
+        <span class="rv-help-step" id="rv-help-step">Paso 1 de 2</span>
+        <button type="button" class="rv-help-btn" id="rv-help-prev" aria-label="Imagen anterior">◀</button>
+        <button type="button" class="rv-help-btn" id="rv-help-next" aria-label="Imagen siguiente">▶</button>
+        <button type="button" class="rv-help-btn" id="rv-zoom-out" aria-label="Alejar">-</button>
+        <button type="button" class="rv-help-btn" id="rv-zoom-reset" aria-label="Restablecer zoom">100%</button>
+        <button type="button" class="rv-help-btn" id="rv-zoom-in" aria-label="Acercar">+</button>
+        <button type="button" class="rv-help-btn" id="rv-close-help" aria-label="Cerrar ayuda">Cerrar</button>
+      </div>
+    </div>
+    <div class="rv-help-stage" id="rv-help-stage">
+      <img id="rv-help-image" class="rv-help-image" src="{{ asset('tutorial_imgs/no-admin/Reservaciones.png') }}" alt="Tutorial de reservaciones" draggable="false" />
+      <span class="rv-help-hint">Rueda para zoom · arrastra para mover · clic fuera para salir</span>
+    </div>
+  </div>
+</div>
+@endif
+
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function(){
@@ -1290,5 +1342,167 @@ document.addEventListener('DOMContentLoaded', function(){
 
 });
 </script>
+@if(!$isAdmin)
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var viewer = document.getElementById('rv-help-viewer');
+  var stage = document.getElementById('rv-help-stage');
+  var img = document.getElementById('rv-help-image');
+  var openBtn = document.getElementById('rv-open-help-btn');
+  var openLink = document.getElementById('rv-open-help-link');
+  var closeBtn = document.getElementById('rv-close-help');
+  var backdrop = document.getElementById('rv-help-backdrop');
+  var prevBtn = document.getElementById('rv-help-prev');
+  var nextBtn = document.getElementById('rv-help-next');
+  var stepBadge = document.getElementById('rv-help-step');
+  var zoomIn = document.getElementById('rv-zoom-in');
+  var zoomOut = document.getElementById('rv-zoom-out');
+  var zoomReset = document.getElementById('rv-zoom-reset');
+  if (!viewer || !stage || !img) return;
+
+  var sources = [
+    { src: '{{ asset('tutorial_imgs/no-admin/Reservaciones.png') }}', label: 'Paso 1 de 2' },
+    { src: '{{ asset('tutorial_imgs/no-admin/ReservacionesCancel.png') }}', label: 'Paso 2 de 2' }
+  ];
+  var current = 0;
+  var isOpen = false;
+  var pushedHistory = false;
+  var scale = 1;
+  var x = 0;
+  var y = 0;
+  var dragging = false;
+  var startX = 0;
+  var startY = 0;
+
+  function applyTransform() {
+    img.style.transform = 'translate(-50%,-50%) translate(' + x + 'px,' + y + 'px) scale(' + scale + ')';
+    if (zoomReset) zoomReset.textContent = Math.round(scale * 100) + '%';
+  }
+
+  function setZoom(next) {
+    scale = Math.max(1, Math.min(4, next));
+    if (scale === 1) { x = 0; y = 0; }
+    applyTransform();
+  }
+
+  function renderSlide() {
+    var slide = sources[current] || sources[0];
+    img.src = slide.src;
+    img.alt = 'Tutorial de reservaciones';
+    if (stepBadge) stepBadge.textContent = slide.label;
+    if (prevBtn) prevBtn.disabled = sources.length <= 1;
+    if (nextBtn) nextBtn.disabled = sources.length <= 1;
+    setZoom(1);
+  }
+
+  function openViewer() {
+    if (isOpen) return;
+    isOpen = true;
+    viewer.classList.add('open');
+    viewer.setAttribute('aria-hidden', 'false');
+    renderSlide();
+    try {
+      if (!history.state || !history.state.rvHelpOpen) {
+        history.pushState({ rvHelpOpen: true }, '');
+        pushedHistory = true;
+      } else { pushedHistory = false; }
+    } catch (e) { pushedHistory = false; }
+  }
+
+  function closeViewer(fromPop) {
+    if (!isOpen) return;
+    isOpen = false;
+    viewer.classList.remove('open');
+    viewer.setAttribute('aria-hidden', 'true');
+    dragging = false;
+    stage.classList.remove('dragging');
+    if (!fromPop && pushedHistory) {
+      pushedHistory = false;
+      try { history.back(); } catch (e) {}
+    }
+  }
+
+  function changeSlide(dir) {
+    current = (current + dir + sources.length) % sources.length;
+    renderSlide();
+  }
+
+  function beginDrag(cx, cy) {
+    if (scale <= 1) return;
+    dragging = true;
+    startX = cx;
+    startY = cy;
+    stage.classList.add('dragging');
+  }
+
+  function moveDrag(cx, cy) {
+    if (!dragging) return;
+    x += cx - startX;
+    y += cy - startY;
+    startX = cx;
+    startY = cy;
+    applyTransform();
+  }
+
+  function endDrag() {
+    dragging = false;
+    stage.classList.remove('dragging');
+  }
+
+  [openBtn, openLink].forEach(function (el) {
+    if (!el) return;
+    el.addEventListener('click', function (e) {
+      e.preventDefault();
+      openViewer();
+    });
+  });
+
+  closeBtn && closeBtn.addEventListener('click', function () { closeViewer(false); });
+  backdrop && backdrop.addEventListener('click', function () { closeViewer(false); });
+  prevBtn && prevBtn.addEventListener('click', function () { changeSlide(-1); });
+  nextBtn && nextBtn.addEventListener('click', function () { changeSlide(1); });
+  zoomIn && zoomIn.addEventListener('click', function () { setZoom(scale + 0.2); });
+  zoomOut && zoomOut.addEventListener('click', function () { setZoom(scale - 0.2); });
+  zoomReset && zoomReset.addEventListener('click', function () { setZoom(1); });
+
+  stage.addEventListener('wheel', function (e) {
+    if (!isOpen) return;
+    e.preventDefault();
+    setZoom(scale + (e.deltaY < 0 ? 0.18 : -0.18));
+  }, { passive: false });
+
+  stage.addEventListener('mousedown', function (e) { beginDrag(e.clientX, e.clientY); });
+  window.addEventListener('mousemove', function (e) { moveDrag(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', endDrag);
+
+  stage.addEventListener('touchstart', function (e) {
+    if (e.touches && e.touches[0]) beginDrag(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  stage.addEventListener('touchmove', function (e) {
+    if (dragging && e.touches && e.touches[0]) moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  stage.addEventListener('touchend', endDrag, { passive: true });
+  stage.addEventListener('dblclick', function () { setZoom(scale > 1 ? 1 : 2); });
+
+  document.addEventListener('keydown', function (e) {
+    if (!isOpen) return;
+    if (e.key === 'Escape') closeViewer(false);
+    if (e.key === '+' || e.key === '=') setZoom(scale + 0.2);
+    if (e.key === '-') setZoom(scale - 0.2);
+    if (e.key === 'ArrowRight') changeSlide(1);
+    if (e.key === 'ArrowLeft') changeSlide(-1);
+  });
+
+  window.addEventListener('popstate', function () {
+    if (isOpen) {
+      pushedHistory = false;
+      closeViewer(true);
+    }
+  });
+
+  applyTransform();
+});
+</script>
+@endif
 @endpush
 @endsection
