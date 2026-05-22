@@ -11,12 +11,33 @@
       <div>
         <button id="notif-mark-all" class="btn-alt" style="padding:6px 8px;border-radius:6px">Marcar todas</button>
         <a href="{{ route('notifications.index') }}" style="margin-left:8px;">Ver todas</a>
+        <button type="button" id="notif-help-open-btn" aria-label="Abrir ayuda" style="margin-left:8px;width:24px;height:24px;border-radius:999px;border:1px solid rgba(59,130,246,.35);color:#1d4ed8;background:rgba(59,130,246,.08);font-weight:700;line-height:1;cursor:pointer;">?</button>
+        <a href="#" id="notif-help-open-link" style="margin-left:6px;color:#2563eb;text-decoration:underline;text-underline-offset:2px;font-size:.9rem;">Ayuda</a>
       </div>
     </div>
     <div id="notif-list" style="max-height:480px;overflow:auto;overflow-x:hidden;padding:6px;">
       <div style="padding:12px;text-align:center;">Cargando…</div>
     </div>
     <div style="padding:8px;text-align:center;"><button id="notif-load-more" class="btn-alt" style="display:none;padding:8px 12px;border-radius:8px">Ver más</button></div>
+  </div>
+</div>
+
+<div id="notif-help-viewer" aria-hidden="true" style="position:fixed;inset:0;display:none;z-index:1500;">
+  <div id="notif-help-backdrop" style="position:absolute;inset:0;background:rgba(15,23,42,.42);backdrop-filter:blur(2px);"></div>
+  <div id="notif-help-panel" role="dialog" aria-modal="true" aria-label="Guía de notificaciones en campana" style="position:absolute;bottom:16px;left:50%;transform:translate(-50%, calc(100% + 64px));width:min(1080px,96vw);height:min(76vh,760px);background:rgba(255,255,255,.98);border-radius:16px;box-shadow:0 24px 80px rgba(15,23,42,.25);border:1px solid rgba(148,163,184,.3);overflow:hidden;display:grid;grid-template-rows:auto 1fr;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.3);background:linear-gradient(90deg,rgba(248,250,252,.95),rgba(241,245,249,.95));">
+      <strong style="font-size:.92rem;color:#0f172a;">Guía rápida de notificaciones (campana)</strong>
+      <div style="display:inline-flex;gap:6px;">
+        <button type="button" id="notif-help-zoom-out" style="border:1px solid rgba(148,163,184,.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600;">-</button>
+        <button type="button" id="notif-help-zoom-reset" style="border:1px solid rgba(148,163,184,.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600;">100%</button>
+        <button type="button" id="notif-help-zoom-in" style="border:1px solid rgba(148,163,184,.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600;">+</button>
+        <button type="button" id="notif-help-close" style="border:1px solid rgba(148,163,184,.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600;">Cerrar</button>
+      </div>
+    </div>
+    <div id="notif-help-stage" style="position:relative;overflow:hidden;background:#f8fafc;touch-action:none;cursor:grab;">
+      <img id="notif-help-image" src="{{ asset('tutorial_imgs/no-admin/Notificaciónes(campana).png') }}" alt="Tutorial de notificaciones en campana" draggable="false" style="position:absolute;top:50%;left:50%;max-width:100%;max-height:100%;user-select:none;transform:translate(-50%,-50%) translate(0px,0px) scale(1);transform-origin:center center;transition:transform .08s linear;will-change:transform;" />
+      <span style="position:absolute;right:12px;bottom:10px;color:#334155;font-size:.82rem;background:rgba(255,255,255,.86);border:1px solid rgba(148,163,184,.4);padding:4px 8px;border-radius:999px;">Rueda para zoom · arrastra para mover · clic fuera para salir</span>
+    </div>
   </div>
 </div>
 
@@ -313,6 +334,126 @@ document.addEventListener('DOMContentLoaded', function(){
   startPolling();
   // attach action hints on initial load (for pagos index buttons etc.)
   attachActionHints();
+
+  var helpViewer = document.getElementById('notif-help-viewer');
+  var helpStage = document.getElementById('notif-help-stage');
+  var helpImage = document.getElementById('notif-help-image');
+  var helpOpenBtn = document.getElementById('notif-help-open-btn');
+  var helpOpenLink = document.getElementById('notif-help-open-link');
+  var helpCloseBtn = document.getElementById('notif-help-close');
+  var helpPanel = document.getElementById('notif-help-panel');
+  var helpBackdrop = document.getElementById('notif-help-backdrop');
+  var helpZoomIn = document.getElementById('notif-help-zoom-in');
+  var helpZoomOut = document.getElementById('notif-help-zoom-out');
+  var helpZoomReset = document.getElementById('notif-help-zoom-reset');
+
+  if (helpViewer && helpStage && helpImage) {
+    var helpIsOpen = false;
+    var helpBaseY = 0;
+    var helpScale = 1, helpX = 0, helpY = helpBaseY;
+    var helpDragging = false, helpStartX = 0, helpStartY = 0;
+    var HELP_MIN_ZOOM = 1, HELP_MAX_ZOOM = 4;
+
+    function applyHelpTransform() {
+      helpImage.style.transform = 'translate(-50%,-50%) translate(' + helpX + 'px,' + helpY + 'px) scale(' + helpScale + ')';
+      if (helpZoomReset) helpZoomReset.textContent = Math.round(helpScale * 100) + '%';
+    }
+
+    function setHelpZoom(next) {
+      helpScale = Math.max(HELP_MIN_ZOOM, Math.min(HELP_MAX_ZOOM, next));
+      if (helpScale === 1) { helpX = 0; helpY = helpBaseY; }
+      applyHelpTransform();
+    }
+
+    function openHelpViewer() {
+      if (helpIsOpen) return;
+      helpIsOpen = true;
+      helpViewer.style.display = 'block';
+      helpViewer.setAttribute('aria-hidden', 'false');
+      setHelpZoom(1);
+    }
+
+    function closeHelpViewer() {
+      if (!helpIsOpen) return;
+      helpIsOpen = false;
+      helpViewer.style.display = 'none';
+      helpViewer.setAttribute('aria-hidden', 'true');
+      helpDragging = false;
+      helpStage.style.cursor = 'grab';
+    }
+
+    function beginHelpDrag(cx, cy) {
+      if (helpScale <= 1) return;
+      helpDragging = true;
+      helpStartX = cx;
+      helpStartY = cy;
+      helpStage.style.cursor = 'grabbing';
+    }
+
+    function moveHelpDrag(cx, cy) {
+      if (!helpDragging) return;
+      helpX += cx - helpStartX;
+      helpY += cy - helpStartY;
+      helpStartX = cx;
+      helpStartY = cy;
+      applyHelpTransform();
+    }
+
+    function endHelpDrag() {
+      helpDragging = false;
+      helpStage.style.cursor = 'grab';
+    }
+
+    [helpOpenBtn, helpOpenLink].forEach(function (el) {
+      if (!el) return;
+      el.addEventListener('click', function (e) {
+        e.preventDefault();
+        openHelpViewer();
+      });
+    });
+
+    if (helpCloseBtn) helpCloseBtn.addEventListener('click', closeHelpViewer);
+    if (helpBackdrop) helpBackdrop.addEventListener('click', closeHelpViewer);
+    helpViewer.addEventListener('click', function (e) {
+      if (e.target === helpViewer || e.target === helpBackdrop) closeHelpViewer();
+    });
+    document.addEventListener('mousedown', function (e) {
+      if (!helpIsOpen || !helpPanel) return;
+      if (e.target === helpOpenBtn || e.target === helpOpenLink) return;
+      if (!helpPanel.contains(e.target)) closeHelpViewer();
+    });
+    if (helpZoomIn) helpZoomIn.addEventListener('click', function () { setHelpZoom(helpScale + 0.2); });
+    if (helpZoomOut) helpZoomOut.addEventListener('click', function () { setHelpZoom(helpScale - 0.2); });
+    if (helpZoomReset) helpZoomReset.addEventListener('click', function () { setHelpZoom(1); });
+
+    helpStage.addEventListener('wheel', function (e) {
+      if (!helpIsOpen) return;
+      e.preventDefault();
+      setHelpZoom(helpScale + (e.deltaY < 0 ? 0.18 : -0.18));
+    }, { passive: false });
+
+    helpStage.addEventListener('mousedown', function (e) { beginHelpDrag(e.clientX, e.clientY); });
+    window.addEventListener('mousemove', function (e) { moveHelpDrag(e.clientX, e.clientY); });
+    window.addEventListener('mouseup', endHelpDrag);
+
+    helpStage.addEventListener('touchstart', function (e) {
+      if (e.touches && e.touches[0]) beginHelpDrag(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+    helpStage.addEventListener('touchmove', function (e) {
+      if (helpDragging && e.touches && e.touches[0]) moveHelpDrag(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+    helpStage.addEventListener('touchend', endHelpDrag, { passive: true });
+    helpStage.addEventListener('dblclick', function () { setHelpZoom(helpScale > 1 ? 1 : 2); });
+
+    document.addEventListener('keydown', function (e) {
+      if (!helpIsOpen) return;
+      if (e.key === 'Escape') closeHelpViewer();
+      if (e.key === '+' || e.key === '=') setHelpZoom(helpScale + 0.2);
+      if (e.key === '-') setHelpZoom(helpScale - 0.2);
+    });
+
+    applyHelpTransform();
+  }
 });
 </script>
 @endpush
