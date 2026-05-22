@@ -31,6 +31,23 @@
 .pd-reserve-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;height:48px;padding:0 16px;border-radius:12px;text-decoration:none;color:#fff;font-weight:800;letter-spacing:.2px;background:linear-gradient(90deg,#06b6d4,#3b82f6);box-shadow:0 12px 28px rgba(59,130,246,.26);transition:transform .18s ease, box-shadow .22s ease, filter .2s ease}
 .pd-reserve-btn:hover{transform:translateY(-2px);filter:saturate(1.08);box-shadow:0 18px 34px rgba(59,130,246,.34)}
 .pd-reserve-btn:focus-visible{outline:3px solid rgba(14,165,233,.32);outline-offset:2px}
+.hp-help-inline{display:inline-flex;align-items:center;gap:8px;margin:4px 0 12px}
+.hp-help-q{width:24px;height:24px;border-radius:999px;border:1px solid rgba(59,130,246,.35);color:#1d4ed8;background:rgba(59,130,246,.08);font-weight:700;line-height:1;cursor:pointer;transition:transform .15s ease,background-color .15s ease;flex-shrink:0}
+.hp-help-q:hover{transform:translateY(-1px);background:rgba(59,130,246,.16)}
+.hp-help-link{color:#2563eb;text-decoration:underline;text-underline-offset:2px;font-size:.93rem}
+.hp-help-viewer{position:fixed;inset:0;display:none;z-index:70}
+.hp-help-viewer.open{display:block}
+.hp-help-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.42);backdrop-filter:blur(2px)}
+.hp-help-panel{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(920px,94vw);height:min(84vh,760px);background:rgba(255,255,255,.98);border-radius:16px;box-shadow:0 24px 80px rgba(15,23,42,.25);border:1px solid rgba(148,163,184,.3);overflow:hidden;display:grid;grid-template-rows:auto 1fr}
+.hp-help-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.3);background:linear-gradient(90deg,rgba(248,250,252,.95),rgba(241,245,249,.95))}
+.hp-help-toolbar strong{font-size:.92rem;color:#0f172a}
+.hp-help-controls{display:inline-flex;gap:6px}
+.hp-help-btn{border:1px solid rgba(148,163,184,.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600}
+.hp-help-btn:hover{background:#f8fafc}
+.hp-help-stage{position:relative;overflow:hidden;background:#f8fafc;touch-action:none;cursor:grab}
+.hp-help-stage.dragging{cursor:grabbing}
+.hp-help-image{position:absolute;top:50%;left:50%;max-width:100%;max-height:100%;user-select:none;transform:translate(-50%,-50%) translate(0px,0px) scale(1);transform-origin:center center;transition:transform .08s linear;will-change:transform}
+.hp-help-hint{position:absolute;right:12px;bottom:10px;color:#334155;font-size:.82rem;background:rgba(255,255,255,.86);border:1px solid rgba(148,163,184,.4);padding:4px 8px;border-radius:999px}
 @media (max-width: 820px){
   .pd-slide{height:280px}
   .pd-nav{width:34px;height:34px}
@@ -38,6 +55,13 @@
 </style>
 
 <div style="max-width:1100px;margin:18px auto;padding:12px;">
+  @if(($currentUser->rol ?? '') !== 'admin')
+    <div class="hp-help-inline">
+      <button type="button" class="hp-help-q" id="hp-open-help-btn" aria-label="Abrir ayuda">?</button>
+      <a href="#" class="hp-help-link" id="hp-open-help-link">¿Necesitas ayuda para usar esta página?</a>
+    </div>
+  @endif
+
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
     <div>
       <h1 style="margin:0">{{ $propiedad->nombre }}</h1>
@@ -125,6 +149,29 @@
   </div>
 
 </div>
+
+@if(($currentUser->rol ?? '') !== 'admin')
+<div id="hp-help-viewer" class="hp-help-viewer" aria-hidden="true">
+  <div class="hp-help-backdrop" id="hp-help-backdrop"></div>
+  <div class="hp-help-panel" role="dialog" aria-modal="true" aria-label="Guía de uso de detalle de propiedad">
+    <div class="hp-help-toolbar">
+      <strong>Guía rápida de detalle de propiedad</strong>
+      <div class="hp-help-controls">
+        <button type="button" class="hp-help-btn" id="hp-zoom-out" aria-label="Alejar">-</button>
+        <button type="button" class="hp-help-btn" id="hp-zoom-reset" aria-label="Restablecer zoom">100%</button>
+        <button type="button" class="hp-help-btn" id="hp-zoom-in" aria-label="Acercar">+</button>
+        <button type="button" class="hp-help-btn" id="hp-close-help" aria-label="Cerrar ayuda">Cerrar</button>
+      </div>
+    </div>
+    <div class="hp-help-stage" id="hp-help-stage">
+      <img id="hp-help-image" class="hp-help-image"
+        src="{{ asset('tutorial_imgs/no-admin/Propiedades(ver detalle).png') }}"
+        alt="Tutorial de detalle de propiedad" draggable="false" />
+      <span class="hp-help-hint">Rueda para zoom · arrastra para mover · clic fuera para salir</span>
+    </div>
+  </div>
+</div>
+@endif
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function(){
@@ -192,6 +239,135 @@ document.addEventListener('DOMContentLoaded', function(){
   });
 
   start();
+
+  var viewer = document.getElementById('hp-help-viewer');
+  var stage = document.getElementById('hp-help-stage');
+  var img = document.getElementById('hp-help-image');
+  var openBtn = document.getElementById('hp-open-help-btn');
+  var openLink = document.getElementById('hp-open-help-link');
+  var closeBtn = document.getElementById('hp-close-help');
+  var backdrop = document.getElementById('hp-help-backdrop');
+  var zoomIn = document.getElementById('hp-zoom-in');
+  var zoomOut = document.getElementById('hp-zoom-out');
+  var zoomReset = document.getElementById('hp-zoom-reset');
+
+  if (!viewer || !stage || !img) return;
+
+  var isOpen = false, pushedHistory = false;
+  var scale = 1, x = 0, y = 0;
+  var dragging = false, startX = 0, startY = 0;
+  var MIN_ZOOM = 1, MAX_ZOOM = 4;
+
+  function applyTransform() {
+    img.style.transform = 'translate(-50%,-50%) translate(' + x + 'px,' + y + 'px) scale(' + scale + ')';
+    if (zoomReset) zoomReset.textContent = Math.round(scale * 100) + '%';
+  }
+
+  function setZoom(next) {
+    scale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, next));
+    if (scale === 1) { x = 0; y = 0; }
+    applyTransform();
+  }
+
+  function openViewer() {
+    if (isOpen) return;
+    isOpen = true;
+    viewer.classList.add('open');
+    viewer.setAttribute('aria-hidden', 'false');
+    setZoom(1);
+    try {
+      if (!history.state || !history.state.hpHelpOpen) {
+        history.pushState({ hpHelpOpen: true }, '');
+        pushedHistory = true;
+      } else {
+        pushedHistory = false;
+      }
+    } catch (e) { pushedHistory = false; }
+  }
+
+  function closeViewer(fromPop) {
+    if (!isOpen) return;
+    isOpen = false;
+    viewer.classList.remove('open');
+    viewer.setAttribute('aria-hidden', 'true');
+    dragging = false;
+    stage.classList.remove('dragging');
+    if (!fromPop && pushedHistory) {
+      pushedHistory = false;
+      try { history.back(); } catch (e) {}
+    }
+  }
+
+  function beginDrag(cx, cy) {
+    if (scale <= 1) return;
+    dragging = true;
+    startX = cx;
+    startY = cy;
+    stage.classList.add('dragging');
+  }
+
+  function moveDrag(cx, cy) {
+    if (!dragging) return;
+    x += cx - startX;
+    y += cy - startY;
+    startX = cx;
+    startY = cy;
+    applyTransform();
+  }
+
+  function endDrag() {
+    dragging = false;
+    stage.classList.remove('dragging');
+  }
+
+  [openBtn, openLink].forEach(function (el) {
+    if (!el) return;
+    el.addEventListener('click', function (e) {
+      e.preventDefault();
+      openViewer();
+    });
+  });
+
+  if (closeBtn) closeBtn.addEventListener('click', function () { closeViewer(false); });
+  if (backdrop) backdrop.addEventListener('click', function () { closeViewer(false); });
+  if (zoomIn) zoomIn.addEventListener('click', function () { setZoom(scale + 0.2); });
+  if (zoomOut) zoomOut.addEventListener('click', function () { setZoom(scale - 0.2); });
+  if (zoomReset) zoomReset.addEventListener('click', function () { setZoom(1); });
+
+  stage.addEventListener('wheel', function (e) {
+    if (!isOpen) return;
+    e.preventDefault();
+    setZoom(scale + (e.deltaY < 0 ? 0.18 : -0.18));
+  }, { passive: false });
+
+  stage.addEventListener('mousedown', function (e) { beginDrag(e.clientX, e.clientY); });
+  window.addEventListener('mousemove', function (e) { moveDrag(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', endDrag);
+
+  stage.addEventListener('touchstart', function (e) {
+    if (e.touches && e.touches[0]) beginDrag(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  stage.addEventListener('touchmove', function (e) {
+    if (dragging && e.touches && e.touches[0]) moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  stage.addEventListener('touchend', endDrag, { passive: true });
+  stage.addEventListener('dblclick', function () { setZoom(scale > 1 ? 1 : 2); });
+
+  document.addEventListener('keydown', function (e) {
+    if (!isOpen) return;
+    if (e.key === 'Escape') closeViewer(false);
+    if (e.key === '+' || e.key === '=') setZoom(scale + 0.2);
+    if (e.key === '-') setZoom(scale - 0.2);
+  });
+
+  window.addEventListener('popstate', function () {
+    if (isOpen) {
+      pushedHistory = false;
+      closeViewer(true);
+    }
+  });
+
+  applyTransform();
 });
 </script>
 @endpush
