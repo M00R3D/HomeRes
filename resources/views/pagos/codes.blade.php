@@ -12,6 +12,85 @@
   .hp-help-inline{display:inline-flex;align-items:center;gap:8px;margin:4px 0 12px}
   .hp-help-q{width:24px;height:24px;border-radius:999px;border:1px solid rgba(59,130,246,.35);color:#1d4ed8;background:rgba(59,130,246,.08);font-weight:700;line-height:1;cursor:pointer;transition:transform .15s ease,background-color .15s ease;flex-shrink:0}
   .hp-help-q:hover{transform:translateY(-1px);background:rgba(59,130,246,.16)}
+  .hp-help-viewer{
+    position:fixed;
+    inset:0;
+    z-index:9999;
+    display:none;
+}
+
+.hp-help-viewer.open{
+    display:block !important;
+}
+
+.hp-help-backdrop{
+    position:absolute;
+    inset:0;
+    background:rgba(0,0,0,.45);
+    backdrop-filter:blur(3px);
+}
+
+.hp-help-panel{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    width:min(1100px,90vw);
+    height:min(700px,90vh);
+
+    background:white;
+    border-radius:14px;
+    overflow:hidden;
+
+    box-shadow:
+        0 20px 60px rgba(0,0,0,.25);
+}
+
+.hp-help-toolbar{
+    height:56px;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    padding:0 16px;
+
+    border-bottom:1px solid #ddd;
+}
+
+.hp-help-stage{
+    position:relative;
+
+    height:calc(100% - 56px);
+
+    overflow:hidden;
+
+    background:#fafafa;
+}
+
+.hp-help-image{
+    position:absolute;
+
+    top:50%;
+    left:50%;
+
+    max-width:90%;
+    max-height:90%;
+
+    transform:translate(-50%,-50%);
+}
+
+.hp-help-btn{
+    padding:8px 12px;
+
+    border:none;
+
+    border-radius:8px;
+
+    background:#f4b6c2;
+
+    cursor:pointer;
+}
   .pagos-codes-pagination .np-wrap {
     display: flex;
     justify-content: space-between;
