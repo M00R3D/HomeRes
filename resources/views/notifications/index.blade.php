@@ -83,7 +83,7 @@
   .hp-help-viewer{position:fixed;inset:0;display:none;z-index:1500}
   .hp-help-viewer.open{display:block}
   .hp-help-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.42);backdrop-filter:blur(2px)}
-  .hp-help-panel{position:absolute;top:70%;left:50%;transform:translate(-50%,-50%);width:min(920px,94vw);height:min(70vh,660px);background:rgba(255,255,255,.98);border-radius:16px;box-shadow:0 24px 80px rgba(15,23,42,.25);border:1px solid rgba(148,163,184,.3);overflow:hidden;display:grid;grid-template-rows:auto 1fr}
+  .hp-help-panel{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(920px,94vw);height:min(70vh,660px);background:rgba(255,255,255,.98);border-radius:16px;box-shadow:0 24px 80px rgba(15,23,42,.25);border:1px solid rgba(148,163,184,.3);overflow:hidden;display:grid;grid-template-rows:auto 1fr}
   .hp-help-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.3);background:linear-gradient(90deg,rgba(248,250,252,.95),rgba(241,245,249,.95))}
   .hp-help-toolbar strong{font-size:.92rem;color:#0f172a}
   .hp-help-controls{display:inline-flex;gap:6px}
