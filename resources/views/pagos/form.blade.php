@@ -9,8 +9,31 @@
 @endphp
 
 @section('content')
+<style>
+  /* inline helper styles for pagar view */
+  .help-inline{margin-top:12px;display:inline-flex;align-items:center;gap:8px}
+  .help-q{width:24px;height:24px;border-radius:999px;border:1px solid rgba(59,130,246,0.35);color:#1d4ed8;background:rgba(59,130,246,0.08);font-weight:700;line-height:1;cursor:pointer}
+  .help-link{color:#2563eb;text-decoration:underline;text-underline-offset:2px;font-size:.93rem}
+  .help-viewer{position:fixed;inset:0;display:none;z-index:9999}
+  .help-viewer.open{display:block}
+  .help-viewer-backdrop{position:absolute;inset:0;background:rgba(15,23,42,0.42);backdrop-filter:blur(2px)}
+  .help-viewer-panel{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(920px,94vw);height:min(84vh,760px);background:rgba(255,255,255,0.98);border-radius:16px;box-shadow:0 24px 80px rgba(15,23,42,0.25);border:1px solid rgba(148,163,184,0.3);overflow:hidden;display:grid;grid-template-rows:auto 1fr}
+  .help-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(148,163,184,0.3);background:linear-gradient(90deg,rgba(248,250,252,0.95),rgba(241,245,249,0.95))}
+  .help-controls{display:inline-flex;gap:6px}
+  .help-btn{border:1px solid rgba(148,163,184,0.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600}
+  .help-stage{position:relative;overflow:hidden;background:#f8fafc;touch-action:none;cursor:grab}
+  .help-stage.dragging{cursor:grabbing}
+  .help-image{position:absolute;top:50%;left:50%;max-width:100%;max-height:100%;user-select:none;transform:translate(-50%,-50%) translate(0px,0px) scale(1);transform-origin:center center;transition:transform .08s linear}
+  .help-hint{position:absolute;right:12px;bottom:10px;color:#334155;font-size:.82rem;background:rgba(255,255,255,0.86);border:1px solid rgba(148,163,184,0.4);padding:4px 8px;border-radius:999px}
+</style>
+
 <div style="max-width:700px;margin:20px auto;padding:12px;">
   <h1>Pagar reservación</h1>
+
+  <div class="help-inline">
+    <button type="button" class="help-q" id="pagar-help-open-btn" aria-label="Abrir ayuda">?</button>
+    <a href="javascript:void(0)" id="pagar-help-open-link" class="help-link">¿Necesitas ayuda para usar esta página?</a>
+  </div>
 
   @if($currentUser && !$isAdmin && !empty($currentUser->bloqueo_tarjetas))
     <div style="background:#fee2e2;color:#7f1d1b;padding:10px;border-radius:8px;margin-bottom:12px;font-weight:700;">
@@ -80,6 +103,25 @@
     </div>
   </form>
 </div>
+<!-- payer helper viewer (visible to all) -->
+<div id="pagar-help-viewer" class="help-viewer" aria-hidden="true" style="display:none;">
+  <div class="help-viewer-backdrop" id="pagar-help-backdrop"></div>
+  <div class="help-viewer-panel" role="dialog" aria-modal="true" aria-label="Guía Pagar">
+    <div class="help-toolbar">
+      <strong>Guía rápida — Pagar reservación</strong>
+      <div class="help-controls">
+        <button type="button" class="help-btn" id="pagar-help-zoom-out" aria-label="Alejar">-</button>
+        <button type="button" class="help-btn" id="pagar-help-zoom-reset" aria-label="Restablecer zoom">100%</button>
+        <button type="button" class="help-btn" id="pagar-help-zoom-in" aria-label="Acercar">+</button>
+        <button type="button" class="help-btn" id="pagar-help-close" aria-label="Cerrar ayuda">Cerrar</button>
+      </div>
+    </div>
+    <div class="help-stage" id="pagar-help-stage">
+      <img id="pagar-help-image" class="help-image" src="{{ asset('tutorial_imgs/admin/Pagar.png') }}" alt="Tutorial Pagar" draggable="false" />
+      <span class="help-hint">Rueda para zoom, arrastra para mover, clic fuera para salir</span>
+    </div>
+  </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -136,6 +178,44 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   }
 
+});
+</script>
+@endpush
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  try{
+    const openBtn = document.getElementById('pagar-help-open-btn');
+    const openLink = document.getElementById('pagar-help-open-link');
+    const viewer = document.getElementById('pagar-help-viewer');
+    const backdrop = document.getElementById('pagar-help-backdrop');
+    const closeBtn = document.getElementById('pagar-help-close');
+    const zoomIn = document.getElementById('pagar-help-zoom-in');
+    const zoomOut = document.getElementById('pagar-help-zoom-out');
+    const zoomReset = document.getElementById('pagar-help-zoom-reset');
+    const stage = document.getElementById('pagar-help-stage');
+    const img = document.getElementById('pagar-help-image');
+    console.log('Pagar help init', { openBtn: !!openBtn, openLink: !!openLink, viewer: !!viewer, img: !!img });
+    if(!viewer || !img) return;
+    let isOpen = false; let scale = 1; let x = 0; let y = 0; let dragging = false; let sx = 0; let sy = 0;
+    function apply(){ img.style.transform = 'translate(-50%,-50%) translate(' + x + 'px,' + y + 'px) scale(' + scale + ')'; if (zoomReset) zoomReset.textContent = Math.round(scale*100)+'%'; }
+    function openViewer(){ if (isOpen) return; isOpen = true; viewer.classList.add('open'); viewer.setAttribute('aria-hidden','false'); viewer.style.display='block'; scale = 1; x=0; y=0; apply(); console.log('pagar: viewer opened'); }
+    function closeViewer(){ if (!isOpen) return; isOpen = false; viewer.classList.remove('open'); viewer.setAttribute('aria-hidden','true'); setTimeout(()=> viewer.style.display='none',180); console.log('pagar: viewer closed'); }
+    openBtn?.addEventListener('click', function(e){ e.preventDefault(); isOpen ? closeViewer() : openViewer(); });
+    openLink?.addEventListener('click', function(e){ e.preventDefault(); isOpen ? closeViewer() : openViewer(); });
+    closeBtn?.addEventListener('click', function(e){ e.preventDefault(); closeViewer(); });
+    viewer.addEventListener('click', function(e){ if (e.target === viewer || e.target === backdrop) closeViewer(); });
+    zoomIn?.addEventListener('click', function(){ scale = Math.min(4, scale + 0.2); apply(); });
+    zoomOut?.addEventListener('click', function(){ scale = Math.max(1, scale - 0.2); apply(); });
+    zoomReset?.addEventListener('click', function(){ scale = 1; x = 0; y = 0; apply(); });
+    stage?.addEventListener('wheel', function(e){ if (!isOpen) return; e.preventDefault(); scale = Math.min(4, Math.max(1, scale + (e.deltaY < 0 ? 0.18 : -0.18))); apply(); }, { passive:false });
+    stage?.addEventListener('mousedown', function(e){ if (scale <= 1) return; dragging = true; sx = e.clientX; sy = e.clientY; stage.classList.add('dragging'); });
+    window.addEventListener('mousemove', function(e){ if (!dragging) return; x += e.clientX - sx; y += e.clientY - sy; sx = e.clientX; sy = e.clientY; apply(); });
+    window.addEventListener('mouseup', function(){ if (dragging){ dragging = false; stage.classList.remove('dragging'); } });
+    stage?.addEventListener('dblclick', function(){ scale = (scale > 1) ? 1 : 2; x = 0; y = 0; apply(); });
+    document.addEventListener('keydown', function(e){ if (!isOpen) return; if (e.key === 'Escape') closeViewer(); if (e.key === '+' || e.key === '=') { scale = Math.min(4, scale + 0.2); apply(); } if (e.key === '-') { scale = Math.max(1, scale - 0.2); apply(); } });
+  } catch(err){ console.error('Error init pagar help', err); }
 });
 </script>
 @endpush
