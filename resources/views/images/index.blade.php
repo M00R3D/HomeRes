@@ -22,6 +22,11 @@
 <div style="max-width:1000px;margin:18px auto;padding:12px;">
   <h1>Gestión de imágenes</h1>
 
+  <div class="hp-help-inline" style="margin-top:8px;display:flex;gap:10px;align-items:center;">
+    <button id="images-help-open-btn" title="Mostrar ayuda" style="width:36px;height:36px;border-radius:50%;border:0;background:#06b6d4;color:#fff;font-weight:800;cursor:pointer;">?</button>
+    <a id="images-help-open-link" href="javascript:void(0);" style="color:#0369a1;font-weight:700;text-decoration:underline;">¿Necesitas ayuda para usar esta página?</a>
+  </div>
+
   <div style="display:flex;gap:16px;flex-wrap:wrap;">
     <div style="flex:1;min-width:320px;">
       <div class="uploader" id="dropzone">
@@ -92,6 +97,25 @@
     </div>
   </div>
 </div>
+
+<div id="images-help-viewer" class="hp-help-viewer" style="display:none;position:fixed;inset:0;z-index:9999;">
+  <div class="hp-help-backdrop" style="position:absolute;inset:0;background:rgba(0,0,0,0.6);"></div>
+  <div class="hp-help-panel" style="position:relative;margin:6vh auto;max-width:900px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,0.6);">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px;background:#f8fafc;border-bottom:1px solid #eef2f7;">
+      <div style="font-weight:700;">Ayuda — Imágenes</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="images-help-zoom-out" title="Zoom out" style="padding:6px;border-radius:6px;border:0;background:#e5e7eb;cursor:pointer;">-</button>
+        <button id="images-help-zoom-reset" title="Reset" style="padding:6px;border-radius:6px;border:0;background:#e5e7eb;cursor:pointer;">1x</button>
+        <button id="images-help-zoom-in" title="Zoom in" style="padding:6px;border-radius:6px;border:0;background:#e5e7eb;cursor:pointer;">+</button>
+        <button id="images-help-close" title="Cerrar" style="padding:6px;border-radius:6px;border:0;background:#ef4444;color:#fff;cursor:pointer;">Cerrar</button>
+      </div>
+    </div>
+    <div id="images-help-stage" style="background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;height:70vh;">
+      <img id="images-help-image" src="{{ asset('tutorial_imgs/admin/Imagenes.png') }}" alt="Ayuda Imágenes" style="max-width:100%;max-height:100%;transform-origin:center center;display:block;cursor:grab;">
+    </div>
+  </div>
+</div>
+
 @endsection
 
 @section('scripts')
@@ -400,6 +424,38 @@ document.addEventListener('DOMContentLoaded', function(){
       setTimeout(()=> status.textContent = '', 4000);
     }
   });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const openBtn = document.getElementById('images-help-open-btn');
+  const openLink = document.getElementById('images-help-open-link');
+  const viewer = document.getElementById('images-help-viewer');
+  const closeBtn = document.getElementById('images-help-close');
+  const zoomIn = document.getElementById('images-help-zoom-in');
+  const zoomOut = document.getElementById('images-help-zoom-out');
+  const zoomReset = document.getElementById('images-help-zoom-reset');
+  const img = document.getElementById('images-help-image');
+  if (!viewer || !img) return;
+  let scale = 1, panX = 0, panY = 0, isPanning = false, startX = 0, startY = 0;
+  function apply(){ img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`; }
+  function open(){ viewer.style.display = 'block'; document.body.style.overflow = 'hidden'; scale = 1; panX = 0; panY = 0; apply(); }
+  function close(){ viewer.style.display = 'none'; document.body.style.overflow = ''; }
+  openBtn?.addEventListener('click', open);
+  openLink?.addEventListener('click', open);
+  closeBtn?.addEventListener('click', close);
+  // backdrop click
+  viewer.addEventListener('click', function(e){ const bd = viewer.querySelector('.hp-help-backdrop'); if (e.target === viewer || e.target === bd) close(); });
+  zoomIn?.addEventListener('click', function(){ scale = Math.min(4, scale + 0.25); apply(); });
+  zoomOut?.addEventListener('click', function(){ scale = Math.max(0.25, scale - 0.25); apply(); });
+  zoomReset?.addEventListener('click', function(){ scale = 1; panX = 0; panY = 0; apply(); });
+  img.addEventListener('dblclick', function(){ scale = (scale === 1 ? 2 : 1); panX = 0; panY = 0; apply(); });
+  img.addEventListener('mousedown', function(e){ if (scale <= 1) return; isPanning = true; startX = e.clientX - panX; startY = e.clientY - panY; img.style.cursor = 'grabbing'; e.preventDefault(); });
+  window.addEventListener('mousemove', function(e){ if (!isPanning) return; panX = e.clientX - startX; panY = e.clientY - startY; apply(); });
+  window.addEventListener('mouseup', function(){ if (isPanning){ isPanning = false; img.style.cursor = 'grab'; } });
+  img.addEventListener('wheel', function(e){ e.preventDefault(); const delta = e.deltaY > 0 ? -0.1 : 0.1; scale = Math.min(4, Math.max(0.25, scale + delta)); apply(); }, { passive:false });
+  window.addEventListener('keydown', function(e){ if (!viewer || viewer.style.display !== 'block') return; if (e.key === 'Escape') close(); if (e.key === '+' || e.key === '=') { scale = Math.min(4, scale + 0.25); apply(); } if (e.key === '-') { scale = Math.max(0.25, scale - 0.25); apply(); } });
 });
 </script>
 @endsection
