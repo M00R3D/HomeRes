@@ -112,6 +112,13 @@
 </style>
 <div style="max-width:980px;margin:20px auto;padding:12px;">
   <h1>Notificaciones</h1>
+  
+  @if($isAdmin)
+    <div class="hp-help-inline" style="font-size:1.05rem;align-items:center;gap:12px;margin-bottom:12px;">
+      <button type="button" id="notif-page-help-open-btn-admin" class="hp-help-q" aria-label="Abrir ayuda" style="width:36px;height:36px;font-size:1rem;line-height:1;">?</button>
+      <a href="javascript:void(0)" id="notif-page-help-open-link-admin" class="hp-help-link" style="font-weight:700;font-size:1.05rem;">¿Necesitas ayuda para usar esta página?</a>
+    </div>
+  @endif
 
   @if(!$isAdmin)
     <div class="hp-help-inline">
@@ -249,6 +256,28 @@
   </div>
 </div>
 @endif
+  <?php if($isAdmin): ?>
+  <div id="notif-page-help-viewer-admin" class="hp-help-viewer" aria-hidden="true">
+    <div class="hp-help-backdrop" id="notif-page-help-backdrop-admin"></div>
+    <div id="notif-page-help-panel-admin" class="hp-help-panel" role="dialog" aria-modal="true" aria-label="Guía de administración de notificaciones">
+      <div class="hp-help-toolbar">
+        <strong>Guía rápida (admin)</strong>
+        <div class="hp-help-controls">
+          <button type="button" class="hp-help-btn" id="notif-page-help-zoom-out-admin" aria-label="Alejar">-</button>
+          <button type="button" class="hp-help-btn" id="notif-page-help-zoom-reset-admin" aria-label="Restablecer zoom">100%</button>
+          <button type="button" class="hp-help-btn" id="notif-page-help-zoom-in-admin" aria-label="Acercar">+</button>
+          <button type="button" class="hp-help-btn" id="notif-page-help-close-admin" aria-label="Cerrar ayuda">Cerrar</button>
+        </div>
+      </div>
+      <div class="hp-help-stage" id="notif-page-help-stage-admin">
+        <img id="notif-page-help-image-admin" class="hp-help-image"
+          src="<?php echo e(asset('tutorial_imgs/admin/Notificaciones.png')); ?>"
+          alt="Tutorial admin de notificaciones" draggable="false" />
+        <span class="hp-help-hint">Rueda para zoom · arrastra para mover · clic fuera para salir</span>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
 @endsection
 
 @push('scripts')
@@ -371,6 +400,102 @@ document.addEventListener('DOMContentLoaded', function () {
     if (e.key === '+' || e.key === '=') setZoom(scale + 0.2);
     if (e.key === '-') setZoom(scale - 0.2);
   });
+
+  applyTransform();
+});
+</script>
+@endif
+@if($isAdmin)
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var viewer = document.getElementById('notif-page-help-viewer-admin');
+  var stage = document.getElementById('notif-page-help-stage-admin');
+  var img = document.getElementById('notif-page-help-image-admin');
+  var openBtn = document.getElementById('notif-page-help-open-btn-admin');
+  var openLink = document.getElementById('notif-page-help-open-link-admin');
+  var closeBtn = document.getElementById('notif-page-help-close-admin');
+  var panel = document.getElementById('notif-page-help-panel-admin');
+  var backdrop = document.getElementById('notif-page-help-backdrop-admin');
+  var zoomIn = document.getElementById('notif-page-help-zoom-in-admin');
+  var zoomOut = document.getElementById('notif-page-help-zoom-out-admin');
+  var zoomReset = document.getElementById('notif-page-help-zoom-reset-admin');
+
+  if (!viewer || !stage || !img) return;
+
+  var isOpen = false;
+  var scale = 1, x = 0, y = 0;
+  var dragging = false, startX = 0, startY = 0;
+  var MIN_ZOOM = 1, MAX_ZOOM = 4;
+
+  function applyTransform() {
+    img.style.transform = 'translate(-50%,-50%) translate(' + x + 'px,' + y + 'px) scale(' + scale + ')';
+    if (zoomReset) zoomReset.textContent = Math.round(scale * 100) + '%';
+  }
+
+  function setZoom(next) {
+    scale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, next));
+    if (scale === 1) { x = 0; y = 0; }
+    applyTransform();
+  }
+
+  function openViewer() {
+    if (isOpen) return;
+    isOpen = true;
+    viewer.classList.add('open');
+    viewer.setAttribute('aria-hidden', 'false');
+    setZoom(1);
+  }
+
+  function closeViewer() {
+    if (!isOpen) return;
+    isOpen = false;
+    viewer.classList.remove('open');
+    viewer.setAttribute('aria-hidden', 'true');
+    dragging = false;
+    stage.classList.remove('dragging');
+  }
+
+  function beginDrag(cx, cy) {
+    if (scale <= 1) return;
+    dragging = true;
+    startX = cx;
+    startY = cy;
+    stage.classList.add('dragging');
+  }
+
+  function moveDrag(cx, cy) {
+    if (!dragging) return;
+    x += cx - startX;
+    y += cy - startY;
+    startX = cx;
+    startY = cy;
+    applyTransform();
+  }
+
+  function endDrag() { dragging = false; stage.classList.remove('dragging'); }
+
+  [openBtn, openLink].forEach(function (el) { if (!el) return; el.addEventListener('click', function (e) { e.preventDefault(); openViewer(); }); });
+
+  if (closeBtn) closeBtn.addEventListener('click', closeViewer);
+  if (backdrop) backdrop.addEventListener('click', closeViewer);
+  viewer.addEventListener('click', function (e) { if (e.target === viewer || e.target === backdrop) closeViewer(); });
+  document.addEventListener('mousedown', function (e) { if (!isOpen || !panel) return; if (e.target === openBtn || e.target === openLink) return; if (!panel.contains(e.target)) closeViewer(); });
+  if (zoomIn) zoomIn.addEventListener('click', function () { setZoom(scale + 0.2); });
+  if (zoomOut) zoomOut.addEventListener('click', function () { setZoom(scale - 0.2); });
+  if (zoomReset) zoomReset.addEventListener('click', function () { setZoom(1); });
+
+  stage.addEventListener('wheel', function (e) { if (!isOpen) return; e.preventDefault(); setZoom(scale + (e.deltaY < 0 ? 0.18 : -0.18)); }, { passive: false });
+
+  stage.addEventListener('mousedown', function (e) { beginDrag(e.clientX, e.clientY); });
+  window.addEventListener('mousemove', function (e) { moveDrag(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', endDrag);
+
+  stage.addEventListener('touchstart', function (e) { if (e.touches && e.touches[0]) beginDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+  stage.addEventListener('touchmove', function (e) { if (dragging && e.touches && e.touches[0]) moveDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+  stage.addEventListener('touchend', endDrag, { passive: true });
+  stage.addEventListener('dblclick', function () { setZoom(scale > 1 ? 1 : 2); });
+
+  document.addEventListener('keydown', function (e) { if (!isOpen) return; if (e.key === 'Escape') closeViewer(); if (e.key === '+' || e.key === '=') setZoom(scale + 0.2); if (e.key === '-') setZoom(scale - 0.2); });
 
   applyTransform();
 });

@@ -3,6 +3,40 @@
 @section('title','Notificaciones')
 
 @section('content')
+
+    <div id="hp-help-viewer" class="hp-help-viewer" aria-hidden="true">
+
+  <div id="hp-help-backdrop" class="hp-help-viewer-backdrop"></div>
+
+  <div class="hp-help-viewer-panel" role="dialog" aria-modal="true">
+
+    <div class="hp-help-toolbar">
+      <strong>Guía rápida de crear propied</strong>
+
+      <div class="hp-help-controls">
+        <button type="button" class="hp-help-btn" id="hp-zoom-out">-</button>
+        <button type="button" class="hp-help-btn" id="hp-zoom-reset">100%</button>
+        <button type="button" class="hp-help-btn" id="hp-zoom-in">+</button>
+        <button type="button" class="hp-help-btn" id="hp-close-help">Cerrar</button>
+      </div>
+    </div>
+
+    <div class="hp-help-stage" id="hp-help-stage">
+      <img
+        id="hp-help-image"
+        class="hp-help-image"
+        src="{{ asset('tutorial_imgs/admin/CrearPropiedades.png') }}"
+        alt="Guía de creación de propiedad"
+        draggable="false"
+      />
+
+      <span class="hp-help-hint">
+        Rueda para zoom · arrastra para mover · clic fuera para salir
+      </span>
+    </div>
+
+  </div>
+</div>
 @php
     $current = auth()->user() ?? null;
     $layoutPreviewMode = ($current && ($current->rol ?? '') === 'admin') ? session('layout_preview_as', 'admin') : 'user';
@@ -15,6 +49,93 @@
 @endphp
 
 <style>
+  .hp-help-inline {
+  margin-bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 2px solid red;
+  padding: 4px;
+}
+
+.hp-help-q {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(59,130,246,.35);
+  color: #1d4ed8;
+  background: rgba(59,130,246,.08);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hp-help-link {
+  color: #2563eb;
+  text-decoration: underline;
+  font-size: .93rem;
+}
+
+.hp-help-viewer {
+  position: fixed;
+  inset: 0;
+  display: none;
+  z-index: 9999;
+}
+
+.hp-help-viewer.open {
+  display: block;
+}
+
+.hp-help-viewer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15,23,42,.45);
+}
+
+.hp-help-viewer-panel {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  width: min(900px, 94vw);
+  height: min(80vh, 700px);
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.hp-help-toolbar {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.hp-help-stage {
+  position: relative;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.hp-help-image {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  max-width: 100%;
+  max-height: 100%;
+  cursor: grab;
+}
+
+.hp-help-hint {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  font-size: 12px;
+  opacity: .7;
+}
 .modal-card { transition: transform .28s, opacity .28s, max-height .28s, padding .28s; transform-origin: top center; opacity:1; max-height:1200px; overflow:hidden; }
 .modal-card.collapsed { transform: scaleY(.98); opacity:0; max-height:0; padding-top:0; padding-bottom:0; overflow:hidden; }
 .list-card{background:#fff;border-radius:10px;padding:8px;box-shadow:0 6px 18px rgba(0,0,0,0.06);margin-bottom:12px;overflow-x:auto}
@@ -24,7 +145,8 @@
 .action-btn.delete{background:linear-gradient(90deg,#ef4444,#f97316);color:#fff;padding:6px 10px;border-radius:8px;border:0;font-weight:700;cursor:pointer}
 .btn-group{display:inline-flex;gap:8px;align-items:center}
 </style>
-
+    
+    
 <div style="padding:16px;max-width:1100px;margin:0 auto;">
     <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
         <div>
@@ -41,10 +163,25 @@
         </div>
     </header>
 
+    <div style="margin-bottom:16px;">
+      @if($isAdmin)
+        <div class="hp-help-inline" style="font-size:1.05rem;align-items:center;gap:12px;">
+          <button type="button" id="hp-open-help-btn-admin" class="hp-help-q" aria-label="Abrir ayuda" style="width:36px;height:36px;font-size:1rem;line-height:1;">?</button>
+          <a href="javascript:void(0)" id="hp-open-help-link-admin" class="hp-help-link" style="font-weight:700;font-size:1.05rem;">¿Necesitas ayuda para usar esta página?</a>
+        </div>
+      @else
+        <div class="hp-help-inline" style="font-size:1.05rem;align-items:center;gap:12px;">
+          <button type="button" id="hp-open-help-btn" class="hp-help-q" aria-label="Abrir ayuda" style="width:36px;height:36px;font-size:1rem;line-height:1;">?</button>
+          <a href="javascript:void(0)" id="hp-open-help-link" class="hp-help-link" style="font-weight:700;font-size:1.05rem;">¿Necesitas ayuda para usar esta página?</a>
+        </div>
+      @endif
+    </div>
+
     @if(session('success'))
         <div style="background:#ecfdf5;color:#065f46;padding:10px;border-radius:8px;margin-bottom:12px;font-weight:700;">
             {{ session('success') }}
         </div>
+        
     @endif
 
     @php
@@ -53,6 +190,7 @@
         $vistas   = $notificaciones_sorted->filter(fn($x)=> ($x->estado ?? '') === 'vista')->values();
         $icons = ['prueba'=>'🧪','aprobada'=>'✅','rechazada'=>'❌','otra'=>'🔔','info'=>'🔔','confirmacion'=>'✅','pago'=>'💳','alerta'=>'⚠️','mantenimiento'=>'🛠️'];
     @endphp
+    
 
     <h3 style="margin-top:8px;margin-bottom:6px;color:#374151;">Cerradas</h3>
     <div class="list-card">
@@ -357,7 +495,7 @@
 </div>
 
 @endsection
-
+@push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function(){
   function show(modal){ if(!modal) return; modal.setAttribute('aria-hidden','false'); modal.style.display = 'flex'; setTimeout(()=> modal.classList.add('open'),20); }
@@ -452,3 +590,23 @@ document.addEventListener('DOMContentLoaded', function(){
   })();
 });
 </script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+  const viewer = document.getElementById('hp-help-viewer');
+  const openBtn = document.getElementById('hp-open-help-btn') || document.getElementById('hp-open-help-btn-admin');
+  const openLink = document.getElementById('hp-open-help-link') || document.getElementById('hp-open-help-link-admin');
+  const backdrop = document.getElementById('hp-help-backdrop');
+  const closeBtn = document.getElementById('hp-close-help');
+
+  if (!viewer) return;
+
+  const open = () => viewer.classList.add('open');
+  const close = () => viewer.classList.remove('open');
+
+  openBtn?.addEventListener('click', open);
+  openLink?.addEventListener('click', open);
+  closeBtn?.addEventListener('click', close);
+  backdrop?.addEventListener('click', close);
+});
+</script>
+@endpush
