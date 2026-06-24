@@ -123,6 +123,12 @@
           <a href="#" class="hp-help-link" id="code-detail-help-open-link" onclick="(function(){var v=document.getElementById('code-detail-help-viewer');if(!v)return;var open=v.getAttribute('aria-hidden')!=='false';v.classList.toggle('open', open);v.setAttribute('aria-hidden', open ? 'false' : 'true');v.style.setProperty('display', open ? 'block' : 'none', 'important');})();return false;">¿Necesitas ayuda para usar esta página?</a>
         </div>
       @endif
+      @if($isAdmin ?? false)
+        <div class="hp-help-inline">
+          <button type="button" class="hp-help-q" id="code-detail-help-open-btn-admin" aria-label="Abrir ayuda" onclick="(function(){var v=document.getElementById('code-detail-help-viewer-admin');if(!v)return;var open=v.getAttribute('aria-hidden')!=='false';v.classList.toggle('open', open);v.setAttribute('aria-hidden', open ? 'false' : 'true');v.style.setProperty('display', open ? 'block' : 'none', 'important');})();return false;">?</button>
+          <a href="#" class="hp-help-link" id="code-detail-help-open-link-admin" onclick="(function(){var v=document.getElementById('code-detail-help-viewer-admin');if(!v)return;var open=v.getAttribute('aria-hidden')!=='false';v.classList.toggle('open', open);v.setAttribute('aria-hidden', open ? 'false' : 'true');v.style.setProperty('display', open ? 'block' : 'none', 'important');})();return false;">¿Necesitas ayuda para usar esta página?</a>
+        </div>
+      @endif
     </div>
     <a href="{{ route('pagos.codes') }}" class="btn">Volver a códigos</a>
   </div>
@@ -192,6 +198,27 @@
   </div>
 </div>
 @endif
+
+  @if($isAdmin ?? false)
+  <div id="code-detail-help-viewer-admin" class="hp-help-viewer" aria-hidden="true" style="display:none !important;">
+    <div class="hp-help-backdrop" id="code-detail-help-backdrop-admin" onclick="(function(){var v=document.getElementById('code-detail-help-viewer-admin');if(!v)return;v.classList.remove('open');v.setAttribute('aria-hidden','true');v.style.setProperty('display','none','important');})();"></div>
+    <div id="code-detail-help-panel-admin" class="hp-help-panel" role="dialog" aria-modal="true" aria-label="Guía detalle código (admin)">
+      <div class="hp-help-toolbar">
+        <strong>Guía rápida del detalle de código (admin)</strong>
+        <div class="hp-help-controls">
+          <button type="button" class="hp-help-btn" id="code-detail-help-zoom-out-admin" aria-label="Alejar">-</button>
+          <button type="button" class="hp-help-btn" id="code-detail-help-zoom-reset-admin" aria-label="Restablecer zoom">100%</button>
+          <button type="button" class="hp-help-btn" id="code-detail-help-zoom-in-admin" aria-label="Acercar">+</button>
+          <button type="button" class="hp-help-btn" id="code-detail-help-close-admin" aria-label="Cerrar ayuda" onclick="(function(){var v=document.getElementById('code-detail-help-viewer-admin');if(!v)return;v.classList.remove('open');v.setAttribute('aria-hidden','true');v.style.setProperty('display','none','important');})();return false;">Cerrar</button>
+        </div>
+      </div>
+      <div id="code-detail-help-stage-admin" class="hp-help-stage">
+        <img id="code-detail-help-image-admin" class="hp-help-image" src="{{ asset('tutorial_imgs/admin/DetalleCodigos.png') }}" alt="Tutorial admin detalle código" draggable="false" />
+        <span class="hp-help-hint">Rueda para zoom · arrastra para mover · clic fuera para salir</span>
+      </div>
+    </div>
+  </div>
+  @endif
 
 <script>
   (function() {

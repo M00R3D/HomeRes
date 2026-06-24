@@ -154,6 +154,13 @@
     </div>
   @endif
 
+  @if($isAdmin ?? false)
+    <div class="hp-help-inline">
+      <button type="button" class="hp-help-q" id="codes-help-open-btn-admin" aria-label="Abrir ayuda" onclick="(function(){var v=document.getElementById('codes-help-viewer-admin');if(!v)return;var open=v.getAttribute('aria-hidden')!=='false';v.classList.toggle('open', open);v.setAttribute('aria-hidden', open ? 'false' : 'true');v.style.setProperty('display', open ? 'block' : 'none', 'important');})();return false;">?</button>
+      <a href="#" class="hp-help-link" id="codes-help-open-link-admin" onclick="(function(){var v=document.getElementById('codes-help-viewer-admin');if(!v)return;var open=v.getAttribute('aria-hidden')!=='false';v.classList.toggle('open', open);v.setAttribute('aria-hidden', open ? 'false' : 'true');v.style.setProperty('display', open ? 'block' : 'none', 'important');})();return false;">¿Necesitas ayuda para usar esta página?</a>
+    </div>
+  @endif
+
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
     <h1 style="margin:0;">{{ ($isAdmin ?? false) ? 'Códigos QR (todos)' : 'Mis códigos' }}</h1>
     <a href="{{ route('pagos.mine') }}" class="btn">{{ ($isAdmin ?? false) ? 'Ver pagos' : 'Mis pagos' }}</a>
@@ -262,6 +269,27 @@
   </div>
 </div>
 @endif
+
+  @if($isAdmin ?? false)
+  <div id="codes-help-viewer-admin" class="hp-help-viewer" aria-hidden="true" style="position:fixed;inset:0;display:none !important;z-index:1500;">
+    <div class="hp-help-backdrop" id="codes-help-backdrop-admin" onclick="(function(){var v=document.getElementById('codes-help-viewer-admin');if(!v)return;v.classList.remove('open');v.setAttribute('aria-hidden','true');v.style.setProperty('display','none','important');})();"></div>
+    <div id="codes-help-panel-admin" class="hp-help-panel" role="dialog" aria-modal="true" aria-label="Guía de códigos (admin)">
+      <div class="hp-help-toolbar">
+        <strong>Guía rápida de códigos (admin)</strong>
+        <div class="hp-help-controls">
+          <button type="button" class="hp-help-btn" id="codes-help-zoom-out-admin" aria-label="Alejar">-</button>
+          <button type="button" class="hp-help-btn" id="codes-help-zoom-reset-admin" aria-label="Restablecer zoom">100%</button>
+          <button type="button" class="hp-help-btn" id="codes-help-zoom-in-admin" aria-label="Acercar">+</button>
+          <button type="button" class="hp-help-btn" id="codes-help-close-admin" aria-label="Cerrar ayuda" onclick="(function(){var v=document.getElementById('codes-help-viewer-admin');if(!v)return;v.classList.remove('open');v.setAttribute('aria-hidden','true');v.style.setProperty('display','none','important');})();return false;">Cerrar</button>
+        </div>
+      </div>
+      <div id="codes-help-stage-admin" class="hp-help-stage">
+        <img id="codes-help-image-admin" class="hp-help-image" src="{{ asset('tutorial_imgs/admin/Codigos.png') }}" alt="Tutorial admin Mis Códigos" draggable="false" />
+        <span class="hp-help-hint">Rueda para zoom · arrastra para mover · clic fuera para salir</span>
+      </div>
+    </div>
+  </div>
+  @endif
 
 @if(!($isAdmin ?? false))
 @push('scripts')
