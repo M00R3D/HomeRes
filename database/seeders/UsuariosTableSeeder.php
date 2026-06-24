@@ -14,6 +14,7 @@ class UsuariosTableSeeder extends Seeder
             ['nombre' => 'Ana', 'apellido' => 'García', 'email' => 'ana@correo.com', 'password' => bcrypt('secret'), 'rol' => 'recepcionista', 'area' => 'Recepción', 'created_at' => now()],
             ['nombre' => 'Job', 'apellido' => 'Moore', 'email' => 'jobmurdan@hotmail.com', 'password' => bcrypt('secret'), 'rol' => 'cliente', 'area' => 'Cliente', 'created_at' => now()],
             ['nombre' => 'Job', 'apellido' => 'Moore', 'email' => 'a@mail.com', 'password' => bcrypt('123123'), 'rol' => 'admin', 'area' => 'Cliente', 'created_at' => now()],
+            ['nombre' => 'Admin', 'apellido' => 'Test', 'email' => 'aaaaa@mail.com', 'password' => bcrypt('123123123'), 'rol' => 'admin', 'area' => 'Cliente', 'created_at' => now()],
         ]);
     }
 }

@@ -358,6 +358,12 @@
         <input type="checkbox" id="hp-preview-toggle" aria-label="Ver como usuario normal en home">
       </label>
     @endif
+    @if($isAdmin)
+      <div class="hp-help-inline" style="margin-left:8px;">
+        <button type="button" class="hp-help-q" id="hp-open-help-btn" aria-label="Abrir ayuda">?</button>
+        <a href="#" class="hp-help-link" id="hp-open-help-link">Guía de la página</a>
+      </div>
+    @endif
   </div>
 
   @if(session('success'))
@@ -512,6 +518,28 @@
     <div class="hp-help-stage" id="hp-help-stage">
       <img id="hp-help-image" class="hp-help-image"
         src="{{ asset('tutorial_imgs/no-admin/Inicio.png') }}"
+        alt="Tutorial de la página de inicio" draggable="false" />
+      <span class="hp-help-hint">Rueda para zoom · arrastra para mover · clic fuera para salir</span>
+    </div>
+  </div>
+</div>
+@endif
+@if($isAdmin)
+<div id="hp-help-viewer" class="hp-help-viewer" aria-hidden="true">
+  <div class="hp-help-backdrop" id="hp-help-backdrop"></div>
+  <div class="hp-help-panel" role="dialog" aria-modal="true" aria-label="Guía de uso">
+    <div class="hp-help-toolbar">
+      <strong>Guía rápida de la página de inicio</strong>
+      <div class="hp-help-controls">
+        <button type="button" class="hp-help-btn" id="hp-zoom-out" aria-label="Alejar">-</button>
+        <button type="button" class="hp-help-btn" id="hp-zoom-reset" aria-label="Restablecer zoom">100%</button>
+        <button type="button" class="hp-help-btn" id="hp-zoom-in" aria-label="Acercar">+</button>
+        <button type="button" class="hp-help-btn" id="hp-close-help" aria-label="Cerrar ayuda">Cerrar</button>
+      </div>
+    </div>
+    <div class="hp-help-stage" id="hp-help-stage">
+      <img id="hp-help-image" class="hp-help-image"
+        src="{{ asset('tutorial_imgs/admin/Inicio.png') }}"
         alt="Tutorial de la página de inicio" draggable="false" />
       <span class="hp-help-hint">Rueda para zoom · arrastra para mover · clic fuera para salir</span>
     </div>
@@ -1323,7 +1351,6 @@ document.addEventListener('DOMContentLoaded', function () {
   window.__hpInitCarousels(document);
 });
 </script>
-@if(!$isAdmin)
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   var viewer = document.getElementById('hp-help-viewer');
@@ -1425,5 +1452,4 @@ document.addEventListener('DOMContentLoaded', function () {
   applyTransform();
 });
 </script>
-@endif
 @endpush
