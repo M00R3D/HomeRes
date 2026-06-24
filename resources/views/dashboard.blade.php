@@ -11,8 +11,15 @@
   <div class="page-header">
     <h1>Reservaciones</h1>
     @if ($isAdmin)
-    <div class="actions">
+    <div class="actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
       <button id="open-new" class="btn-primary">Nueva Reservación</button>
+      <span style="display:inline-flex;align-items:center;gap:8px;">
+        <button type="button" id="dash-open-help-btn" aria-label="Abrir ayuda"
+          style="width:24px;height:24px;border-radius:999px;border:1px solid rgba(59,130,246,.35);color:#1d4ed8;background:rgba(59,130,246,.08);font-weight:700;line-height:1;cursor:pointer;flex-shrink:0;transition:transform .15s ease,background-color .15s ease;"
+          onmouseover="this.style.transform='translateY(-1px)';this.style.background='rgba(59,130,246,.16)'"
+          onmouseout="this.style.transform='';this.style.background='rgba(59,130,246,.08)'">?</button>
+        <a href="#" id="dash-open-help-link" style="color:#2563eb;text-decoration:underline;text-underline-offset:2px;font-size:.93rem;">Guía del dashboard</a>
+      </span>
     </div>
     @else
     <div class="actions" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -568,6 +575,33 @@
     </div>
   </div>
 </div>
+@endif
+
+@if($isAdmin)
+<div id="dash-help-viewer" aria-hidden="true" style="position:fixed;inset:0;display:none;z-index:70;">
+  <div id="dash-help-backdrop" style="position:absolute;inset:0;background:rgba(15,23,42,.42);backdrop-filter:blur(2px);"></div>
+  <div role="dialog" aria-modal="true" aria-label="Guía de uso del dashboard"
+    style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(920px,94vw);height:min(84vh,760px);background:rgba(255,255,255,.98);border-radius:16px;box-shadow:0 24px 80px rgba(15,23,42,.25);border:1px solid rgba(148,163,184,.3);overflow:hidden;display:grid;grid-template-rows:auto 1fr;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.3);background:linear-gradient(90deg,rgba(248,250,252,.95),rgba(241,245,249,.95));">
+      <strong style="font-size:.92rem;color:#0f172a;">Guía rápida del panel de reservaciones</strong>
+      <div style="display:inline-flex;gap:6px;">
+        <button type="button" id="dash-zoom-out" style="border:1px solid rgba(148,163,184,.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600;">-</button>
+        <button type="button" id="dash-zoom-reset" style="border:1px solid rgba(148,163,184,.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600;">100%</button>
+        <button type="button" id="dash-zoom-in" style="border:1px solid rgba(148,163,184,.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600;">+</button>
+        <button type="button" id="dash-close-help" style="border:1px solid rgba(148,163,184,.65);background:#fff;color:#0f172a;border-radius:8px;min-width:34px;height:32px;padding:0 10px;cursor:pointer;font-weight:600;">Cerrar</button>
+      </div>
+    </div>
+    <div id="dash-help-stage" style="position:relative;overflow:hidden;background:#f8fafc;touch-action:none;cursor:grab;">
+      <img id="dash-help-image"
+        src="{{ asset('tutorial_imgs/admin/Dashboard.png') }}"
+        alt="Tutorial del panel de reservaciones (admin)" draggable="false"
+        style="position:absolute;top:50%;left:50%;max-width:100%;max-height:100%;user-select:none;transform:translate(-50%,-50%) translate(0px,0px) scale(1);transform-origin:center center;transition:transform .08s linear;will-change:transform;" />
+      <span style="position:absolute;right:12px;bottom:10px;color:#334155;font-size:.82rem;background:rgba(255,255,255,.86);border:1px solid rgba(148,163,184,.4);padding:4px 8px;border-radius:999px;">Rueda para zoom &middot; arrastra para mover &middot; clic fuera para salir</span>
+    </div>
+  </div>
+</div>
+@endif
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   var viewer = document.getElementById('dash-help-viewer');
@@ -629,5 +663,4 @@ document.addEventListener('DOMContentLoaded', function () {
   applyTransform();
 });
 </script>
-@endif
 @endsection
