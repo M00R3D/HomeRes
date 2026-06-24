@@ -1,8 +1,149 @@
 @extends('layouts.app')
-
+@php
+  $isAdmin = (bool) ($isAdmin ?? false);
+  $propiedad = $propiedad ?? null;
+@endphp
+<style>
+  .hp-help-viewer {
+  z-index: 9999;
+}
+   .hp-help-inline {
+      margin-top: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hp-help-q {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      color: #1d4ed8;
+      background: rgba(59, 130, 246, 0.08);
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      transition: transform .15s ease, background-color .15s ease;
+    }
+    .hp-help-q:hover { transform: translateY(-1px); background: rgba(59, 130, 246, 0.16); }
+    .hp-help-link {
+      color: #2563eb;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      font-size: .93rem;
+    }
+    .hp-help-viewer {
+      position: fixed;
+      inset: 0;
+      display: none;
+      z-index: 70;
+    }
+    .hp-help-viewer.open { display: block; }
+    .hp-help-viewer-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.42);
+      backdrop-filter: blur(2px);
+    }
+    .hp-help-viewer-panel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(920px, 94vw);
+      height: min(84vh, 760px);
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: 16px;
+      box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+    .hp-help-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+      background: linear-gradient(90deg, rgba(248, 250, 252, 0.95), rgba(241, 245, 249, 0.95));
+    }
+    .hp-help-toolbar strong { font-size: .92rem; color: #0f172a; }
+    .hp-help-controls { display: inline-flex; gap: 6px; }
+    .hp-help-btn {
+      border: 1px solid rgba(148, 163, 184, 0.65);
+      background: #ffffff;
+      color: #0f172a;
+      border-radius: 8px;
+      min-width: 34px;
+      height: 32px;
+      padding: 0 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .hp-help-btn:hover { background: #f8fafc; }
+    .hp-help-stage {
+      position: relative;
+      overflow: hidden;
+      background: #f8fafc;
+      touch-action: none;
+      cursor: grab;
+    }
+    .hp-help-stage.dragging { cursor: grabbing; }
+    .hp-help-image {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      max-width: 100%;
+      max-height: 100%;
+      user-select: none;
+      transform: translate(-50%, -50%) translate(0px, 0px) scale(1);
+      transform-origin: center center;
+      transition: transform .08s linear;
+      will-change: transform;
+    }
+    .hp-help-hint {
+      position: absolute;
+      right: 12px;
+      bottom: 10px;
+      color: #334155;
+      font-size: .82rem;
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+</style>
 @section('title', 'Editar propiedad - ' . ($propiedad->nombre ?? ''))
 
 @section('content')
+<div class="hp-help-inline">
+  <button type="button" class="hp-help-q" id="hp-open-help-btn" aria-label="Abrir ayuda">?</button>
+  <a href="javascript:void(0)" id="hp-open-help-link" class="hp-help-link" >¿Necesitas ayuda para usar esta página?</a>
+</div>
+<div id="hp-help-viewer" class="hp-help-viewer" aria-hidden="true">
+
+  <div id="hp-help-backdrop"></div>
+
+  <div class="hp-help-viewer-panel" role="dialog" aria-modal="true">
+<div class="hp-help-toolbar">
+  <strong>Guía rápida de editar propiedad</strong>
+  <div class="hp-help-controls">
+    <button type="button" class="hp-help-btn" id="hp-zoom-out" aria-label="Alejar">-</button>
+    <button type="button" class="hp-help-btn" id="hp-zoom-reset" aria-label="Restablecer zoom">100%</button>
+    <button type="button" class="hp-help-btn" id="hp-zoom-in" aria-label="Acercar">+</button>
+    <button type="button" class="hp-help-btn" id="hp-close-help" aria-label="Cerrar ayuda">Cerrar</button>
+  </div>
+</div>
+<div class="hp-help-stage" id="hp-help-stage">
+  <img id="hp-help-image" class="hp-help-image"
+    src="{{ asset('tutorial_imgs/admin/EditarPropiedades.png') }}"
+    alt="Tutorial de la página editar propiedad" draggable="false" />
+  <span class="hp-help-hint">Rueda para zoom · arrastra para mover · clic fuera para salir</span>
+</div>
+</div>
+</div>
 <div style="max-width:1100px;margin:18px auto;padding:12px;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
     <h1 style="margin:0">Editar propiedad</h1>
@@ -376,6 +517,42 @@ document.addEventListener('DOMContentLoaded', function(){
     addBtn.addEventListener('click', addTag);
     tagInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); addTag(); } });
   })();
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  const viewer = document.getElementById('hp-help-viewer');
+  const openBtn = document.getElementById('hp-open-help-btn');
+  const openLink = document.getElementById('hp-open-help-link');
+  const backdrop = document.getElementById('hp-help-backdrop');
+  const closeBtn = document.getElementById('hp-close-help');
+
+  if (!viewer) return;
+
+  function openViewer() {
+    viewer.classList.add('open');
+    viewer.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeViewer() {
+    viewer.classList.remove('open');
+    viewer.setAttribute('aria-hidden', 'true');
+  }
+
+  openBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openViewer();
+  });
+
+  openLink?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openViewer();
+  });
+
+  closeBtn?.addEventListener('click', closeViewer);
+  backdrop?.addEventListener('click', closeViewer);
+
 });
 </script>
 @endsection
