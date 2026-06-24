@@ -137,6 +137,113 @@
   .pr-thumb{ height:176px; }
   .pr-nav{ opacity:1; width:30px; height:30px; }
 }
+ .help-inline {
+      margin-top: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .help-q {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      color: #1d4ed8;
+      background: rgba(59, 130, 246, 0.08);
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      transition: transform .15s ease, background-color .15s ease;
+    }
+    .help-q:hover { transform: translateY(-1px); background: rgba(59, 130, 246, 0.16); }
+    .help-link {
+      color: #2563eb;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      font-size: .93rem;
+    }
+    .help-viewer {
+      position: fixed;
+      inset: 0;
+      display: none;
+      z-index: 70;
+    }
+    .help-viewer.open { display: block; }
+    .help-viewer-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.42);
+      backdrop-filter: blur(2px);
+    }
+    .help-viewer-panel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(920px, 94vw);
+      height: min(84vh, 760px);
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: 16px;
+      box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+    .help-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+      background: linear-gradient(90deg, rgba(248, 250, 252, 0.95), rgba(241, 245, 249, 0.95));
+    }
+    .help-toolbar strong { font-size: .92rem; color: #0f172a; }
+    .help-controls { display: inline-flex; gap: 6px; }
+    .help-btn {
+      border: 1px solid rgba(148, 163, 184, 0.65);
+      background: #ffffff;
+      color: #0f172a;
+      border-radius: 8px;
+      min-width: 34px;
+      height: 32px;
+      padding: 0 10px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .help-btn:hover { background: #f8fafc; }
+    .help-stage {
+      position: relative;
+      overflow: hidden;
+      background: #f8fafc;
+      touch-action: none;
+      cursor: grab;
+    }
+    .help-stage.dragging { cursor: grabbing; }
+    .help-image {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      max-width: 100%;
+      max-height: 100%;
+      user-select: none;
+      transform: translate(-50%, -50%) translate(0px, 0px) scale(1);
+      transform-origin: center center;
+      transition: transform .08s linear;
+      will-change: transform;
+    }
+    .help-hint {
+      position: absolute;
+      right: 12px;
+      bottom: 10px;
+      color: #334155;
+      font-size: .82rem;
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
 </style>
 
 <div class="pr-container">
@@ -160,6 +267,10 @@
   @endif
 
   @if($isAdmin)
+  <div class="hp-help-inline">
+      <button type="button" class="hp-help-q" id="hp-open-help-btn" aria-label="Abrir ayuda">?</button>
+      <a href="#" class="hp-help-link" id="hp-open-help-link">¿Necesitas ayuda para usar esta página?</a>
+    </div>
     <div class="card table-card list-view">
       <div class="table-responsive">
         <table class="table" style="width:100%;border-collapse:collapse;">
@@ -239,7 +350,7 @@
         </table>
       </div>
     </div>
-
+    
   @else
     <div class="hp-help-inline">
       <button type="button" class="hp-help-q" id="hp-open-help-btn" aria-label="Abrir ayuda">?</button>
@@ -384,7 +495,28 @@
   </div>
 </div>
 @endif
-
+@if($isAdmin)
+<div id="hp-help-viewer" class="hp-help-viewer" aria-hidden="true">
+  <div class="hp-help-backdrop" id="hp-help-backdrop"></div>
+  <div class="hp-help-panel" role="dialog" aria-modal="true" aria-label="Guía de uso de propiedades">
+    <div class="hp-help-toolbar">
+      <strong>Guía rápida de propiedades</strong>
+      <div class="hp-help-controls">
+        <button type="button" class="hp-help-btn" id="hp-zoom-out" aria-label="Alejar">-</button>
+        <button type="button" class="hp-help-btn" id="hp-zoom-reset" aria-label="Restablecer zoom">100%</button>
+        <button type="button" class="hp-help-btn" id="hp-zoom-in" aria-label="Acercar">+</button>
+        <button type="button" class="hp-help-btn" id="hp-close-help" aria-label="Cerrar ayuda">Cerrar</button>
+      </div>
+    </div>
+    <div class="hp-help-stage" id="hp-help-stage">
+      <img id="hp-help-image" class="hp-help-image"
+        src="{{ asset('tutorial_imgs/admin/Propiedades.png') }}"
+        alt="Tutorial de la página de propiedades" draggable="false" />
+      <span class="hp-help-hint">Rueda para zoom · arrastra para mover · clic fuera para salir</span>
+    </div>
+  </div>
+</div>
+@endif
 <div id="modal-prop-new" class="modal" aria-hidden="true" style="display:none;align-items:center;justify-content:center;">
   <div class="modal-backdrop" data-close style="position:absolute;inset:0;background:rgba(2,6,23,0.45);z-index:1000;"></div>
   <div class="modal-panel" role="dialog" aria-modal="true" style="position:relative;z-index:1200;max-width:900px;">
