@@ -670,6 +670,12 @@
       <span class="rv-help-note">Guía visual (2 imágenes)</span>
     </div>
   @endif
+  @if($isAdmin)
+    <div class="rv-help-inline">
+      <button type="button" class="rv-help-q" id="rv-open-help-btn" aria-label="Abrir ayuda">?</button>
+      <a href="#" class="rv-help-link" id="rv-open-help-link">¿Necesitas ayuda para usar esta página?</a>
+    </div>
+  @endif
 
   @if(session('success'))
     <div style="background:#ecfdf5;color:#065f46;padding:10px;border-radius:8px;margin:8px 0;font-weight:700;">{{ session('success') }}</div>
@@ -1074,6 +1080,54 @@
       <span class="rv-help-hint">Rueda para zoom · arrastra para mover · clic fuera para salir</span>
     </div>
   </div>
+</div>
+@endif
+@if($isAdmin)
+<div id="rv-help-viewer" class="rv-help-viewer" aria-hidden="true">
+    <div class="rv-help-backdrop" id="rv-help-backdrop"></div>
+
+    <div class="rv-help-panel" role="dialog" aria-modal="true">
+
+        <div class="rv-help-toolbar">
+
+            <strong>Guía rápida de reservaciones</strong>
+
+            <div class="rv-help-controls">
+
+                <button type="button"
+                        class="rv-help-btn"
+                        id="rv-zoom-out">-</button>
+
+                <button type="button"
+                        class="rv-help-btn"
+                        id="rv-zoom-reset">100%</button>
+
+                <button type="button"
+                        class="rv-help-btn"
+                        id="rv-zoom-in">+</button>
+
+                <button type="button"
+                        class="rv-help-btn"
+                        id="rv-close-help">Cerrar</button>
+
+            </div>
+
+        </div>
+
+        <div class="rv-help-stage"
+             id="rv-help-stage">
+
+            <img
+                id="rv-help-image"
+                class="rv-help-image"
+                src="{{ asset('tutorial_imgs/admin/Reservaciones.png') }}"
+                draggable="false"
+            >
+
+        </div>
+
+    </div>
+
 </div>
 @endif
 
@@ -1502,6 +1556,204 @@ document.addEventListener('DOMContentLoaded', function () {
 
   applyTransform();
 });
+</script>
+@endif
+@if($isAdmin)
+<script>
+
+document.addEventListener('DOMContentLoaded',()=>{
+
+const viewer =
+document.getElementById('rv-help-viewer');
+
+const openBtn =
+document.getElementById('rv-open-help-btn');
+
+const openLink =
+document.getElementById('rv-open-help-link');
+
+const backdrop =
+document.getElementById('rv-help-backdrop');
+
+const stage =
+document.getElementById('rv-help-stage');
+
+const img =
+document.getElementById('rv-help-image');
+
+const closeBtn =
+document.getElementById('rv-close-help');
+
+const zoomIn =
+document.getElementById('rv-zoom-in');
+
+const zoomOut =
+document.getElementById('rv-zoom-out');
+
+const zoomReset =
+document.getElementById('rv-zoom-reset');
+
+
+if(!viewer ||
+   !stage ||
+   !img)
+return;
+
+
+let scale = 1;
+let x = 0;
+let y = 0;
+
+
+
+function apply(){
+
+img.style.transform =
+`translate(-50%,-50%)
+ translate(${x}px,${y}px)
+ scale(${scale})`;
+
+zoomReset.textContent =
+Math.round(scale*100)+"%";
+
+}
+
+
+
+function zoom(v){
+
+scale = Math.max(
+1,
+Math.min(4,v)
+);
+
+if(scale===1){
+
+x=0;
+y=0;
+
+}
+
+apply();
+
+}
+
+
+
+function openViewer(){
+
+viewer.classList.add('open');
+
+viewer.setAttribute(
+'aria-hidden',
+'false'
+);
+
+zoom(1);
+
+}
+
+
+
+function closeViewer(){
+
+viewer.classList.remove('open');
+
+viewer.setAttribute(
+'aria-hidden',
+'true'
+);
+
+}
+
+
+
+openBtn?.addEventListener(
+
+'click',
+
+e=>{
+
+e.preventDefault();
+
+openViewer();
+
+}
+
+);
+
+
+
+openLink?.addEventListener(
+
+'click',
+
+e=>{
+
+e.preventDefault();
+
+openViewer();
+
+}
+
+);
+
+
+
+closeBtn?.addEventListener(
+
+'click',
+
+closeViewer
+
+);
+
+
+
+backdrop?.addEventListener(
+
+'click',
+
+closeViewer
+
+);
+
+
+
+zoomIn?.addEventListener(
+
+'click',
+
+()=>zoom(scale+0.2)
+
+);
+
+
+
+zoomOut?.addEventListener(
+
+'click',
+
+()=>zoom(scale-0.2)
+
+);
+
+
+
+zoomReset?.addEventListener(
+
+'click',
+
+()=>zoom(1)
+
+);
+
+
+
+apply();
+
+});
+
 </script>
 @endif
 @endpush
