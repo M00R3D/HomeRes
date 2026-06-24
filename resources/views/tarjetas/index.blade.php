@@ -237,6 +237,10 @@
     @if ($isAdmin)
     <h1 style="margin:0">Tarjetas</h1>
     <div class="small" style="margin-top:6px;">Gestión de tarjetas simuladas</div>
+    <div class="hp-help-inline" style="margin-top:8px;display:inline-flex;align-items:center;gap:8px;">
+      <button type="button" class="help-q" id="tarjetas-help-open-btn-admin" aria-label="Abrir ayuda">?</button>
+      <a href="javascript:void(0)" class="help-link" id="tarjetas-help-open-link-admin">¿Necesitas ayuda para usar esta página?</a>
+    </div>
     @else
     <h1 style="margin:0">Mi tarjeta</h1>
     <div class="help-inline">
@@ -300,6 +304,7 @@
             <button type="button" class="help-btn" id="close-help" aria-label="Cerrar ayuda">Cerrar</button>
           </div>
         </div>
+        <!-- admin viewer moved below so it's not nested inside the generic help wrapper -->
         <div class="help-stage" id="help-stage">
           <img
             id="help-image"
@@ -312,6 +317,27 @@
         </div>
       </div>
     </div>
+
+    @if($isAdmin)
+    <div id="tarjetas-help-viewer-admin" class="help-viewer" aria-hidden="true" style="display:none;">
+      <div class="help-viewer-backdrop" id="tarjetas-help-backdrop-admin"></div>
+      <div class="help-viewer-panel" role="dialog" aria-modal="true" aria-label="Guía Tarjetas (admin)">
+        <div class="help-toolbar">
+          <strong>Guía rápida — Tarjetas (admin)</strong>
+          <div class="help-controls">
+            <button type="button" class="help-btn" id="tarjetas-help-zoom-out-admin" aria-label="Alejar">-</button>
+            <button type="button" class="help-btn" id="tarjetas-help-zoom-reset-admin" aria-label="Restablecer zoom">100%</button>
+            <button type="button" class="help-btn" id="tarjetas-help-zoom-in-admin" aria-label="Acercar">+</button>
+            <button type="button" class="help-btn" id="tarjetas-help-close-admin" aria-label="Cerrar ayuda">Cerrar</button>
+          </div>
+        </div>
+        <div class="help-stage" id="tarjetas-help-stage-admin">
+          <img id="tarjetas-help-image-admin" class="help-image" src="{{ asset('tutorial_imgs/admin/Tarjetas.png') }}" alt="Tutorial Tarjetas admin" draggable="false" />
+          <span class="help-hint">Rueda para zoom, arrastra para mover, clic fuera para salir</span>
+        </div>
+      </div>
+    </div>
+    @endif
   @if($isAdmin)
     <div class="card">
       <div style="overflow:auto;">
@@ -910,6 +936,43 @@
 
         applyTransform();
       });
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      try {
+        const openBtn = document.getElementById('tarjetas-help-open-btn-admin');
+        const openLink = document.getElementById('tarjetas-help-open-link-admin');
+        const viewer = document.getElementById('tarjetas-help-viewer-admin');
+        const backdrop = document.getElementById('tarjetas-help-backdrop-admin');
+        const closeBtn = document.getElementById('tarjetas-help-close-admin');
+        const zoomIn = document.getElementById('tarjetas-help-zoom-in-admin');
+        const zoomOut = document.getElementById('tarjetas-help-zoom-out-admin');
+        const zoomReset = document.getElementById('tarjetas-help-zoom-reset-admin');
+        const stage = document.getElementById('tarjetas-help-stage-admin');
+        const img = document.getElementById('tarjetas-help-image-admin');
+        console.log('Tarjetas admin help init', { openBtnExists: !!openBtn, openLinkExists: !!openLink, viewerExists: !!viewer, imgExists: !!img });
+        if (!viewer || !img) return;
+        let isOpen = false; let scale = 1; let x = 0; let y = 0; let dragging = false; let sx = 0; let sy = 0;
+        function apply(){ img.style.transform = 'translate(-50%,-50%) translate(' + x + 'px,' + y + 'px) scale(' + scale + ')'; if (zoomReset) zoomReset.textContent = Math.round(scale*100)+'%'; }
+        function openViewer(){ if (isOpen) return; isOpen = true; viewer.classList.add('open'); viewer.setAttribute('aria-hidden','false'); viewer.style.display='block'; scale = 1; x=0; y=0; apply(); console.log('tarjetas: viewer opened'); }
+        function closeViewer(){ if (!isOpen) return; isOpen = false; viewer.classList.remove('open'); viewer.setAttribute('aria-hidden','true'); setTimeout(()=> viewer.style.display='none',180); console.log('tarjetas: viewer closed'); }
+        openBtn?.addEventListener('click', function(e){ try{ e.preventDefault(); isOpen ? closeViewer() : openViewer(); }catch(err){ console.error('tarjetas openBtn handler error', err); } });
+        openLink?.addEventListener('click', function(e){ try{ e.preventDefault(); isOpen ? closeViewer() : openViewer(); }catch(err){ console.error('tarjetas openLink handler error', err); } });
+        closeBtn?.addEventListener('click', function(e){ try{ e.preventDefault(); closeViewer(); }catch(err){ console.error('tarjetas closeBtn handler error', err); } });
+        viewer.addEventListener('click', function(e){ try{ if (e.target === viewer || e.target === backdrop) closeViewer(); }catch(err){ console.error('tarjetas viewer click error', err); } });
+        zoomIn?.addEventListener('click', function(){ scale = Math.min(4, scale + 0.2); apply(); });
+        zoomOut?.addEventListener('click', function(){ scale = Math.max(1, scale - 0.2); apply(); });
+        zoomReset?.addEventListener('click', function(){ scale = 1; x = 0; y = 0; apply(); });
+        stage?.addEventListener('wheel', function(e){ if (!isOpen) return; e.preventDefault(); scale = Math.min(4, Math.max(1, scale + (e.deltaY < 0 ? 0.18 : -0.18))); apply(); }, { passive:false });
+        stage?.addEventListener('mousedown', function(e){ if (scale <= 1) return; dragging = true; sx = e.clientX; sy = e.clientY; stage.classList.add('dragging'); });
+        window.addEventListener('mousemove', function(e){ if (!dragging) return; x += e.clientX - sx; y += e.clientY - sy; sx = e.clientX; sy = e.clientY; apply(); });
+        window.addEventListener('mouseup', function(){ if (dragging){ dragging = false; stage.classList.remove('dragging'); } });
+        stage?.addEventListener('dblclick', function(){ scale = (scale > 1) ? 1 : 2; x = 0; y = 0; apply(); });
+        document.addEventListener('keydown', function(e){ if (!isOpen) return; if (e.key === 'Escape') closeViewer(); if (e.key === '+' || e.key === '=') { scale = Math.min(4, scale + 0.2); apply(); } if (e.key === '-') { scale = Math.max(1, scale - 0.2); apply(); } });
+      } catch (err) {
+        console.error('Error initializing tarjetas admin help', err);
+      }
+    });
     </script>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
